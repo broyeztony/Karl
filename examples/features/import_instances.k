@@ -16,5 +16,3 @@ log(a.get(), b.get())
 
 b.get = () -> 99
 log(a.get(), b.get())
-
-

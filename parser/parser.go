@@ -1025,19 +1025,64 @@ func (p *Parser) isLambdaParams() bool {
 func (p *Parser) braceLooksLikeObject() bool {
 	peek := p.peekToken
 	lcopy := *p.l
+
 	if peek.Type == token.LBRACE {
-		return false
+		peek = lcopy.NextToken()
+		if peek.Type == token.RBRACE {
+			// Empty literal: treat as object.
+			return true
+		}
+	} else if peek.Type == token.RBRACE {
+		// Empty literal: treat as object.
+		return true
 	}
 
-	switch peek.Type {
-	case token.RBRACE, token.DOTDOTDOT:
-		return true
-	case token.IDENT:
-		next := lcopy.NextToken()
-		return next.Type == token.COLON || next.Type == token.COMMA
-	default:
-		return false
+	depthParen := 0
+	depthBrace := 0
+	depthBracket := 0
+	tok := peek
+	for tok.Type != token.EOF {
+		if depthParen == 0 && depthBrace == 0 && depthBracket == 0 {
+			switch tok.Type {
+			case token.COLON, token.DOTDOTDOT:
+				return true
+			case token.COMMA:
+				next := lcopy.NextToken()
+				if next.Type == token.RBRACE {
+					return true
+				}
+				tok = next
+				continue
+			case token.RBRACE:
+				return false
+			}
+		}
+
+		switch tok.Type {
+		case token.LPAREN:
+			depthParen++
+		case token.RPAREN:
+			if depthParen > 0 {
+				depthParen--
+			}
+		case token.LBRACE:
+			depthBrace++
+		case token.RBRACE:
+			if depthBrace == 0 {
+				return false
+			}
+			depthBrace--
+		case token.LBRACKET:
+			depthBracket++
+		case token.RBRACKET:
+			if depthBracket > 0 {
+				depthBracket--
+			}
+		}
+
+		tok = lcopy.NextToken()
 	}
+	return false
 }
 
 func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {

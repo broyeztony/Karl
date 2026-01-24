@@ -423,7 +423,7 @@ Implementation details (current runtime):
 - `deleteFile(path)` -> Unit
 - `exists(path)` -> Bool
 - `listDir(path)` -> Array<String>
-- `http({ method, url, headers, body })` -> { status, headers, body }
+- `http({ method, url, headers, body, })` -> { status, headers, body, }
 - `done(rendezvous)` -> Unit (closes rendezvous)
 - `map()` -> Map
 - `set()` -> Set

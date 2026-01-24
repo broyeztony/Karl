@@ -120,7 +120,7 @@ let result = for n > 0 with n = 100, steps = 0 {
     steps++;
 } then {
     let msg = "took " + steps + " steps";
-    { steps, msg }
+    { steps, msg, }
 }
 
 // Breaking early (rendezvous example)
@@ -332,7 +332,8 @@ let updated = { ...person, age: 31 }
 // Shorthand property names
 let x = 10;
 let y = 20;
-let point = { x, y }  // same as { x: x, y: y }
+let point = { x, y, }  // same as { x: x, y: y }
+// Note: shorthand-only objects require a trailing comma to disambiguate from blocks.
 
 // ============================================
 // 8.5 STRING EXPRESSIONS
@@ -665,10 +666,11 @@ literal         = NUMBER | STRING | CHAR | "true" | "false" | "null" | "()" ;
 // 1. Block vs object literal
 // - "{" starts a block by default.
 // - A "{" is parsed as an object literal when:
-//   - the next token is "}" (empty object),
-//   - the next token is "...", or
-//   - the next token is IDENT followed by ":" or ",".
-// - Single-property objects must use "name: expr" or a trailing comma shorthand:
+//   - it is empty ("{}"),
+//   - it contains any top-level ":" (key/value entry),
+//   - it contains any top-level "..." spread, or
+//   - it contains a trailing comma before "}" at top level (e.g., "{ x, }", "{ x, y, }").
+// - Shorthand-only objects must use a trailing comma to disambiguate:
 //   "{ name, }" forces object literal parsing.
 // - Struct init uses IDENT object (e.g., "Point { x: 1 }") and follows the same object rules.
 
