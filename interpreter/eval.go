@@ -645,6 +645,11 @@ func (e *Evaluator) evalMemberExpression(node *ast.MemberExpression, env *Enviro
 
 	switch obj := object.(type) {
 	case *Object:
+		// Check if it's a method call
+		if node.Property.Value == "get" || node.Property.Value == "set" || node.Property.Value == "has" {
+			return e.objectMethod(obj, node.Property.Value)
+		}
+		// Otherwise, access the property
 		val, ok := obj.Pairs[node.Property.Value]
 		if !ok {
 			return nil, nil, &RuntimeError{Message: "missing property: " + node.Property.Value}
@@ -1336,6 +1341,19 @@ func (e *Evaluator) mapMethod(m *Map, name string) (Value, *Signal, error) {
 		return &Builtin{Name: name, Fn: bindReceiver(builtin.Fn, m)}, nil, nil
 	default:
 		return nil, nil, &RuntimeError{Message: "unknown map member: " + name}
+	}
+}
+
+func (e *Evaluator) objectMethod(o *Object, name string) (Value, *Signal, error) {
+	switch name {
+	case "get", "set", "has":
+		builtin := getBuiltin(name)
+		if builtin == nil {
+			return nil, nil, &RuntimeError{Message: "unknown builtin: " + name}
+		}
+		return &Builtin{Name: name, Fn: bindReceiver(builtin.Fn, o)}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "unknown object member: " + name}
 	}
 }
 

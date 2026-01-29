@@ -1013,21 +1013,39 @@ func builtinMap(e *Evaluator, args []Value) (Value, error) {
 
 func builtinMapGet(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) != 2 {
-		return nil, &RuntimeError{Message: "get expects map and key"}
+		return nil, &RuntimeError{Message: "get expects map/object and key"}
 	}
-	m, ok := args[0].(*Map)
-	if !ok {
-		return nil, &RuntimeError{Message: "get expects map as first argument"}
+	
+	switch target := args[0].(type) {
+	case *Map:
+		key, err := mapKeyForValue(args[1])
+		if err != nil {
+			return nil, err
+		}
+		val, ok := target.Pairs[key]
+		if !ok {
+			return NullValue, nil
+		}
+		return val, nil
+	case *Object:
+		// For objects, the key must be a string
+		var keyStr string
+		switch k := args[1].(type) {
+		case *String:
+			keyStr = k.Value
+		case *Char:
+			keyStr = k.Value
+		default:
+			return nil, &RuntimeError{Message: "object keys must be string"}
+		}
+		val, ok := target.Pairs[keyStr]
+		if !ok {
+			return NullValue, nil
+		}
+		return val, nil
+	default:
+		return nil, &RuntimeError{Message: "get expects map or object as first argument"}
 	}
-	key, err := mapKeyForValue(args[1])
-	if err != nil {
-		return nil, err
-	}
-	val, ok := m.Pairs[key]
-	if !ok {
-		return NullValue, nil
-	}
-	return val, nil
 }
 
 func builtinMapSet(_ *Evaluator, args []Value) (Value, error) {
@@ -1035,18 +1053,33 @@ func builtinMapSet(_ *Evaluator, args []Value) (Value, error) {
 		return &Set{Elements: make(map[MapKey]struct{})}, nil
 	}
 	if len(args) != 3 {
-		return nil, &RuntimeError{Message: "set expects no arguments or map, key, value"}
+		return nil, &RuntimeError{Message: "set expects no arguments or map/object, key, value"}
 	}
-	m, ok := args[0].(*Map)
-	if !ok {
-		return nil, &RuntimeError{Message: "set expects map as first argument"}
+	
+	switch target := args[0].(type) {
+	case *Map:
+		key, err := mapKeyForValue(args[1])
+		if err != nil {
+			return nil, err
+		}
+		target.Pairs[key] = args[2]
+		return target, nil
+	case *Object:
+		// For objects, the key must be a string
+		var keyStr string
+		switch k := args[1].(type) {
+		case *String:
+			keyStr = k.Value
+		case *Char:
+			keyStr = k.Value
+		default:
+			return nil, &RuntimeError{Message: "object keys must be string"}
+		}
+		target.Pairs[keyStr] = args[2]
+		return target, nil
+	default:
+		return nil, &RuntimeError{Message: "set expects map or object as first argument"}
 	}
-	key, err := mapKeyForValue(args[1])
-	if err != nil {
-		return nil, err
-	}
-	m.Pairs[key] = args[2]
-	return m, nil
 }
 
 func builtinSetAdd(_ *Evaluator, args []Value) (Value, error) {
@@ -1067,7 +1100,7 @@ func builtinSetAdd(_ *Evaluator, args []Value) (Value, error) {
 
 func builtinMapHas(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) != 2 {
-		return nil, &RuntimeError{Message: "has expects map or set and key"}
+		return nil, &RuntimeError{Message: "has expects map, set, or object and key"}
 	}
 	switch target := args[0].(type) {
 	case *Map:
@@ -1084,8 +1117,21 @@ func builtinMapHas(_ *Evaluator, args []Value) (Value, error) {
 		}
 		_, ok := target.Elements[key]
 		return &Boolean{Value: ok}, nil
+	case *Object:
+		// For objects, the key must be a string
+		var keyStr string
+		switch k := args[1].(type) {
+		case *String:
+			keyStr = k.Value
+		case *Char:
+			keyStr = k.Value
+		default:
+			return nil, &RuntimeError{Message: "object keys must be string"}
+		}
+		_, ok := target.Pairs[keyStr]
+		return &Boolean{Value: ok}, nil
 	default:
-		return nil, &RuntimeError{Message: "has expects map or set as first argument"}
+		return nil, &RuntimeError{Message: "has expects map, set, or object as first argument"}
 	}
 }
 
