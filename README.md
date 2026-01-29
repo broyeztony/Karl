@@ -4,67 +4,62 @@
 ### The Karl programming language
 
 ```
-// Closure:
-// `a` is a function that returns another function.
-// The inner function captures `n` from its definition scope.
-let a = n -> {
-    x -> n + x
+// Closures as first-class expressions.
+let addN = n -> x -> n + x
+let add5 = addN(5)
+add5(10)
+```
+
+```
+// Match + guards (expression-based branching).
+let tempo = 160
+let feel = match tempo {
+    case _ if tempo >= 180 -> "🔥"
+    case 120..179 -> "🎶"
+    case _ -> "chill"
 }
+feel
+```
 
-// `for` as an expression:
-// - The loop evaluates to a value.
-// - `with` declares and initializes loop-local state.
-// - The loop body mutates that state across iterations.
-// - `then` introduces the *result expression* of the loop.
-let value =
-    for i < a(3)(10) with i = 0, b = 0 {
-        log(i)
-        b = i
-        i++
-    }
-    // `then` accepts either:
-    //   - a single expression, or
-    //   - a block.
-    //
-    // In this case, `{ b, i, }` is an *object literal*.
-    // The trailing comma is required to disambiguate:
-    //   - `{ b }`      → returns `b` as the loop value
-    //   - `{ b, }`     → returns an object `{ b: b }`
-    then { b, i, }
+```
+// Blocks are expressions and return their last value.
+let computed = {
+    let x = 1
+    let y = 3
+    x + y
+}
+computed
+```
 
-log("value", value)
+```
+// Destructuring + object literals (trailing comma disambiguate from blocks).
+let track = { title: "Neon Steps", bpm: 160, }
+let { title, bpm, } = track; // semicolon prevents parser error before ... 
+{ title, bpm, } // ... returning an object literal
+```
 
-// Concurrency / async tasks:
-// - `&` starts an asynchronous computation and returns a task.
-// - Tasks are composable via `.then(...)`.
-let t0 = & http({
-    method: "GET",
-    url: "https://httpbin.org/delay/2",
-    headers: map(),
-})
+```
+// 5) `for` is an expression; `then` returns the loop value.
+let nums = [1, 2, 3, 4]
+let sum = for i < nums.length with i = 0, acc = 0 {
+    acc += nums[i]
+    i++
+} then acc
+sum
+```
 
-let t1 = t0.then(res -> {
-    // Destructure the resolved HTTP response.
-    let { status, headers, body } = res
+```
+// 6) Recoverable errors with `? { ... }`.
+let raw = "{ \"bpm\": 120 }"
+let data = decodeJson(raw) ? { bpm: 90, }
+data.bpm
+```
 
-    log("status", status)
-    log("Date", headers.get("Date"))
-
-    // Runtime error handling:
-    // `expr ? fallback` means “evaluate expr, or use fallback on error”.
-    let b = decodeJson(body) ? {}
-
-    // The last expression of the continuation
-    // becomes the resolved value of `t1`.
-    b.origin
-})
-
-// This executes immediately; the async task is still running.
-log("⌛️")
-
-// `wait` suspends until the task resolves and yields its value.
-let origin = wait t1
-origin
+```
+// 7) Async tasks (`&`) and `wait`.
+let ping = () -> { sleep(30); "ready" }
+let task = & ping()
+wait task
 ```
 
 ### CLI
