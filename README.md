@@ -76,6 +76,8 @@ Explore more examples in the `examples/` folder: [Karl Examples](examples/README
 Grab a prebuilt binary from GitHub Releases:
 [Releases](https://github.com/broyeztony/Karl/releases)
 
+Make it executable (`chmod +x <binary>`), then add it to your `PATH` or drop it in your `~/go/bin` directory.
+
 Or build from source:
 
 ```
