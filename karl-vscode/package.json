@@ -1,0 +1,53 @@
+{
+    "name": "karl-lang",
+    "displayName": "Karl Language Support",
+    "description": "Syntax highlighting and language support for the Karl programming language",
+    "version": "0.1.0",
+    "publisher": "karl-lang",
+    "icon": "images/karl-icon.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/karl-vscode"
+    },
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "keywords": [
+        "karl",
+        "concurrent",
+        "functional",
+        "programming"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "karl",
+                "aliases": [
+                    "Karl",
+                    "karl"
+                ],
+                "extensions": [
+                    ".k"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "karl",
+                "scopeName": "source.karl",
+                "path": "./syntaxes/karl.tmLanguage.json"
+            }
+        ]
+    },
+    "scripts": {
+        "package": "vsce package"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.75.0",
+        "vsce": "^2.15.0"
+    }
+}
