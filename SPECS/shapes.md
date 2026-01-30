@@ -335,7 +335,7 @@ let out = encode(user, "yaml", User)
 Example (OrderList → JSON with discounts):
 ```
 let orders = decode(ordersCsv, "csv", OrderList)
-let discounted = for orders with i = 0, out = [] {
+let discounted = for i < orders.length with i = 0, out = [] {
     let o = orders[i]
     o.amount = o.amount * 0.9
     out += [o]
