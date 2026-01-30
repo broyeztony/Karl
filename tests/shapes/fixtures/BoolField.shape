@@ -1,0 +1,2 @@
+BoolField : object
+    + value : bool

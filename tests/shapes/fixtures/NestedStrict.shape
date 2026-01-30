@@ -1,0 +1,3 @@
+NestedStrict : object
+    + parent : object
+        + allowed : string

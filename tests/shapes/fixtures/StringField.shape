@@ -1,0 +1,2 @@
+StringField : object
+    + value : string

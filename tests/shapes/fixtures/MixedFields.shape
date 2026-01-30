@@ -1,0 +1,4 @@
+MixedFields : object
+    + required1 : string
+    - optional1 : string
+    + required2 : int

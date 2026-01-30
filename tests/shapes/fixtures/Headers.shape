@@ -1,0 +1,5 @@
+Headers : object
+    + contentType(Content-Type) : string
+    + xApiKey(X-API-KEY) : string
+    + userAgent(User Agent) : string
+    + xRequestId(X-Request-ID) : string
