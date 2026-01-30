@@ -23,10 +23,14 @@ They keep Karl objects as fixed-field records while supporting alias mapping for
 ShapeName : Type
 ```
 
+Multiple shapes can appear in the same file (one per top-level line).
+
 Examples:
 ```
 HttpResponse : object
 Vehicules    : string[]
+Color        : object
+Colors       : Color[]
 ```
 
 ### Field declarations
@@ -57,6 +61,10 @@ Containers:
 - `object`
 - `T[]` (array of T)
 
+Named references:
+- `TypeName` (reference another shape declared in the same file)
+- References are resolved **within the same file** only.
+
 If the declared type is `object`, nested field declarations must be indented beneath it.
 If the declared type is `object[]`, nested field declarations describe the **array element shape**.
 
@@ -75,7 +83,19 @@ Shapes are imported directly (no factory call):
 let HttpResponse = import "./shapes/HttpResponse.shape"
 ```
 
-The imported value is a **shape object** that can be used with `as`,
+If the file declares **one** shape, the imported value is a **shape object** that can be used with `as`.
+If the file declares **multiple** shapes, the imported value is an **object** whose properties
+are shape values keyed by their declaration names.
+
+Examples:
+```
+let Colors = import "./shapes/Colors.shape"
+let shapes = import "./shapes/palette.shape"
+let Color = shapes.Color
+let parsed = decodeJson(res.body) as shapes.HttpResponse
+```
+
+Shape values can be used with `as`,
 or called like a function to shape a value. `value as Shape` is
 syntactic sugar for `Shape(value)`:
 

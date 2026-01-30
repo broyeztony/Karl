@@ -11,15 +11,15 @@ import (
 
 type shapeState struct {
 	mu      sync.Mutex
-	loaded  map[string]*shape.Shape
+	loaded  map[string]*shape.File
 	loading map[string]bool
 }
 
 func newShapeState() *shapeState {
-	return &shapeState{loaded: make(map[string]*shape.Shape), loading: make(map[string]bool)}
+	return &shapeState{loaded: make(map[string]*shape.File), loading: make(map[string]bool)}
 }
 
-func (e *Evaluator) loadShape(path string) (*shape.Shape, error) {
+func (e *Evaluator) loadShape(path string) (*shape.File, error) {
 	resolved := filepath.Clean(path)
 	if abs, err := filepath.Abs(resolved); err == nil {
 		resolved = abs
@@ -51,7 +51,7 @@ func (e *Evaluator) loadShape(path string) (*shape.Shape, error) {
 	if err != nil {
 		return nil, &RuntimeError{Message: fmt.Sprintf("shape read error: %v", err)}
 	}
-	sh, err := shape.Parse(string(data))
+	sh, err := shape.ParseFile(string(data))
 	if err != nil {
 		return nil, &RuntimeError{Message: err.Error()}
 	}

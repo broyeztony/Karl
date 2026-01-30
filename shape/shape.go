@@ -12,6 +12,7 @@ const (
 	KindAny
 	KindObject
 	KindArray
+	KindRef
 	KindUnion // reserved for future union-based types
 )
 
@@ -21,6 +22,7 @@ type Type struct {
 	Elem    *Type
 	Fields  []Field
 	Options []*Type // reserved for future union-based types
+	RefName string
 }
 
 // Field is a named entry in an object shape.
@@ -35,6 +37,13 @@ type Field struct {
 type Shape struct {
 	Name string
 	Type *Type
+}
+
+// File is the parsed representation of a .shape file.
+// It may contain multiple top-level shapes.
+type File struct {
+	Shapes []*Shape
+	ByName map[string]*Shape
 }
 
 // ObjectType returns the underlying object type used for fields,
@@ -70,6 +79,8 @@ func (k TypeKind) String() string {
 		return "object"
 	case KindArray:
 		return "array"
+	case KindRef:
+		return "ref"
 	case KindUnion:
 		return "union"
 	default:

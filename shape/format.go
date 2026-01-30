@@ -21,17 +21,55 @@ func Format(s *Shape) string {
 	return b.String()
 }
 
+// FormatFile renders all shapes in a .shape file.
+func FormatFile(f *File) string {
+	if f == nil || len(f.Shapes) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for i, sh := range f.Shapes {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(Format(sh))
+	}
+	return b.String()
+}
+
 // FormatJSON renders the shape as JSON.
 func FormatJSON(s *Shape) (string, error) {
+	out := shapeJSON(s)
+	b, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// FormatJSONFile renders all shapes in a .shape file as JSON.
+func FormatJSONFile(f *File) (string, error) {
+	if f == nil {
+		return "", nil
+	}
+	shapes := make([]interface{}, 0, len(f.Shapes))
+	for _, sh := range f.Shapes {
+		shapes = append(shapes, shapeJSON(sh))
+	}
 	out := map[string]interface{}{
-		"name": s.Name,
-		"type": toJSONType(s.Type),
+		"shapes": shapes,
 	}
 	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
+}
+
+func shapeJSON(s *Shape) map[string]interface{} {
+	return map[string]interface{}{
+		"name": s.Name,
+		"type": toJSONType(s.Type),
+	}
 }
 
 func typeLabel(t *Type) string {
@@ -56,6 +94,11 @@ func typeLabel(t *Type) string {
 		return "any"
 	case KindObject:
 		return "object"
+	case KindRef:
+		if t.RefName != "" {
+			return t.RefName
+		}
+		return "ref"
 	case KindUnion:
 		return "union"
 	default:
@@ -118,6 +161,8 @@ func toJSONType(t *Type) interface{} {
 			opts = append(opts, toJSONType(opt))
 		}
 		out["options"] = opts
+	case KindRef:
+		out["ref"] = t.RefName
 	}
 	return out
 }

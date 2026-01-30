@@ -559,7 +559,8 @@ log(util.greet("karl"))
 // - Dependency manager support is out of scope for now.
 
 // Shapes (.shape files)
-// - `import "path.shape"` returns a **shape value** (not a factory).
+// - If the file declares one shape, `import "path.shape"` returns a **shape value** (not a factory).
+// - If the file declares multiple shapes, the import returns an **object** of shape values by name.
 // - Shapes describe record-like objects with required/optional fields and optional aliases.
 // - Apply a shape with `value as Shape` or `Shape(value)`; both are equivalent.
 // - Shape application is recoverable (`? { ... }` can handle failures).

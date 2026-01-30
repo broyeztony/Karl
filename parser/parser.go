@@ -759,8 +759,31 @@ func (p *Parser) parseRecoverExpression(left ast.Expression) ast.Expression {
 func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	asToken := p.curToken
 	p.nextToken()
-	shape := p.parseExpression(POSTFIX)
+	shape := p.parseShapeExpression()
 	return &ast.AsExpression{Token: asToken, Value: left, Shape: shape}
+}
+
+func (p *Parser) parseShapeExpression() ast.Expression {
+	prefix := p.prefixParseFns[p.curToken.Type]
+	if prefix == nil {
+		p.noPrefixParseFnError(p.curToken.Type)
+		return nil
+	}
+	leftExp := prefix()
+	for !p.peekTokenIs(token.SEMICOLON) {
+		switch p.peekToken.Type {
+		case token.LPAREN, token.LBRACKET, token.DOT, token.INCREMENT, token.DECREMENT:
+			p.nextToken()
+			infix := p.infixParseFns[p.curToken.Type]
+			if infix == nil {
+				return leftExp
+			}
+			leftExp = infix(leftExp)
+		default:
+			return leftExp
+		}
+	}
+	return leftExp
 }
 
 func (p *Parser) parseMemberExpression(left ast.Expression) ast.Expression {

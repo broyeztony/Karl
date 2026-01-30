@@ -69,16 +69,16 @@ func parseCommand(args []string) int {
 	}
 	filename := displayName(positional[0])
 	if isShapeFile(filename) {
-		sh, err := shape.Parse(string(data))
+		sh, err := shape.ParseFile(string(data))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			return 1
 		}
 		switch format {
 		case "pretty":
-			fmt.Print(shape.Format(sh))
+			fmt.Print(shape.FormatFile(sh))
 		case "json":
-			out, err := shape.FormatJSON(sh)
+			out, err := shape.FormatJSONFile(sh)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "format error: %v\n", err)
 				return 1
@@ -147,13 +147,15 @@ func runCommand(args []string) int {
 		fmt.Fprintln(os.Stderr, interpreter.FormatRuntimeError(err, string(data), filename))
 		return 1
 	}
-	fmt.Println(val.Inspect())
+	if val != nil && val.Type() != interpreter.UNIT {
+		fmt.Println(val.Inspect())
+	}
 	return 0
 }
 
 func parseUsage() {
 	fmt.Fprintf(os.Stderr, "Usage:\n")
-	fmt.Fprintf(os.Stderr, "  karl parse <file.k> [--format=pretty|json]\n")
+	fmt.Fprintf(os.Stderr, "  karl parse <file.k|file.shape> [--format=pretty|json]\n")
 	fmt.Fprintf(os.Stderr, "  <file> can be '-' to read from stdin\n")
 	fmt.Fprintf(os.Stderr, "\nOptions:\n")
 	fmt.Fprintf(os.Stderr, "  --format string   output format: pretty|json (default \"pretty\")\n")

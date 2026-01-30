@@ -70,3 +70,38 @@ func TestIndentationError(t *testing.T) {
 		t.Fatalf("expected indentation error")
 	}
 }
+
+func TestParseFileMultipleShapes(t *testing.T) {
+	input := `Color : object
+    + name : string
+Colors : Color[]`
+	file, err := ParseFile(input)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(file.Shapes) != 2 {
+		t.Fatalf("expected 2 shapes, got %d", len(file.Shapes))
+	}
+	color := file.ByName["Color"]
+	if color == nil || color.Type.Kind != KindObject {
+		t.Fatalf("expected Color object shape")
+	}
+	colors := file.ByName["Colors"]
+	if colors == nil || colors.Type.Kind != KindArray {
+		t.Fatalf("expected Colors array shape")
+	}
+	if colors.Type.Elem == nil || colors.Type.Elem.Kind != KindObject {
+		t.Fatalf("expected Colors to reference Color object")
+	}
+	if len(colors.Type.Elem.Fields) != 1 {
+		t.Fatalf("expected referenced object fields to be resolved")
+	}
+}
+
+func TestParseFileUnknownReference(t *testing.T) {
+	input := `Colors : Color[]`
+	_, err := ParseFile(input)
+	if err == nil {
+		t.Fatalf("expected unknown type error")
+	}
+}

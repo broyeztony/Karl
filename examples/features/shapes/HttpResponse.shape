@@ -1,5 +1,5 @@
 HttpResponse : object
     + status : int
     + headers : object
-        + acceptEncoding(Accept-Encoding) : string
-        - userAgent(User Agent)          : string
+        + acceptEncoding(Accept-Encoding)   : string
+        - userAgent(User Agent)             : string

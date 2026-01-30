@@ -196,7 +196,9 @@ let parsed = decodeJson(raw) ? {
 
 ### Shapes (`.shape`)
 
-- Shapes are imported from `.shape` files and return a **shape value**.
+- Shapes are imported from `.shape` files.
+- If a file declares **one** shape, the import returns a **shape value**.
+- If a file declares **multiple** shapes, the import returns an **object** of shape values by name.
 - Apply a shape with `value as Shape` or `Shape(value)` (equivalent).
 - Shape application validates required/optional fields and maps aliases.
 - Missing required fields produce **recoverable errors**.

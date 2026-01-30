@@ -40,11 +40,19 @@ func (e *Evaluator) evalImportExpression(node *ast.ImportExpression, _ *Environm
 		return nil, nil, &RuntimeError{Message: "import path error: " + err.Error()}
 	}
 	if strings.HasSuffix(path, ".shape") {
-		sh, err := e.loadShape(path)
+		shFile, err := e.loadShape(path)
 		if err != nil {
 			return nil, nil, err
 		}
-		return &ShapeValue{Name: sh.Name, Shape: sh.Type}, nil, nil
+		if len(shFile.Shapes) == 1 {
+			sh := shFile.Shapes[0]
+			return &ShapeValue{Name: sh.Name, Shape: sh.Type}, nil, nil
+		}
+		pairs := make(map[string]Value, len(shFile.Shapes))
+		for _, sh := range shFile.Shapes {
+			pairs[sh.Name] = &ShapeValue{Name: sh.Name, Shape: sh.Type}
+		}
+		return &Object{Pairs: pairs}, nil, nil
 	}
 	module, err := e.loadModule(path)
 	if err != nil {
