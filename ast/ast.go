@@ -261,15 +261,6 @@ type RecoverExpression struct {
 func (re *RecoverExpression) expressionNode()      {}
 func (re *RecoverExpression) TokenLiteral() string { return re.Token.Literal }
 
-type AsExpression struct {
-	Token token.Token
-	Value Expression
-	Shape Expression
-}
-
-func (ae *AsExpression) expressionNode()      {}
-func (ae *AsExpression) TokenLiteral() string { return ae.Token.Literal }
-
 type MemberExpression struct {
 	Token    token.Token
 	Object   Expression

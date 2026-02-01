@@ -1,5 +1,0 @@
-Color : object
-    + name  : string
-    + value : string
-
-Colors : Color[]

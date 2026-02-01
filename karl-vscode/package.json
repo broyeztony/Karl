@@ -2,7 +2,7 @@
     "name": "karl-lang",
     "displayName": "Karl Language Support",
     "description": "Syntax highlighting and language support for the Karl programming language",
-    "version": "0.1.1",
+    "version": "0.1.0",
     "publisher": "karl-lang",
     "icon": "images/karl-icon.png",
     "repository": {
@@ -33,17 +33,6 @@
                     ".k"
                 ],
                 "configuration": "./language-configuration.json"
-            },
-            {
-                "id": "karl-shape",
-                "aliases": [
-                    "Karl Shape",
-                    "karl-shape"
-                ],
-                "extensions": [
-                    ".shape"
-                ],
-                "configuration": "./language-configuration.json"
             }
         ],
         "grammars": [
@@ -51,11 +40,6 @@
                 "language": "karl",
                 "scopeName": "source.karl",
                 "path": "./syntaxes/karl.tmLanguage.json"
-            },
-            {
-                "language": "karl-shape",
-                "scopeName": "source.karl.shape",
-                "path": "./syntaxes/karl-shape.tmLanguage.json"
             }
         ]
     },

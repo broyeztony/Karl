@@ -159,7 +159,6 @@ Ordering requires comparable keys; otherwise runtime error.
 ### Import
 
 - `import "path"` returns a zero-argument factory function.
-- `import "path.shape"` returns a **shape value** (callable).
 - Calling the factory evaluates the module in a fresh environment and returns an object of its top-level `let` bindings.
 - The returned object is a live view of the module environment; assignments update that instance.
 - Path resolution is relative to the project root.
@@ -176,14 +175,14 @@ Ordering requires comparable keys; otherwise runtime error.
 
 ### Recoverable errors (`? { ... }`)
 
-- Only call expressions or shape applications may use `? { ... }`.
+- Only call expressions may use `? { ... }`.
 - If the call succeeds, its value is returned.
 - If the call fails with a recoverable error, the block runs and its value is returned.
 - Inside the block, `error` is bound to `{ kind: String, message: String }`.
 - Non-recoverable runtime errors still call `exit()` immediately.
 
 Recoverable error sources:
-- `decodeJson`, `readFile`, `writeFile`, `appendFile`, `deleteFile`, `exists`, `listDir`, `http`, `fail`, shape application (`as`).
+- `decodeJson`, `readFile`, `writeFile`, `appendFile`, `deleteFile`, `exists`, `listDir`, `http`, `fail`.
 
 Example:
 
@@ -193,18 +192,6 @@ let parsed = decodeJson(raw) ? {
     { foo: "default" }
 }
 ```
-
-### Shapes (`.shape`)
-
-- Shapes are imported from `.shape` files.
-- If a file declares **one** shape, the import returns a **shape value**.
-- If a file declares **multiple** shapes, the import returns an **object** of shape values by name.
-- Apply a shape with `value as Shape` or `Shape(value)` (equivalent).
-- Shape application validates required/optional fields and maps aliases.
-- Missing required fields produce **recoverable errors**.
-- Missing optional fields become `null`.
-- Fields not declared in the shape are dropped during shaping.
-- `encodeJson` uses alias names when a value has shape metadata.
 
 ## Pattern Matching Semantics
 
@@ -430,7 +417,6 @@ Implementation details (current runtime):
 - `parseInt(string)` -> Int
 - `encodeJson(value)` -> String
 - `decodeJson(text)` -> Value
-- `jsonPath(value, path)` -> Value or `null`
 - `readFile(path)` -> String
 - `writeFile(path, data)` -> Unit
 - `appendFile(path, data)` -> Unit

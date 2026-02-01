@@ -12,19 +12,18 @@ type Evaluator struct {
 	filename    string
 	projectRoot string
 	modules     *moduleState
-	shapes      *shapeState
 }
 
 func NewEvaluator() *Evaluator {
-	return &Evaluator{modules: newModuleState(), shapes: newShapeState()}
+	return &Evaluator{modules: newModuleState()}
 }
 
 func NewEvaluatorWithSource(source string) *Evaluator {
-	return &Evaluator{source: source, modules: newModuleState(), shapes: newShapeState()}
+	return &Evaluator{source: source, modules: newModuleState()}
 }
 
 func NewEvaluatorWithSourceAndFilename(source string, filename string) *Evaluator {
-	return &Evaluator{source: source, filename: filename, modules: newModuleState(), shapes: newShapeState()}
+	return &Evaluator{source: source, filename: filename, modules: newModuleState()}
 }
 
 func NewEvaluatorWithSourceFilenameAndRoot(source string, filename string, root string) *Evaluator {
@@ -33,7 +32,6 @@ func NewEvaluatorWithSourceFilenameAndRoot(source string, filename string, root 
 		filename:    filename,
 		projectRoot: root,
 		modules:     newModuleState(),
-		shapes:      newShapeState(),
 	}
 }
 
@@ -128,8 +126,6 @@ func (e *Evaluator) evalNode(node ast.Node, env *Environment) (Value, *Signal, e
 		return e.evalImportExpression(n, env)
 	case *ast.RecoverExpression:
 		return e.evalRecoverExpression(n, env)
-	case *ast.AsExpression:
-		return e.evalAsExpression(n, env)
 	case *ast.IfExpression:
 		return e.evalIfExpression(n, env)
 	case *ast.BlockExpression:
@@ -469,23 +465,6 @@ func (e *Evaluator) evalRecoverExpression(node *ast.RecoverExpression, env *Envi
 	fallbackEnv := NewEnclosedEnvironment(env)
 	fallbackEnv.Define("error", recoverableErrorValue(re))
 	return e.Eval(node.Fallback, fallbackEnv)
-}
-
-func (e *Evaluator) evalAsExpression(node *ast.AsExpression, env *Environment) (Value, *Signal, error) {
-	val, sig, err := e.Eval(node.Value, env)
-	if err != nil || sig != nil {
-		return val, sig, err
-	}
-	shapeVal, sig, err := e.Eval(node.Shape, env)
-	if err != nil || sig != nil {
-		return shapeVal, sig, err
-	}
-	shapeObj, ok := shapeVal.(*ShapeValue)
-	if !ok {
-		return nil, nil, &RuntimeError{Message: "as expects a shape"}
-	}
-	out, err := applyShape(val, shapeObj.Shape)
-	return out, nil, err
 }
 
 func (e *Evaluator) evalIfExpression(node *ast.IfExpression, env *Environment) (Value, *Signal, error) {
@@ -1276,12 +1255,6 @@ func (e *Evaluator) applyFunction(fn Value, args []Value) (Value, *Signal, error
 			return nil, nil, &RuntimeError{Message: "too many arguments for partial"}
 		}
 		return e.applyFunction(f.Target, filled)
-	case *ShapeValue:
-		if len(args) != 1 {
-			return nil, nil, &RuntimeError{Message: "shape expects 1 argument"}
-		}
-		val, err := applyShape(args[0], f.Shape)
-		return val, nil, err
 	default:
 		return nil, nil, &RuntimeError{Message: "not a function"}
 	}

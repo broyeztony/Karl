@@ -48,7 +48,7 @@
                 },
                 {
                     "name": "keyword.other.karl",
-                    "match": "\\b(let|import|from|in|where|orderby|select|as)\\b"
+                    "match": "\\b(let|import|from|in|where|orderby|select)\\b"
                 },
                 {
                     "name": "keyword.operator.async.karl",
@@ -150,7 +150,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.karl",
-                    "match": "\\b(log|sleep|fail|http|decodeJson|encodeJson|jsonPath|map|set|rendezvous)\\b"
+                    "match": "\\b(log|sleep|fail|http|decodeJson|encodeJson|map|set|rendezvous)\\b"
                 },
                 {
                     "name": "support.function.string.karl",

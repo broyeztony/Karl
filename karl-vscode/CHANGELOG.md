@@ -2,13 +2,6 @@
 
 All notable changes to the "Karl Language Support" extension will be documented in this file.
 
-## [0.1.1] - 2026-01-30
-
-### Added
-- Syntax highlighting for `.shape` files (Karl shapes)
-- New `as` keyword highlight
-- Built-in highlight for `jsonPath`
-
 ## [0.1.0] - 2026-01-29
 
 ### Added

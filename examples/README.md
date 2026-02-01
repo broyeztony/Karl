@@ -20,8 +20,6 @@ Each example is intended to be standalone and to demonstrate one specific featur
 - `examples/features/struct_init.k` - struct init syntax sugar
 - `examples/features/ranges_slices.k` - ranges and slices
 - `examples/features/error_handling.k` - recoverable errors with `? {}` and `fail()`
-- `examples/features/json.k` - decode/query/shape/encode JSON
-- `examples/features/shapes.k` - shape-based decoding with aliases
 - `examples/features/concurrency_basic.k` - `&`, `|`, `then`, `wait`
 - `examples/features/concurrency_advanced.k` - rendezvous send/recv
 - `examples/features/import_module.k` - module to import

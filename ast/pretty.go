@@ -128,18 +128,6 @@ func (p *printer) writeNode(node Node) {
 		p.writeNode(n.Fallback)
 		p.indent--
 		p.indent--
-	case *AsExpression:
-		p.line("As")
-		p.indent++
-		p.line("Value:")
-		p.indent++
-		p.writeNode(n.Value)
-		p.indent--
-		p.line("Shape:")
-		p.indent++
-		p.writeNode(n.Shape)
-		p.indent--
-		p.indent--
 	case *IfExpression:
 		p.line("If")
 		p.indent++

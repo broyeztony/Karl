@@ -119,8 +119,6 @@ func tokenFromNode(node ast.Node) *token.Token {
 		return &n.Token
 	case *ast.RecoverExpression:
 		return &n.Token
-	case *ast.AsExpression:
-		return &n.Token
 	case *ast.IfExpression:
 		return &n.Token
 	case *ast.BlockExpression:
