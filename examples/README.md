@@ -16,6 +16,7 @@ Each example is intended to be standalone and to demonstrate one specific featur
 - `examples/features/sets_basic.k` - set add/has/delete/values/size
 - `examples/features/strings_basic.k` - string helpers
 - `examples/features/objects_basic.k` - object literals + spread
+- `examples/features/object_indexing.k` - bracket access for non-identifier keys
 - `examples/features/object_disambiguation.k` - object vs block disambiguation
 - `examples/features/struct_init.k` - struct init syntax sugar
 - `examples/features/ranges_slices.k` - ranges and slices

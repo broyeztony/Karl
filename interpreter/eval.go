@@ -677,19 +677,43 @@ func (e *Evaluator) evalIndexExpression(node *ast.IndexExpression, env *Environm
 		return indexVal, sig, err
 	}
 
-	arr, ok := left.(*Array)
-	if !ok {
-		return nil, nil, &RuntimeError{Message: "indexing requires array"}
+	switch indexed := left.(type) {
+	case *Array:
+		idx, ok := indexVal.(*Integer)
+		if !ok {
+			return nil, nil, &RuntimeError{Message: "index must be integer"}
+		}
+		i := int(idx.Value)
+		if i < 0 || i >= len(indexed.Elements) {
+			return nil, nil, &RuntimeError{Message: "index out of bounds"}
+		}
+		return indexed.Elements[i], nil, nil
+	case *Object:
+		key, ok := objectIndexKey(indexVal)
+		if !ok {
+			return nil, nil, &RuntimeError{Message: "object index must be string or char"}
+		}
+		val, ok := indexed.Pairs[key]
+		if !ok {
+			return nil, nil, &RuntimeError{Message: "missing property: " + key}
+		}
+		return val, nil, nil
+	case *ModuleObject:
+		if indexed.Env == nil {
+			return nil, nil, &RuntimeError{Message: "indexing requires array or object"}
+		}
+		key, ok := objectIndexKey(indexVal)
+		if !ok {
+			return nil, nil, &RuntimeError{Message: "object index must be string or char"}
+		}
+		val, ok := indexed.Env.GetLocal(key)
+		if !ok {
+			return nil, nil, &RuntimeError{Message: "missing property: " + key}
+		}
+		return val, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "indexing requires array or object"}
 	}
-	idx, ok := indexVal.(*Integer)
-	if !ok {
-		return nil, nil, &RuntimeError{Message: "index must be integer"}
-	}
-	i := int(idx.Value)
-	if i < 0 || i >= len(arr.Elements) {
-		return nil, nil, &RuntimeError{Message: "index out of bounds"}
-	}
-	return arr.Elements[i], nil, nil
 }
 
 func (e *Evaluator) evalSliceExpression(node *ast.SliceExpression, env *Environment) (Value, *Signal, error) {
@@ -1153,25 +1177,53 @@ func (e *Evaluator) resolveAssignable(node ast.Expression, env *Environment) (Va
 		if err != nil || sig != nil {
 			return nil, nil, err
 		}
-		arr, ok := left.(*Array)
-		if !ok {
-			return nil, nil, &RuntimeError{Message: "index assignment requires array"}
-		}
 		indexVal, sig, err := e.Eval(n.Index, env)
 		if err != nil || sig != nil {
 			return nil, nil, err
 		}
-		idx, ok := indexVal.(*Integer)
-		if !ok {
-			return nil, nil, &RuntimeError{Message: "index must be integer"}
+		switch indexed := left.(type) {
+		case *Array:
+			idx, ok := indexVal.(*Integer)
+			if !ok {
+				return nil, nil, &RuntimeError{Message: "index must be integer"}
+			}
+			i := int(idx.Value)
+			if i < 0 || i >= len(indexed.Elements) {
+				return nil, nil, &RuntimeError{Message: "index out of bounds"}
+			}
+			return indexed.Elements[i], func(v Value) { indexed.Elements[i] = v }, nil
+		case *Object:
+			key, ok := objectIndexKey(indexVal)
+			if !ok {
+				return nil, nil, &RuntimeError{Message: "object index must be string or char"}
+			}
+			return indexed.Pairs[key], func(v Value) { indexed.Pairs[key] = v }, nil
+		case *ModuleObject:
+			if indexed.Env == nil {
+				return nil, nil, &RuntimeError{Message: "index assignment requires array or object"}
+			}
+			key, ok := objectIndexKey(indexVal)
+			if !ok {
+				return nil, nil, &RuntimeError{Message: "object index must be string or char"}
+			}
+			val, _ := indexed.Env.GetLocal(key)
+			return val, func(v Value) { indexed.Env.Define(key, v) }, nil
+		default:
+			return nil, nil, &RuntimeError{Message: "index assignment requires array or object"}
 		}
-		i := int(idx.Value)
-		if i < 0 || i >= len(arr.Elements) {
-			return nil, nil, &RuntimeError{Message: "index out of bounds"}
-		}
-		return arr.Elements[i], func(v Value) { arr.Elements[i] = v }, nil
 	default:
 		return nil, nil, &RuntimeError{Message: "invalid assignment target"}
+	}
+}
+
+func objectIndexKey(index Value) (string, bool) {
+	switch v := index.(type) {
+	case *String:
+		return v.Value, true
+	case *Char:
+		return v.Value, true
+	default:
+		return "", false
 	}
 }
 

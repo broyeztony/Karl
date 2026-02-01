@@ -102,6 +102,9 @@ Proposed algorithm:
 
 - Assignment is an expression; it evaluates to the assigned value.
 - Supported lvalues: identifiers, member access, index access.
+- Index assignment rules:
+  - Arrays require an integer index in bounds.
+  - Objects/module objects require a string or char key (`obj["x-y"] = v`).
 - `++`/`--` are postfix and evaluate to the updated value.
 
 ### Lambdas and calls
@@ -119,6 +122,7 @@ Proposed algorithm:
 ### Member access and indexing
 
 - `obj.field` reads a property; missing property is a runtime error.
+- `obj["field-name"]` reads a property by string/char key; missing property is a runtime error.
 - `arr[i]` reads by index; out-of-bounds is a runtime error.
 - Slice `arr[i..j]` returns a new array.
 

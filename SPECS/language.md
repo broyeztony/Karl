@@ -264,6 +264,11 @@ let m = n++;  // m is 1, n is 1
 // Assignment targets are identifiers, member access, or index access
 user.name = "Ada"
 items[0] += 1
+user["display-name"] = "Ada L."
+
+// Index access rules:
+// - Arrays require integer indices.
+// - Objects accept string/char keys (useful for non-identifier external fields).
 
 // Equality:
 // - `==` is strict identity for composite values (arrays/objects/maps/sets/tasks/rendezvous).
@@ -413,6 +418,9 @@ let sub = list[1..5]
 let reversed = list[..-1]
 let tail = list[1..]
 let head = list[..5]
+
+// Object key indexing
+let contentType = headers["Content-Type"]
 
 // Slice semantics:
 // - Half-open bounds: list[start..end] includes start, excludes end.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"karl/interpreter"
@@ -207,6 +208,51 @@ func TestEvalEncodeDecodeJSON(t *testing.T) {
 		}},
 	}}
 	assertEquivalent(t, val, expected)
+}
+
+func TestEvalObjectStringIndexRead(t *testing.T) {
+	val := mustEval(t, `let obj = decodeJson("{\"a-field\": 42}"); obj["a-field"]`)
+	assertInteger(t, val, 42)
+}
+
+func TestEvalObjectStringIndexAssignment(t *testing.T) {
+	val := mustEval(t, `let obj = {}; obj["a-field"] = 3; obj["a-field"] += 4; obj["a-field"]`)
+	assertInteger(t, val, 7)
+}
+
+func TestEvalObjectCharIndex(t *testing.T) {
+	val := mustEval(t, `let obj = {}; obj['x'] = 1; obj["x"]`)
+	assertInteger(t, val, 1)
+}
+
+func TestEvalObjectStringIndexMissingProperty(t *testing.T) {
+	_, err := evalInput(t, `let obj = {}; obj["missing"]`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "missing property: missing") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalObjectStringIndexRequiresString(t *testing.T) {
+	_, err := evalInput(t, `let obj = { a: 1 }; obj[0]`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "object index must be string or char") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalArrayIndexStillRequiresInteger(t *testing.T) {
+	_, err := evalInput(t, `let arr = [1, 2, 3]; arr["0"]`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "index must be integer") {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
 
 func TestEvalDecodeJSONOverflow(t *testing.T) {

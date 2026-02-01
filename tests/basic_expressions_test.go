@@ -384,6 +384,36 @@ func TestExpressionKinds(t *testing.T) {
 			},
 		},
 		{
+			name:  "object_index_expression",
+			input: `obj["a-field"]`,
+			assert: func(t *testing.T, expr ast.Expression) {
+				ie, ok := expr.(*ast.IndexExpression)
+				if !ok {
+					t.Fatalf("expected IndexExpression, got %T", expr)
+				}
+				if _, ok := ie.Index.(*ast.StringLiteral); !ok {
+					t.Fatalf("expected StringLiteral, got %T", ie.Index)
+				}
+			},
+		},
+		{
+			name:  "object_index_assignment_expression",
+			input: `obj["a-field"] = 1`,
+			assert: func(t *testing.T, expr ast.Expression) {
+				ae, ok := expr.(*ast.AssignExpression)
+				if !ok {
+					t.Fatalf("expected AssignExpression, got %T", expr)
+				}
+				left, ok := ae.Left.(*ast.IndexExpression)
+				if !ok {
+					t.Fatalf("expected IndexExpression lhs, got %T", ae.Left)
+				}
+				if _, ok := left.Index.(*ast.StringLiteral); !ok {
+					t.Fatalf("expected StringLiteral index, got %T", left.Index)
+				}
+			},
+		},
+		{
 			name:  "slice_expression",
 			input: "arr[..3]",
 			assert: func(t *testing.T, expr ast.Expression) {
