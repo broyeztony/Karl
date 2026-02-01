@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"karl/shape"
 	"math"
 	"math/rand"
 	"net/http"
@@ -38,7 +37,6 @@ func RegisterBuiltins() {
 	builtins["http"] = &Builtin{Name: "http", Fn: builtinHTTP}
 	builtins["encodeJson"] = &Builtin{Name: "encodeJson", Fn: builtinEncodeJSON}
 	builtins["decodeJson"] = &Builtin{Name: "decodeJson", Fn: builtinDecodeJSON}
-	builtins["jsonPath"] = &Builtin{Name: "jsonPath", Fn: builtinJSONPath}
 	builtins["then"] = &Builtin{Name: "then", Fn: builtinThen}
 	builtins["send"] = &Builtin{Name: "send", Fn: builtinSend}
 	builtins["recv"] = &Builtin{Name: "recv", Fn: builtinRecv}
@@ -513,17 +511,11 @@ func encodeJSONValue(value Value) (interface{}, error) {
 	case *Object:
 		out := make(map[string]interface{}, len(v.Pairs))
 		for k, val := range v.Pairs {
-			key := k
-			if v.Shape != nil {
-				if alias, ok := shape.AliasFor(v.Shape, k); ok {
-					key = alias
-				}
-			}
 			enc, err := encodeJSONValue(val)
 			if err != nil {
 				return nil, err
 			}
-			out[key] = enc
+			out[k] = enc
 		}
 		return out, nil
 	case *ModuleObject:

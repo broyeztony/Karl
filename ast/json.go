@@ -174,12 +174,6 @@ func toJSON(node Node) interface{} {
 			"target":   toJSON(n.Target),
 			"fallback": toJSON(n.Fallback),
 		}
-	case *AsExpression:
-		return map[string]interface{}{
-			"type":  "AsExpression",
-			"value": toJSON(n.Value),
-			"shape": toJSON(n.Shape),
-		}
 	case *MemberExpression:
 		return map[string]interface{}{
 			"type":     "MemberExpression",

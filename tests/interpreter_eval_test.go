@@ -224,25 +224,6 @@ func TestEvalRecoverDecodeJSON(t *testing.T) {
 	assertEquivalent(t, val, expected)
 }
 
-func TestEvalJSONPath(t *testing.T) {
-	val := mustEval(t, `let body = decodeJson("{\"headers\": {\"User-Agent\": \"UA\"}, \"args\": [{\"n\": 1}] }"); [
-        jsonPath(body, "headers['User-Agent']"),
-        jsonPath(body, "args[0].n"),
-        jsonPath(body, "missing"),
-    ]`)
-	expected := &Array{Elements: []Value{
-		&String{Value: "UA"},
-		&Integer{Value: 1},
-		NullValue,
-	}}
-	assertEquivalent(t, val, expected)
-}
-
-func TestEvalJSONPathArraySegments(t *testing.T) {
-	val := mustEval(t, `let body = decodeJson("{\"headers\": {\"User-Agent\": \"UA\"}}"); jsonPath(body, ["headers", "User-Agent"])`)
-	assertString(t, val, "UA")
-}
-
 func TestEvalFailRecover(t *testing.T) {
 	val := mustEval(t, `fail("nope") ? { "fallback" }`)
 	assertString(t, val, "fallback")

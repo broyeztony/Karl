@@ -13,7 +13,6 @@ Beautiful syntax highlighting for the Karl programming language!
 - Built-in functions: `http`, `decodeJson`, `map`, `set`, `rendezvous`
 - String and number literals
 - Comments
-- Shape files (`.shape`) with field/type highlighting
 
 🎨 **Smart Formatting**
 - Auto-closing brackets, quotes, and braces
@@ -40,7 +39,6 @@ code --install-extension karl-lang-0.1.0.vsix
 ## Usage
 
 Open any `.k` file and enjoy beautiful syntax highlighting!
-Open `.shape` files for shape definitions with dedicated highlighting.
 
 ### Example Code
 
@@ -98,7 +96,7 @@ results
 - **Increment:** `++`, `--`
 
 ### Built-in Functions
-- **I/O:** `log`, `http`, `decodeJson`, `encodeJson`, `jsonPath`
+- **I/O:** `log`, `http`, `decodeJson`, `encodeJson`
 - **Concurrency:** `rendezvous`, `send`, `recv`, `done`, `then`, `wait`, `sleep`
 - **Collections:** `map`, `set`, `filter`, `reduce`, `sum`, `find`, `sort`, `length`
 - **Strings:** `trim`, `toLower`, `toUpper`, `split`, `chars`, `contains`, `startsWith`, `endsWith`, `replace`

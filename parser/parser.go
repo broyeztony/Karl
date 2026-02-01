@@ -70,7 +70,6 @@ var precedences = map[token.TokenType]int{
 	token.INCREMENT:       POSTFIX,
 	token.DECREMENT:       POSTFIX,
 	token.QUESTION:        POSTFIX,
-	token.AS:              POSTFIX,
 }
 
 func New(l *lexer.Lexer) *Parser {
@@ -125,7 +124,6 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.PERCENT_ASSIGN, p.parseAssignExpression)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.QUESTION, p.parseRecoverExpression)
-	p.registerInfix(token.AS, p.parseAsExpression)
 	p.registerInfix(token.DOT, p.parseMemberExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexOrSliceExpression)
 	p.registerInfix(token.INCREMENT, p.parsePostfixExpression)
@@ -743,47 +741,14 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 
 func (p *Parser) parseRecoverExpression(left ast.Expression) ast.Expression {
 	recoverToken := p.curToken
-	switch left.(type) {
-	case *ast.CallExpression, *ast.AsExpression:
-		// ok
-	default:
-		p.addError(recoverToken, "recover block only allowed after call or shape expression")
+	if _, ok := left.(*ast.CallExpression); !ok {
+		p.addError(recoverToken, "recover block only allowed after call expression")
 	}
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
 	fallback := p.parseBraceExpression()
 	return &ast.RecoverExpression{Token: recoverToken, Target: left, Fallback: fallback}
-}
-
-func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
-	asToken := p.curToken
-	p.nextToken()
-	shape := p.parseShapeExpression()
-	return &ast.AsExpression{Token: asToken, Value: left, Shape: shape}
-}
-
-func (p *Parser) parseShapeExpression() ast.Expression {
-	prefix := p.prefixParseFns[p.curToken.Type]
-	if prefix == nil {
-		p.noPrefixParseFnError(p.curToken.Type)
-		return nil
-	}
-	leftExp := prefix()
-	for !p.peekTokenIs(token.SEMICOLON) {
-		switch p.peekToken.Type {
-		case token.LPAREN, token.LBRACKET, token.DOT, token.INCREMENT, token.DECREMENT:
-			p.nextToken()
-			infix := p.infixParseFns[p.curToken.Type]
-			if infix == nil {
-				return leftExp
-			}
-			leftExp = infix(leftExp)
-		default:
-			return leftExp
-		}
-	}
-	return leftExp
 }
 
 func (p *Parser) parseMemberExpression(left ast.Expression) ast.Expression {

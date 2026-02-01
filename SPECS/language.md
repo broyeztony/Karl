@@ -143,19 +143,18 @@ let found = for true with msg = null {
 // Model
 // - There is no Result/Ok/Error type in the language.
 // - Unrecoverable failures call exit(message) immediately.
-// - Recoverable failures are produced by specific builtins and by shape application (see below).
+// - Recoverable failures are only allowed from specific builtin calls (see below).
 // - Use explicit checks for optional data (null or sentinel values).
 // - Missing property access or out-of-bounds index access are runtime errors and call exit(...).
 // - `wait` on a non-Task is a runtime error and calls exit(...).
 
 // Recoverable errors: postfix catch block
-// - Only call expressions or shape applications may use `? { ... }`.
+// - Only call expressions may use `? { ... }`.
 // - The call result is returned on success.
 // - If the call fails with a recoverable error, the block runs and its value is returned.
 // - Inside the block, `error` is implicitly bound to:
 //   { kind: String, message: String }.
 // - Non-recoverable errors still call exit(), even if wrapped in `? {}`.
-// - Shape application (`as` or calling a shape) produces recoverable errors.
 
 // Builtins that can produce recoverable errors:
 // decodeJson, readFile, writeFile, appendFile, deleteFile, exists, listDir, http, fail
@@ -374,8 +373,6 @@ let keys = counts.keys()                 // array of keys (order not guaranteed)
 let values = counts.values()             // array of values (order not guaranteed)
 
 // Map key types: string, char, int, bool.
-// Access JSON keys that aren't identifiers with jsonPath:
-// let ua = jsonPath(body, "headers['User-Agent']")
 
 // ============================================
 // 9.5 SET EXPRESSIONS
@@ -560,15 +557,6 @@ log(util.greet("karl"))
 // - Name collisions are the caller's responsibility (avoid duplicate paths).
 // - Dependency manager support is out of scope for now.
 
-// Shapes (.shape files)
-// - If the file declares one shape, `import "path.shape"` returns a **shape value** (not a factory).
-// - If the file declares multiple shapes, the import returns an **object** of shape values by name.
-// - Shapes describe record-like objects with required/optional fields and optional aliases.
-// - Apply a shape with `value as Shape` or `Shape(value)`; both are equivalent.
-// - Shape application is recoverable (`? { ... }` can handle failures).
-// - Only declared fields are kept; missing optional fields become `null`.
-// - Aliases map external keys to internal identifiers for decoding/encoding.
-
 // ============================================
 // MINIMAL GRAMMAR (EBNF)
 // ============================================
@@ -630,8 +618,7 @@ spawn_target    = call_expr
                 | "{" [ call_expr { "," call_expr } ] "}" ;
 
 postfix         = recover_expr ;
-recover_expr    = as_expr [ "?" recovery_block ] ;
-as_expr         = call_expr [ "as" call_expr ] ;
+recover_expr    = call_expr [ "?" recovery_block ] ;
 recovery_block  = block ; // brace expression; object literal allowed by disambiguation
 call_expr       = primary { call | member | index | inc_dec } ;
 call            = "(" [ expr { "," expr } [ "," ] ] ")" ;

@@ -10,7 +10,6 @@ import (
 	"karl/interpreter"
 	"karl/lexer"
 	"karl/parser"
-	"karl/shape"
 )
 
 func main() {
@@ -37,7 +36,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage:\n")
-	fmt.Fprintf(os.Stderr, "  karl parse <file.k|file.shape> [--format=pretty|json]\n")
+	fmt.Fprintf(os.Stderr, "  karl parse <file.k> [--format=pretty|json]\n")
 	fmt.Fprintf(os.Stderr, "  karl run <file.k>\n")
 	fmt.Fprintf(os.Stderr, "  <file> can be '-' to read from stdin\n")
 	fmt.Fprintf(os.Stderr, "  Use \"karl <command> --help\" for command help\n")
@@ -58,7 +57,7 @@ func parseCommand(args []string) int {
 		parseUsage()
 		return 2
 	}
-	if err := validateParseExtension(positional[0]); err != nil {
+	if err := validateExtension(positional[0]); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 2
 	}
@@ -67,30 +66,7 @@ func parseCommand(args []string) int {
 		fmt.Fprintf(os.Stderr, "read error: %v\n", err)
 		return 1
 	}
-	filename := displayName(positional[0])
-	if isShapeFile(filename) {
-		sh, err := shape.ParseFile(string(data))
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			return 1
-		}
-		switch format {
-		case "pretty":
-			fmt.Print(shape.FormatFile(sh))
-		case "json":
-			out, err := shape.FormatJSONFile(sh)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "format error: %v\n", err)
-				return 1
-			}
-			fmt.Print(out)
-		default:
-			fmt.Fprintf(os.Stderr, "unknown format: %s\n", format)
-			return 2
-		}
-		return 0
-	}
-	program, err := parseProgram(data, filename)
+	program, err := parseProgram(data, displayName(positional[0]))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return 1
@@ -127,7 +103,7 @@ func runCommand(args []string) int {
 		runUsage()
 		return 2
 	}
-	if err := validateRunExtension(positional[0]); err != nil {
+	if err := validateExtension(positional[0]); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 2
 	}
@@ -147,15 +123,13 @@ func runCommand(args []string) int {
 		fmt.Fprintln(os.Stderr, interpreter.FormatRuntimeError(err, string(data), filename))
 		return 1
 	}
-	if val != nil && val.Type() != interpreter.UNIT {
-		fmt.Println(val.Inspect())
-	}
+	fmt.Println(val.Inspect())
 	return 0
 }
 
 func parseUsage() {
 	fmt.Fprintf(os.Stderr, "Usage:\n")
-	fmt.Fprintf(os.Stderr, "  karl parse <file.k|file.shape> [--format=pretty|json]\n")
+	fmt.Fprintf(os.Stderr, "  karl parse <file.k> [--format=pretty|json]\n")
 	fmt.Fprintf(os.Stderr, "  <file> can be '-' to read from stdin\n")
 	fmt.Fprintf(os.Stderr, "\nOptions:\n")
 	fmt.Fprintf(os.Stderr, "  --format string   output format: pretty|json (default \"pretty\")\n")
@@ -227,21 +201,7 @@ func displayName(path string) string {
 	return path
 }
 
-func isShapeFile(path string) bool {
-	return strings.HasSuffix(path, ".shape")
-}
-
-func validateParseExtension(path string) error {
-	if path == "-" {
-		return nil
-	}
-	if strings.HasSuffix(path, ".k") || strings.HasSuffix(path, ".shape") {
-		return nil
-	}
-	return fmt.Errorf("file must have .k or .shape extension: %s", path)
-}
-
-func validateRunExtension(path string) error {
+func validateExtension(path string) error {
 	if path == "-" {
 		return nil
 	}
