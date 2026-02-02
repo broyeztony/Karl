@@ -1,5 +1,5 @@
 // Test simple DAG execution
-let makeEngine = import "engine.k"
+let makeEngine = import "examples/contrib/workflow/engine.k"
 let WorkflowEngine = makeEngine()
 
 log("Testing simple DAG workflow...")
