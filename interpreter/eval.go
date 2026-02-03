@@ -197,11 +197,8 @@ func (e *Evaluator) evalPrefixExpression(node *ast.PrefixExpression, env *Enviro
 	}
 	switch node.Operator {
 	case "!":
-		b, ok := right.(*Boolean)
-		if !ok {
-			return nil, nil, &RuntimeError{Message: "operator ! expects bool"}
-		}
-		return &Boolean{Value: !b.Value}, nil, nil
+		// Support truthy/falsy evaluation for negation
+		return &Boolean{Value: !isTruthy(right)}, nil, nil
 	case "-":
 		switch v := right.(type) {
 		case *Integer:
@@ -223,25 +220,19 @@ func (e *Evaluator) evalInfixExpression(node *ast.InfixExpression, env *Environm
 	}
 
 	if node.Operator == "&&" || node.Operator == "||" {
-		lb, ok := left.(*Boolean)
-		if !ok {
-			return nil, nil, &RuntimeError{Message: "logical operators require bool"}
-		}
-		if node.Operator == "&&" && !lb.Value {
+		// Support truthy/falsy evaluation for logical operators
+		leftTruthy := isTruthy(left)
+		if node.Operator == "&&" && !leftTruthy {
 			return &Boolean{Value: false}, nil, nil
 		}
-		if node.Operator == "||" && lb.Value {
+		if node.Operator == "||" && leftTruthy {
 			return &Boolean{Value: true}, nil, nil
 		}
 		right, sig, err := e.Eval(node.Right, env)
 		if err != nil || sig != nil {
 			return right, sig, err
 		}
-		rb, ok := right.(*Boolean)
-		if !ok {
-			return nil, nil, &RuntimeError{Message: "logical operators require bool"}
-		}
-		return &Boolean{Value: rb.Value}, nil, nil
+		return &Boolean{Value: isTruthy(right)}, nil, nil
 	}
 
 	right, sig, err := e.Eval(node.Right, env)
@@ -467,16 +458,38 @@ func (e *Evaluator) evalRecoverExpression(node *ast.RecoverExpression, env *Envi
 	return e.Eval(node.Fallback, fallbackEnv)
 }
 
+// isTruthy determines if a value is truthy according to Karl's truthy/falsy rules
+// Falsy values: null, false, 0, "", [], {}
+// Everything else is truthy
+func isTruthy(val Value) bool {
+	switch v := val.(type) {
+	case *Null:
+		return false
+	case *Boolean:
+		return v.Value
+	case *Integer:
+		return v.Value != 0
+	case *Float:
+		return v.Value != 0.0
+	case *String:
+		return v.Value != ""
+	case *Array:
+		return len(v.Elements) > 0
+	case *Object:
+		return len(v.Pairs) > 0
+	default:
+		// All other types are truthy (functions, tasks, channels, etc.)
+		return true
+	}
+}
+
 func (e *Evaluator) evalIfExpression(node *ast.IfExpression, env *Environment) (Value, *Signal, error) {
 	cond, sig, err := e.Eval(node.Condition, env)
 	if err != nil || sig != nil {
 		return cond, sig, err
 	}
-	cb, ok := cond.(*Boolean)
-	if !ok {
-		return nil, nil, &RuntimeError{Message: "if condition must be bool"}
-	}
-	if cb.Value {
+	// Support truthy/falsy evaluation
+	if isTruthy(cond) {
 		return e.Eval(node.Consequence, env)
 	}
 	if node.Alternative != nil {
@@ -517,11 +530,8 @@ func (e *Evaluator) evalMatchExpression(node *ast.MatchExpression, env *Environm
 			if err != nil || sig != nil {
 				return guardVal, sig, err
 			}
-			gb, ok := guardVal.(*Boolean)
-			if !ok {
-				return nil, nil, &RuntimeError{Message: "match guard must be bool"}
-			}
-			if !gb.Value {
+			// Support truthy/falsy evaluation for match guards
+			if !isTruthy(guardVal) {
 				continue
 			}
 		}
@@ -551,11 +561,8 @@ func (e *Evaluator) evalForExpression(node *ast.ForExpression, env *Environment)
 		if err != nil || sig != nil {
 			return condVal, sig, err
 		}
-		cb, ok := condVal.(*Boolean)
-		if !ok {
-			return nil, nil, &RuntimeError{Message: "for condition must be bool"}
-		}
-		if !cb.Value {
+		// Support truthy/falsy evaluation for loop condition
+		if !isTruthy(condVal) {
 			break
 		}
 
