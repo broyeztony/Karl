@@ -150,11 +150,11 @@ let createWorker = (workerId, taskChan, resultChan, config) -> {
 let createWorkerPool = (config) -> {
     let finalConfig = if config {
         {
-            workerCount: if config.workerCount { config.workerCount } else { defaultPoolConfig.workerCount },
-            queueSize: if config.queueSize { config.queueSize } else { defaultPoolConfig.queueSize },
+            workerCount: if config.workerCount != null { config.workerCount } else { defaultPoolConfig.workerCount },
+            queueSize: if config.queueSize != null { config.queueSize } else { defaultPoolConfig.queueSize },
             enablePriority: if config.enablePriority != null { config.enablePriority } else { defaultPoolConfig.enablePriority },
             enableMetrics: if config.enableMetrics != null { config.enableMetrics } else { defaultPoolConfig.enableMetrics },
-            shutdownTimeout: if config.shutdownTimeout { config.shutdownTimeout } else { defaultPoolConfig.shutdownTimeout },
+            shutdownTimeout: if config.shutdownTimeout != null { config.shutdownTimeout } else { defaultPoolConfig.shutdownTimeout },
         }
     } else {
         defaultPoolConfig
@@ -317,7 +317,7 @@ let executeWithLoadBalancing = (tasks, context, config) -> {
 
 // Execute tasks with batching
 let executeWithBatching = (tasks, context, config) -> {
-    let batchSize = if config.batchSize { config.batchSize } else { 10 }
+    let batchSize = if config.batchSize != null { config.batchSize } else { 10 }
     
     log("[BATCH] Processing", tasks.length, "tasks in batches of", batchSize)
     
@@ -361,10 +361,10 @@ let executeWithBatching = (tasks, context, config) -> {
 let createParallelExecutor = (config) -> {
     let finalConfig = if config {
         {
-            workerCount: if config.workerCount { config.workerCount } else { defaultPoolConfig.workerCount },
-            queueSize: if config.queueSize { config.queueSize } else { defaultPoolConfig.queueSize },
+            workerCount: if config.workerCount != null { config.workerCount } else { defaultPoolConfig.workerCount },
+            queueSize: if config.queueSize != null { config.queueSize } else { defaultPoolConfig.queueSize },
             enableMetrics: if config.enableMetrics != null { config.enableMetrics } else { defaultPoolConfig.enableMetrics },
-            batchSize: if config.batchSize { config.batchSize } else { 10 },
+            batchSize: if config.batchSize != null { config.batchSize } else { 10 },
         }
     } else {
         defaultPoolConfig

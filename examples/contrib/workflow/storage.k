@@ -304,10 +304,10 @@ let createInitialState = (nodes, edges) -> {
 let createStorageEngine = (config) -> {
     let finalConfig = if config {
         {
-            storageDir: if config.storageDir { config.storageDir } else { defaultStorageConfig.storageDir },
-            checkpointInterval: if config.checkpointInterval { config.checkpointInterval } else { defaultStorageConfig.checkpointInterval },
-            enableAutoCheckpoint: if config.enableAutoCheckpoint { config.enableAutoCheckpoint } else { defaultStorageConfig.enableAutoCheckpoint },
-            compressionEnabled: if config.compressionEnabled { config.compressionEnabled } else { defaultStorageConfig.compressionEnabled },
+            storageDir: if config.storageDir != null { config.storageDir } else { defaultStorageConfig.storageDir },
+            checkpointInterval: if config.checkpointInterval != null { config.checkpointInterval } else { defaultStorageConfig.checkpointInterval },
+            enableAutoCheckpoint: if config.enableAutoCheckpoint != null { config.enableAutoCheckpoint } else { defaultStorageConfig.enableAutoCheckpoint },
+            compressionEnabled: if config.compressionEnabled != null { config.compressionEnabled } else { defaultStorageConfig.compressionEnabled },
         }
     } else {
         defaultStorageConfig

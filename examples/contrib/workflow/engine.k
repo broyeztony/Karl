@@ -536,7 +536,7 @@ let executePipeline = (stages, items, config) -> {
     // Create workers for each stage
     let allWorkers = for stageIdx < stages.length with stageIdx = 0, workers = [] {
         let stage = stages[stageIdx]
-        let numWorkers = if stage.workers { stage.workers } else { config.defaultWorkers }
+        let numWorkers = if stage.workers != null { stage.workers } else { config.defaultWorkers }
         let inputChan = channels[stageIdx]
         let outputChan = if stageIdx < stages.length - 1 { channels[stageIdx + 1] } else { null }
         
