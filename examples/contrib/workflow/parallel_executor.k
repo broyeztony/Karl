@@ -148,7 +148,7 @@ let createWorker = (workerId, taskChan, resultChan, config) -> {
 
 // Create a worker pool
 let createWorkerPool = (config) -> {
-    let finalConfig = if config {
+    let finalConfig = if config != null {
         {
             workerCount: if config.workerCount != null { config.workerCount } else { defaultPoolConfig.workerCount },
             queueSize: if config.queueSize != null { config.queueSize } else { defaultPoolConfig.queueSize },
@@ -359,7 +359,7 @@ let executeWithBatching = (tasks, context, config) -> {
 
 // Create a parallel executor instance
 let createParallelExecutor = (config) -> {
-    let finalConfig = if config {
+    let finalConfig = if config != null {
         {
             workerCount: if config.workerCount != null { config.workerCount } else { defaultPoolConfig.workerCount },
             queueSize: if config.queueSize != null { config.queueSize } else { defaultPoolConfig.queueSize },

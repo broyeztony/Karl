@@ -112,6 +112,7 @@ let poolConfig = {
     retryPolicy: null,
     useWorkerPool: true,
     workerCount: 4,
+    queueSize: 100,
     enableMetrics: true,
     enablePersistence: false,
     workflowId: null,
