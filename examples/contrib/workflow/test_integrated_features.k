@@ -78,7 +78,7 @@ let retryWorkflow = {
 
 let retryResult = Engine.execute(retryWorkflow, {}, retryConfig)
 
-if retryResult.success == true {
+if retryResult.success {
     log("\n✅ TEST 1 PASSED: Retry policy successfully handled failures")
 } else {
     log("\n❌ TEST 1 FAILED")
@@ -140,7 +140,7 @@ let startTime = now()
 let poolResult = Engine.execute(parallelWorkflow, {}, poolConfig)
 let duration = now() - startTime
 
-if poolResult.success == true {
+if poolResult.success {
     log("\n✅ TEST 2 PASSED: Worker pool executed", computeTasks.length, "tasks in", duration, "ms")
 } else {
     log("\n❌ TEST 2 FAILED")
@@ -226,7 +226,7 @@ let dagWorkflow = {
 log("Executing DAG with persistence enabled...")
 let dagResult = Engine.execute(dagWorkflow, {}, persistConfig)
 
-if dagResult.success == true {
+if dagResult.success {
     log("\n✅ TEST 3 PASSED: DAG executed with state persistence")
     log("Workflow ID:", dagResult.workflowId)
     log("State saved to: ./workflow-state/", dagResult.workflowId, ".json")
@@ -335,7 +335,7 @@ let complexWorkflow = {
 log("Executing complex DAG with retry + persistence...")
 let complexResult = Engine.execute(complexWorkflow, {}, fullConfig)
 
-if complexResult.success == true {
+if complexResult.success {
     log("\n✅ TEST 4 PASSED: Complex workflow with all features succeeded")
     log("Workflow ID:", complexResult.workflowId)
 } else {
@@ -352,7 +352,7 @@ log("==========================================================")
 
 let allPassed = retryResult.success && poolResult.success && dagResult.success && complexResult.success
 
-if allPassed == true {
+if allPassed {
     log("✅ ALL TESTS PASSED")
     log("")
     log("Feature Integration Verified:")

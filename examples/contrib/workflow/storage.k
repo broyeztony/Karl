@@ -84,7 +84,7 @@ let saveState = (workflowId, state, config) -> {
         { success: false, error: "Failed to write state file" }
     }
     
-    if writeResult.success == true {
+    if writeResult.success {
         log("[STORAGE] State saved successfully to:", filePath)
         { success: true, path: filePath }
     } else {
@@ -103,7 +103,7 @@ let loadState = (workflowId, config) -> {
         { success: false, error: "Failed to read state file" }
     }
     
-    if readResult.success == false {
+    if !readResult.success {
         log("[STORAGE] No saved state found for:", workflowId)
         { success: false, error: "No saved state" }
     } else {
@@ -111,9 +111,9 @@ let loadState = (workflowId, config) -> {
             { success: false, error: "Failed to parse state JSON" }
         }
         
-        if parseResult.success == true {
+        if parseResult.success {
             let deserialized = deserializeWorkflowState(parseResult.data)
-            if deserialized.success == true {
+            if deserialized.success {
                 log("[STORAGE] State loaded successfully from:", filePath)
                 { success: true, state: deserialized.state }
             } else {
@@ -137,7 +137,7 @@ let deleteState = (workflowId, config) -> {
         { success: false, error: "Failed to delete state file" }
     }
     
-    if deleteResult.success == true {
+    if deleteResult.success {
         log("[STORAGE] State deleted successfully")
         { success: true }
     } else {
@@ -158,7 +158,7 @@ let checkpoint = (workflowId, state, config) -> {
 
 // Auto-checkpoint worker - runs in background
 let startAutoCheckpoint = (workflowId, stateRef, config) -> {
-    if config.enableAutoCheckpoint == false {
+    if !config.enableAutoCheckpoint {
         log("[CHECKPOINT] Auto-checkpoint disabled")
         { success: false, error: "Auto-checkpoint disabled" }
     } else {
@@ -194,7 +194,7 @@ let startAutoCheckpoint = (workflowId, stateRef, config) -> {
 let canResume = (workflowId, config) -> {
     let loadResult = loadState(workflowId, config)
     
-    if loadResult.success == true {
+    if loadResult.success {
         let state = loadResult.state
         if state.status == "running" || state.status == "paused" {
             log("[RESUME] Workflow can be resumed")
@@ -215,7 +215,7 @@ let getIncompleteNodes = (nodes, state) -> {
         let node = nodes[i]
         let isCompleted = state.completedNodes[node.id]
         
-        if isCompleted == false {
+        if !isCompleted {
             incomplete += [node]
         }
         
@@ -243,19 +243,19 @@ let getReadyNodes = (nodes, edges, state) -> {
         let node = nodes[i]
         let isStarted = state.startedNodes[node.id]
         
-        if isStarted == false {
+        if !isStarted {
             let deps = finalDeps[node.id]
             let allDepsMet = true
             
             for j < deps.length with j = 0 {
-                if state.completedNodes[deps[j]] == false {
+                if !state.completedNodes[deps[j]] {
                     allDepsMet = false
                     break allDepsMet
                 }
                 j = j + 1
             } then allDepsMet
             
-            if allDepsMet == true {
+            if allDepsMet {
                 ready += [node]
             }
         }

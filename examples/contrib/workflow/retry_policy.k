@@ -66,7 +66,7 @@ let calculateDelay = (attempt, policy) -> {
     }
     
     // Add jitter if enabled
-    if policy.jitterEnabled == true {
+    if policy.jitterEnabled {
         // Use integer arithmetic for jitter (no float conversion needed)
         let jitterRange = (cappedDelay * policy.jitterFactor * 1000) / 1000  // Keep as integer
         let randomValue = now() % 1000  // 0-999
@@ -133,7 +133,7 @@ let executeWithRetry = (task, context, policy) -> {
             { success: false, error: "Task execution failed" }
         }
         
-        if result.success == true {
+        if result.success {
             log("[RETRY]", task.name, "- Success on attempt", attempt)
             break {
                 success: true,
@@ -145,7 +145,7 @@ let executeWithRetry = (task, context, policy) -> {
             lastError = if result.error != null { result.error } else { "Unknown error" }
             
             // Check if error is retryable
-            if isRetryableError(lastError, policy) == false {
+            if !isRetryableError(lastError, policy) {
                 log("[RETRY]", task.name, "- Non-retryable error:", lastError)
                 break {
                     success: false,
@@ -269,7 +269,7 @@ let createCircuitBreaker = (config) -> {
                 { success: false, error: "Task execution failed" }
             }
             
-            if result.success == true {
+            if result.success {
                 state.successCount = state.successCount + 1
                 state.failureCount = 0
                 

@@ -56,7 +56,7 @@ let result = Engine.execute(workflow, {}, config)
 
 log("Result:", result)
 
-if result.success == true {
+if result.success {
     log("✅ Test passed")
 } else {
     log("❌ Test failed")

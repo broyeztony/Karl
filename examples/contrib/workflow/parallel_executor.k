@@ -98,7 +98,7 @@ let createWorker = (workerId, taskChan, resultChan, config) -> {
         for running = true with running = true {
             let [task, done] = taskChan.recv()
             
-            if done == true {
+            if done {
                 log("[WORKER", workerId, "] Shutting down")
                 break metrics
             }
@@ -115,7 +115,7 @@ let createWorker = (workerId, taskChan, resultChan, config) -> {
             metrics.tasksProcessed = metrics.tasksProcessed + 1
             metrics.totalDuration = metrics.totalDuration + duration
             
-            if result.success == true {
+            if result.success {
                 metrics.tasksSucceeded = metrics.tasksSucceeded + 1
                 log("[WORKER", workerId, "] Success:", task.name, "- Duration:", duration, "ms")
             } else {
@@ -170,7 +170,7 @@ let createWorkerPool = (config) -> {
         
         // Start the worker pool
         start: () -> {
-            if isRunning == true {
+            if isRunning {
                 log("[POOL] Already running")
                 { success: false, error: "Pool already running" }
             } else {
@@ -191,7 +191,7 @@ let createWorkerPool = (config) -> {
         
         // Submit a task to the pool
         submit: (task) -> {
-            if isRunning == false {
+            if !isRunning {
                 log("[POOL] Pool not running")
                 { success: false, error: "Pool not running" }
             } else {
@@ -203,7 +203,7 @@ let createWorkerPool = (config) -> {
         // Wait for a result
         waitForResult: () -> {
             let [result, done] = resultChan.recv()
-            if done == true {
+            if done {
                 { success: false, error: "Result channel closed" }
             } else {
                 { success: true, result: result }
@@ -212,7 +212,7 @@ let createWorkerPool = (config) -> {
         
         // Shutdown the pool
         shutdown: () -> {
-            if isRunning == false {
+            if !isRunning {
                 log("[POOL] Not running")
                 { success: false, error: "Pool not running" }
             } else {
@@ -265,7 +265,7 @@ let executeParallelWithPool = (tasks, context, config) -> {
     
     // Start the pool
     let startResult = pool.start()
-    if startResult.success == false {
+    if !startResult.success {
         log("[PARALLEL] Failed to start pool:", startResult.error)
         { success: false, error: startResult.error }
     } else {
@@ -283,7 +283,7 @@ let executeParallelWithPool = (tasks, context, config) -> {
         // Collect results
         let results = for i < tasks.length with i = 0, resultList = [] {
             let resultWrapper = pool.waitForResult()
-            if resultWrapper.success == true {
+            if resultWrapper.success {
                 resultList += [resultWrapper.result]
             }
             i = i + 1
@@ -299,7 +299,7 @@ let executeParallelWithPool = (tasks, context, config) -> {
         {
             success: true,
             results: results,
-            metrics: if shutdownResult.success == true { shutdownResult.metrics } else { [] },
+            metrics: if shutdownResult.success { shutdownResult.metrics } else { [] },
         }
     }
 }
@@ -342,7 +342,7 @@ let executeWithBatching = (tasks, context, config) -> {
         // Execute batch
         let batchResult = executeParallelWithPool(batch, context, config)
         
-        if batchResult.success == true {
+        if batchResult.success {
             allResults += batchResult.results
         }
         

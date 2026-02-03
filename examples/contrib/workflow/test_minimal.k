@@ -23,6 +23,20 @@ let config = {
     defaultRetries: 2,
     defaultWorkers: 3,
     stopOnError: false,
+    retryPolicy: null,
+    useWorkerPool: false,
+    workerCount: 4,
+    queueSize: 100,
+    batchSize: 10,
+    enablePriority: false,
+    shutdownTimeout: 30000,
+    enableMetrics: true,
+    enablePersistence: false,
+    workflowId: null,
+    storageConfig: {
+        storageDir: "./workflow-state",
+        enableAutoCheckpoint: false,
+    },
 }
 
 log("Executing workflow...")
@@ -30,7 +44,7 @@ let result = Engine.execute(workflow, {}, config)
 
 log("Result:", result)
 
-if result.success == true {
+if result.success {
     log("✅ Test passed")
 } else {
     log("❌ Test failed")

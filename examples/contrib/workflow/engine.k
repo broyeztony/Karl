@@ -56,7 +56,7 @@ let executeTimerTask = (timerTask, context) -> {
         { success: false, error: "Timer task execution failed" }
     }
     
-    if result.success == true {
+    if result.success {
         log("[TIMER]", timerTask.name, "- Completed successfully")
     } else {
         log("[TIMER]", timerTask.name, "- Failed")
@@ -78,7 +78,7 @@ let executeIntervalTask = (intervalTask, context) -> {
         
         results += [result]
         
-        if result.success == false {
+        if !result.success {
             allSuccess = false
         }
         
@@ -110,13 +110,13 @@ let executeTask = (task, context, config) -> {
         let maxRetries = config.defaultRetries
         
         for i < maxRetries + 1 with i = 0, result = { success: false, error: "Not executed" }, success = false {
-            if success == true { break result }
+            if success { break result }
             
             let taskResult = task.handler(context) ? {
                 { success: false, error: "Task execution failed" }
             }
             
-            if taskResult.success == true {
+            if taskResult.success {
                 success = true
                 result = taskResult
             } else {
@@ -143,7 +143,7 @@ let executeSequential = (tasks, initialContext, config) -> {
         
         let taskResult = executeTask(task, context, config)
         
-        if taskResult.success == true {
+        if taskResult.success {
             log("[TASK]", task.name, "- Success")
             results += [{
                 name: task.name,
@@ -166,7 +166,7 @@ let executeSequential = (tasks, initialContext, config) -> {
             }]
             
             // Stop on first failure if configured
-            if config.stopOnError == true {
+            if config.stopOnError {
                 break { success: false, results: results, failedAt: task.name }
             }
         }
@@ -183,7 +183,7 @@ let executeParallel = (tasks, context, config) -> {
     log("[WORKFLOW] Starting parallel execution of", tasks.length, "tasks")
     
     // Use advanced parallel executor if configured
-    if config.useWorkerPool == true {
+    if config.useWorkerPool {
         log("[WORKFLOW] Using worker pool with", config.workerCount, "workers")
         
         let parallelExecutor = ParallelModule.createParallelExecutor({
@@ -209,7 +209,7 @@ let executeParallel = (tasks, context, config) -> {
                 log("[TASK]", task.name, "- Starting (parallel)")
                 let result = executeTask(task, context, config)
                 
-                if result.success == true {
+                if result.success {
                     log("[TASK]", task.name, "- Success (parallel)")
                 } else {
                     log("[TASK]", task.name, "- Failed (parallel)")
@@ -233,7 +233,7 @@ let executeParallel = (tasks, context, config) -> {
         let aggregator = & (() -> {
             for i < tasks.length with i = 0, results = [] {
                 let [val, done] = resultChan.recv()
-                if done == true { break results }
+                if done { break results }
                 
                 results += [val]
                 i = i + 1
@@ -262,7 +262,7 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
     log("[WORKFLOW] Starting DAG execution with", nodes.length, "nodes")
     
     // Initialize storage if persistence is enabled
-    let storage = if config.enablePersistence == true {
+    let storage = if config.enablePersistence {
         StorageModule.createStorageEngine(config.storageConfig)
     } else {
         null
@@ -273,7 +273,7 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
     // Check if we can resume from saved state
     let resumeState = if storage != null {
         let resumeCheck = storage.canResume(workflowId)
-        if resumeCheck.resumable == true {
+        if resumeCheck.resumable {
             log("[WORKFLOW] Resuming from saved state")
             resumeCheck.state
         } else {
@@ -324,19 +324,19 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
     for i < nodes.length with i = 0 {
         let node = nodes[i]
         
-        if startedNodes[node.id] == false {
+        if !startedNodes[node.id] {
             let deps = finalDeps[node.id]
             let allDepsMet = true
             
             for j < deps.length with j = 0 {
-                if completedNodes[deps[j]] == false {
+                if !completedNodes[deps[j]] {
                     allDepsMet = false
                     break allDepsMet
                 }
                 j = j + 1
             } then allDepsMet
             
-            if allDepsMet == true {
+            if allDepsMet {
                 startedNodes[node.id] = true
                 let task = & (() -> {
                     log("[DAG]", node.id, "- Starting")
@@ -369,7 +369,7 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
     // Process completions
     let loopResult = for loop = true with loop = true, totalCompleted = initialTotalCompleted, res = initialResults, comp = initialCompleted, started = initialStarted, checkpointCounter = 0 {
         let [msg, done] = completionChan.recv()
-        if done == true { break { results: res, completed: comp, totalCompleted: totalCompleted } }
+        if done { break { results: res, completed: comp, totalCompleted: totalCompleted } }
         
         log("[DAG]", msg.nodeId, "- Completed")
         
@@ -401,18 +401,18 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
         for i < nodes.length with i = 0 {
             let node = nodes[i]
             // If not already completed and dependencies are satisfied, start it
-            if started[node.id] == false {
+            if !started[node.id] {
                 let deps = finalDeps[node.id]
                 let ready = true
                 for j < deps.length with j = 0 {
-                    if comp[deps[j]] == false {
+                    if !comp[deps[j]] {
                         ready = false
                         break ready
                     }
                     j = j + 1
                 } then ready
                 
-                if ready == true {
+                if ready {
                     log("[DAG]", node.id, "- Dependencies satisfied, starting")
                     // Mark as started immediately to prevent double-start
                     started[node.id] = true
@@ -481,7 +481,7 @@ let createSubDAG = (id, name, nodes, edges) -> {
             log("[SUBDAG]", name, "- Starting with", nodes.length, "nodes")
             let result = executeDAG(nodes, edges, context, context.config)
             
-            if result.success == true {
+            if result.success {
                 log("[SUBDAG]", name, "- Completed successfully")
                 {
                     success: true,
@@ -553,7 +553,7 @@ let executePipeline = (stages, items, config) -> {
             let worker = & (() -> {
                 for processing = true with processing = true, processed = 0 {
                     let [item, done] = inputChan.recv()
-                    if done == true {
+                    if done {
                         processing = false
                         break processed
                     }
@@ -563,7 +563,7 @@ let executePipeline = (stages, items, config) -> {
                         { success: false, data: null }
                     }
                     
-                    if result.success == true {
+                    if result.success {
                         processed = processed + 1
                         
                         // Send to next stage if exists
@@ -634,23 +634,23 @@ let defaultConfig = {
 }
 
 // Merge user config with defaults to ensure all properties exist
-// NOTE: User config must have all properties defined
 let mergeConfig = (userConfig) -> {
+    let hasRetryPolicy = if userConfig.retryPolicy != null { true } else { false }
     {
-        defaultRetries: userConfig.defaultRetries,
-        defaultWorkers: userConfig.defaultWorkers,
-        stopOnError: userConfig.stopOnError,
-        retryPolicy: userConfig.retryPolicy,
-        useWorkerPool: userConfig.useWorkerPool,
-        workerCount: userConfig.workerCount,
-        queueSize: userConfig.queueSize,
-        batchSize: userConfig.batchSize,
-        enablePriority: userConfig.enablePriority,
-        shutdownTimeout: userConfig.shutdownTimeout,
-        enableMetrics: userConfig.enableMetrics,
-        enablePersistence: userConfig.enablePersistence,
-        workflowId: userConfig.workflowId,
-        storageConfig: userConfig.storageConfig,
+        defaultRetries: if hasRetryPolicy { 0 } else { if userConfig.defaultRetries != null { userConfig.defaultRetries } else { defaultConfig.defaultRetries } },
+        defaultWorkers: if userConfig.defaultWorkers != null { userConfig.defaultWorkers } else { defaultConfig.defaultWorkers },
+        stopOnError: if userConfig.stopOnError != null { userConfig.stopOnError } else { defaultConfig.stopOnError },
+        retryPolicy: if userConfig.retryPolicy != null { userConfig.retryPolicy } else { null },
+        useWorkerPool: if userConfig.useWorkerPool != null { userConfig.useWorkerPool } else { defaultConfig.useWorkerPool },
+        workerCount: if userConfig.workerCount != null { userConfig.workerCount } else { defaultConfig.workerCount },
+        queueSize: if userConfig.queueSize != null { userConfig.queueSize } else { 100 },
+        batchSize: if userConfig.batchSize != null { userConfig.batchSize } else { 10 },
+        enablePriority: if userConfig.enablePriority != null { userConfig.enablePriority } else { false },
+        shutdownTimeout: if userConfig.shutdownTimeout != null { userConfig.shutdownTimeout } else { 30000 },
+        enableMetrics: if userConfig.enableMetrics != null { userConfig.enableMetrics } else { defaultConfig.enableMetrics },
+        enablePersistence: if userConfig.enablePersistence != null { userConfig.enablePersistence } else { defaultConfig.enablePersistence },
+        workflowId: if userConfig.workflowId != null { userConfig.workflowId } else { null },
+        storageConfig: if userConfig.storageConfig != null { userConfig.storageConfig } else { defaultConfig.storageConfig },
     }
 }
 
