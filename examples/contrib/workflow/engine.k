@@ -4,11 +4,17 @@
 // A comprehensive workflow orchestration engine for Karl demonstrating:
 // - Task-based workflow definitions
 // - DAG (Directed Acyclic Graph) execution
-// - Parallel and sequential task execution
-// - Worker pools for pipeline stages
-// - Error handling and retries
+// - Parallel and sequential task execution with worker pools
+// - Advanced retry policies with exponential back-off
+// - Persisted state for workflow resumption
+// - Error handling and circuit breakers
 // - Status tracking and result aggregation
 // ============================================================================
+
+// Import enhanced modules
+import "./retry_policy.k" as RetryModule
+import "./parallel_executor.k" as ParallelModule
+import "./storage.k" as StorageModule
 
 // ----------------------------------------------------------------------------
 // TIMER TASK SUPPORT
@@ -90,26 +96,33 @@ let executeIntervalTask = (intervalTask, context) -> {
 
 // Execute a single task with error handling and retry logic
 let executeTask = (task, context, config) -> {
-    let maxRetries = config.defaultRetries
-    
-    for i < maxRetries + 1 with i = 0, result = { success: false, error: "Not executed" }, success = false {
-        if success { break result }
+    // Use advanced retry policy if configured, otherwise fall back to simple retry
+    if config.retryPolicy {
+        let retryEngine = RetryModule.createRetryEngine(config.retryPolicy)
+        retryEngine.execute(task, context)
+    } else {
+        // Legacy simple retry logic
+        let maxRetries = config.defaultRetries
         
-        let taskResult = task.handler(context) ? {
-            { success: false, error: "Task execution failed" }
-        }
-        
-        if taskResult.success {
-            success = true
-            result = taskResult
-        } else {
-            result = taskResult  // Keep last failure result
-            if i < maxRetries {
-                log("[RETRY]", task.name, "- Attempt", i + 1)
+        for i < maxRetries + 1 with i = 0, result = { success: false, error: "Not executed" }, success = false {
+            if success { break result }
+            
+            let taskResult = task.handler(context) ? {
+                { success: false, error: "Task execution failed" }
             }
-        }
-        i = i + 1
-    } then result
+            
+            if taskResult.success {
+                success = true
+                result = taskResult
+            } else {
+                result = taskResult  // Keep last failure result
+                if i < maxRetries {
+                    log("[RETRY]", task.name, "- Attempt", i + 1)
+                }
+            }
+            i = i + 1
+        } then result
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -164,59 +177,72 @@ let executeSequential = (tasks, initialContext, config) -> {
 let executeParallel = (tasks, context, config) -> {
     log("[WORKFLOW] Starting parallel execution of", tasks.length, "tasks")
     
-    let resultChan = rendezvous()
-    
-    // Spawn workers for each task
-    let workers = for i < tasks.length with i = 0, taskList = [] {
-        let task = tasks[i]
-        let taskId = i
+    // Use advanced parallel executor if configured
+    if config.useWorkerPool {
+        log("[WORKFLOW] Using worker pool with", config.workerCount, "workers")
         
-        let worker = & (() -> {
-            log("[TASK]", task.name, "- Starting (parallel)")
-            let result = executeTask(task, context, config)
+        let parallelExecutor = ParallelModule.createParallelExecutor({
+            workerCount: config.workerCount,
+            enableMetrics: config.enableMetrics,
+        })
+        
+        parallelExecutor.execute(tasks, context)
+    } else {
+        // Legacy parallel execution (one goroutine per task)
+        let resultChan = rendezvous()
+        
+        // Spawn workers for each task
+        let workers = for i < tasks.length with i = 0, taskList = [] {
+            let task = tasks[i]
+            let taskId = i
             
-            if result.success {
-                log("[TASK]", task.name, "- Success (parallel)")
-            } else {
-                log("[TASK]", task.name, "- Failed (parallel)")
-            }
+            let worker = & (() -> {
+                log("[TASK]", task.name, "- Starting (parallel)")
+                let result = executeTask(task, context, config)
+                
+                if result.success {
+                    log("[TASK]", task.name, "- Success (parallel)")
+                } else {
+                    log("[TASK]", task.name, "- Failed (parallel)")
+                }
+                
+                let response = {
+                    taskId: taskId,
+                    name: task.name,
+                    success: result.success,
+                    data: result.data,
+                }
+                
+                resultChan.send(response)
+            })()
             
-            let response = {
-                taskId: taskId,
-                name: task.name,
-                success: result.success,
-                data: result.data,
-            }
-            
-            resultChan.send(response)
+            taskList += [worker]
+            i = i + 1
+        } then taskList
+        
+        // Collect results
+        let aggregator = & (() -> {
+            for i < tasks.length with i = 0, results = [] {
+                let [val, done] = resultChan.recv()
+                if done { break results }
+                
+                results += [val]
+                i = i + 1
+            } then results
         })()
         
-        taskList += [worker]
-        i = i + 1
-    } then taskList
-    
-    // Collect results
-    let aggregator = & (() -> {
-        for i < tasks.length with i = 0, results = [] {
-            let [val, done] = resultChan.recv()
-            if done { break results }
-            
-            results += [val]
+        // Wait for all workers to complete
+        for i < workers.length with i = 0 {
+            wait workers[i]
             i = i + 1
-        } then results
-    })()
-    
-    // Wait for all workers to complete
-    for i < workers.length with i = 0 {
-        wait workers[i]
-        i = i + 1
-    } then {}
-    
-    resultChan.done()
-    let allResults = wait aggregator
-    
-    let response = { success: true, results: allResults }
-    response
+        } then {}
+        
+        resultChan.done()
+        let allResults = wait aggregator
+        
+        let response = { success: true, results: allResults }
+        response
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -225,6 +251,28 @@ let executeParallel = (tasks, context, config) -> {
 
 let executeDAG = (nodes, edges, initialContext, config) -> {
     log("[WORKFLOW] Starting DAG execution with", nodes.length, "nodes")
+    
+    // Initialize storage if persistence is enabled
+    let storage = if config.enablePersistence {
+        StorageModule.createStorageEngine(config.storageConfig)
+    } else {
+        null
+    }
+    
+    let workflowId = if config.workflowId { config.workflowId } else { "workflow-" + now() }
+    
+    // Check if we can resume from saved state
+    let resumeState = if storage {
+        let resumeCheck = storage.canResume(workflowId)
+        if resumeCheck.resumable {
+            log("[WORKFLOW] Resuming from saved state")
+            resumeCheck.state
+        } else {
+            null
+        }
+    } else {
+        null
+    }
     
     // Build adjacency map for dependencies
     let dependencies = for i < nodes.length with i = 0, deps = {} {
@@ -242,48 +290,77 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
     // Channel for node completion notifications
     let completionChan = rendezvous()
     
-    // Track started/completed nodes with boolean flags keyed by node id.
-    let completedNodes = for i < nodes.length with i = 0, comp = {} {
-        comp[nodes[i].id] = false
-        i = i + 1
-    } then comp
+    // Initialize or restore state
+    let completedNodes = if resumeState {
+        resumeState.completedNodes
+    } else {
+        for i < nodes.length with i = 0, comp = {} {
+            comp[nodes[i].id] = false
+            i = i + 1
+        } then comp
+    }
     
-    let startedNodes = for i < nodes.length with i = 0, started = {} {
-        started[nodes[i].id] = false
-        i = i + 1
-    } then started
+    let startedNodes = if resumeState {
+        resumeState.startedNodes
+    } else {
+        for i < nodes.length with i = 0, started = {} {
+            started[nodes[i].id] = false
+            i = i + 1
+        } then started
+    }
     
-    // Find nodes with no dependencies and start them
+    let initialTotalCompleted = if resumeState { resumeState.totalCompleted } else { 0 }
+    
+    // Find nodes with no dependencies (or ready nodes if resuming) and start them
     for i < nodes.length with i = 0 {
         let node = nodes[i]
-        let deps = finalDeps[node.id]
-        if deps.length == 0 {
-            startedNodes[node.id] = true
-            let task = & (() -> {
-                log("[DAG]", node.id, "- Starting")
-                let result = executeTask(node, initialContext, config)
-                completionChan.send({
-                    nodeId: node.id,
-                    success: result.success,
-                    data: result.data,
-                })
-            })()
+        
+        if !startedNodes[node.id] {
+            let deps = finalDeps[node.id]
+            let allDepsMet = true
+            
+            for j < deps.length with j = 0 {
+                if !completedNodes[deps[j]] {
+                    allDepsMet = false
+                    break allDepsMet
+                }
+                j = j + 1
+            } then allDepsMet
+            
+            if allDepsMet {
+                startedNodes[node.id] = true
+                let task = & (() -> {
+                    log("[DAG]", node.id, "- Starting")
+                    let result = executeTask(node, initialContext, config)
+                    completionChan.send({
+                        nodeId: node.id,
+                        success: result.success,
+                        data: result.data,
+                    })
+                })()
+            }
         }
+        
         i = i + 1
     } then {}
     
     // Collect results
-    let initialResults = for i < nodes.length with i = 0, res = {} {
-        res[nodes[i].id] = null
-        i = i + 1
-    } then res
+    let initialResults = if resumeState {
+        resumeState.results
+    } else {
+        for i < nodes.length with i = 0, res = {} {
+            res[nodes[i].id] = null
+            i = i + 1
+        } then res
+    }
+    
     let initialCompleted = completedNodes
     let initialStarted = startedNodes
     
     // Process completions
-    let loopResult = for loop = true with loop = true, totalCompleted = 0, res = initialResults, comp = initialCompleted, started = initialStarted {
+    let loopResult = for loop = true with loop = true, totalCompleted = initialTotalCompleted, res = initialResults, comp = initialCompleted, started = initialStarted, checkpointCounter = 0 {
         let [msg, done] = completionChan.recv()
-        if done { break { results: res, completed: comp } }
+        if done { break { results: res, completed: comp, totalCompleted: totalCompleted } }
         
         log("[DAG]", msg.nodeId, "- Completed")
         
@@ -291,6 +368,25 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
         comp[msg.nodeId] = true
         res[msg.nodeId] = msg
         totalCompleted = totalCompleted + 1
+        checkpointCounter = checkpointCounter + 1
+        
+        // Checkpoint state periodically if persistence enabled
+        if storage {
+            if checkpointCounter >= 5 {  // Checkpoint every 5 completions
+                log("[WORKFLOW] Creating checkpoint...")
+                let currentState = {
+                    completedNodes: comp,
+                    startedNodes: started,
+                    results: res,
+                    totalCompleted: totalCompleted,
+                    status: "running",
+                    nodeCount: nodes.length,
+                    edgeCount: edges.length,
+                }
+                storage.checkpoint(workflowId, currentState)
+                checkpointCounter = 0
+            }
+        }
         
         // Check all nodes to see if any are now ready
         for i < nodes.length with i = 0 {
@@ -327,13 +423,29 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
         
         // Exit when all nodes have sent completion messages
         if totalCompleted >= nodes.length {
-            break { results: res, completed: comp }
+            break { results: res, completed: comp, totalCompleted: totalCompleted }
         }
-    } then { results: res, completed: comp }
+    } then { results: res, completed: comp, totalCompleted: totalCompleted }
+    
+    // Save final state if persistence enabled
+    if storage {
+        log("[WORKFLOW] Saving final state...")
+        let finalState = {
+            completedNodes: loopResult.completed,
+            startedNodes: initialStarted,
+            results: loopResult.results,
+            totalCompleted: loopResult.totalCompleted,
+            status: "completed",
+            nodeCount: nodes.length,
+            edgeCount: edges.length,
+        }
+        storage.save(workflowId, finalState)
+    }
     
     // Return final workflow result with results converted to array
     {
         success: true,
+        workflowId: workflowId,
         results: for i < nodes.length with i = 0, arr = [] {
             let nodeId = nodes[i].id
             let result = loopResult.results[nodeId]
@@ -494,9 +606,22 @@ let executePipeline = (stages, items, config) -> {
 
 // Default configuration
 let defaultConfig = {
+    // Legacy retry settings
     defaultRetries: 2,
     defaultWorkers: 3,
     stopOnError: false,
+    
+    // Enhanced features
+    retryPolicy: null,           // Use RetryModule for advanced retry
+    useWorkerPool: false,        // Use ParallelModule for worker pools
+    workerCount: 4,              // Number of workers in pool
+    enableMetrics: true,         // Collect performance metrics
+    enablePersistence: false,    // Enable state persistence
+    workflowId: null,            // Unique workflow identifier
+    storageConfig: {             // Storage configuration
+        storageDir: "./workflow-state",
+        enableAutoCheckpoint: false,
+    },
 }
 
 // Execute workflow based on type

@@ -34,9 +34,18 @@ The Workflow Engine provides **six execution modes** for orchestrating tasks:
 ### ✨ Core Capabilities
 - **Dependency Resolution** - Tasks wait for prerequisites to complete
 - **Parallel Execution** - Worker pools for concurrent processing  
+- **Advanced Retry Policies** - Exponential back-off, circuit breakers, jitter
+- **State Persistence** - Save/resume workflows, checkpoint recovery
 - **Error Handling** - Configurable retries and graceful degradation
 - **Context Passing** - Results flow between tasks
 - **Sub-DAGs** - Reusable workflow components
+
+### 🚀 New Features (2026-02-03)
+- **Exponential Back-off** - Intelligent retry strategies with configurable delays
+- **Worker Pools** - Efficient multi-core parallel execution with task queues
+- **Persisted State** - Resume interrupted workflows from checkpoints
+- **Circuit Breakers** - Automatic failure detection and recovery
+- **Performance Metrics** - Built-in monitoring and profiling
 
 ### 🎯 Workflow Patterns
 - Fan-out/fan-in for parallel processing
@@ -342,15 +351,312 @@ karl run quickstart.k
 
 ---
 
+## New Features (2026-02-03)
+
+### 1. Advanced Retry Policies
+
+Intelligent retry strategies with exponential back-off, jitter, and circuit breakers.
+
+#### Exponential Back-off
+
+```karl
+import "./retry_policy.k" as Retry
+
+let config = {
+    retryPolicy: {
+        maxAttempts: 5,
+        strategy: Retry.RETRY_EXPONENTIAL,  // or RETRY_LINEAR, RETRY_FIXED
+        initialDelay: 1000,      // 1 second
+        maxDelay: 30000,         // 30 seconds max
+        jitterEnabled: true,     // Add randomness to prevent thundering herd
+        jitterFactor: 0.1,       // 10% jitter
+    }
+}
+
+let workflow = {
+    name: "Resilient API Workflow",
+    type: "sequential",
+    tasks: [
+        {
+            name: "Call External API",
+            handler: (ctx) -> {
+                // This will retry with exponential back-off on failure
+                callExternalAPI()
+            }
+        }
+    ]
+}
+
+engine.execute(workflow, {}, config)
+```
+
+**Retry Strategies:**
+- **Fixed**: Same delay between retries (e.g., 1s, 1s, 1s)
+- **Linear**: Delay increases linearly (e.g., 1s, 2s, 3s)
+- **Exponential**: Delay doubles each time (e.g., 1s, 2s, 4s, 8s)
+
+**Jitter**: Adds randomness to prevent multiple clients from retrying simultaneously.
+
+#### Circuit Breaker Pattern
+
+```karl
+import "./retry_policy.k" as Retry
+
+let circuitBreaker = Retry.createCircuitBreaker({
+    threshold: 5,           // Open circuit after 5 failures
+    timeout: 60000,         // Wait 60s before trying again
+    halfOpenAttempts: 3,    // Test with 3 attempts in half-open state
+})
+
+// Execute task through circuit breaker
+let result = circuitBreaker.execute(task, context)
+
+// Circuit states: CLOSED (normal) -> OPEN (failing) -> HALF_OPEN (testing)
+```
+
+---
+
+### 2. Parallel Execution with Worker Pools
+
+Efficient multi-core task execution with configurable worker pools and task queues.
+
+#### Worker Pool Configuration
+
+```karl
+let config = {
+    useWorkerPool: true,      // Enable worker pool mode
+    workerCount: 4,           // Number of concurrent workers
+    enableMetrics: true,      // Collect performance metrics
+}
+
+let workflow = {
+    name: "Parallel Processing",
+    type: "parallel",
+    tasks: [
+        { name: "Task 1", handler: (ctx) -> processData(1) },
+        { name: "Task 2", handler: (ctx) -> processData(2) },
+        { name: "Task 3", handler: (ctx) -> processData(3) },
+        { name: "Task 4", handler: (ctx) -> processData(4) },
+        { name: "Task 5", handler: (ctx) -> processData(5) },
+        { name: "Task 6", handler: (ctx) -> processData(6) },
+        { name: "Task 7", handler: (ctx) -> processData(7) },
+        { name: "Task 8", handler: (ctx) -> processData(8) },
+    ]
+}
+
+let result = engine.execute(workflow, {}, config)
+
+// Access worker metrics
+if result.metrics {
+    for i < result.metrics.length with i = 0 {
+        let workerMetrics = result.metrics[i]
+        log("Worker", workerMetrics.workerId, "processed", workerMetrics.metrics.tasksProcessed, "tasks")
+        i = i + 1
+    } then {}
+}
+```
+
+**Benefits:**
+- **Resource Control**: Limit concurrent tasks to prevent overwhelming the system
+- **Load Balancing**: Tasks are distributed evenly across workers
+- **Metrics**: Track per-worker performance and throughput
+- **Efficiency**: Reuse workers instead of spawning goroutines per task
+
+#### Batched Execution
+
+```karl
+import "./parallel_executor.k" as Parallel
+
+let executor = Parallel.createParallelExecutor({
+    workerCount: 4,
+    batchSize: 10,
+})
+
+// Process 100 tasks in batches of 10
+let result = executor.executeBatched(tasks, context)
+```
+
+---
+
+### 3. Persisted DAG State
+
+Save and resume workflows with automatic checkpointing.
+
+#### Basic Persistence
+
+```karl
+let config = {
+    enablePersistence: true,
+    workflowId: "my-etl-pipeline-001",
+    storageConfig: {
+        storageDir: "./workflow-state",
+        enableAutoCheckpoint: false,
+    }
+}
+
+let workflow = {
+    name: "Long Running ETL",
+    type: "dag",
+    nodes: [...],
+    edges: [...],
+}
+
+let result = engine.execute(workflow, {}, config)
+
+// State is automatically saved to: ./workflow-state/my-etl-pipeline-001.json
+log("Workflow ID:", result.workflowId)
+```
+
+#### Resume from Checkpoint
+
+```karl
+import "./storage.k" as Storage
+
+let storage = Storage.createStorageEngine({
+    storageDir: "./workflow-state",
+})
+
+// Check if workflow can be resumed
+let resumeCheck = storage.canResume("my-etl-pipeline-001")
+
+if resumeCheck.resumable {
+    log("Found saved state!")
+    log("Completed:", resumeCheck.state.totalCompleted, "nodes")
+    
+    // Get nodes that still need to run
+    let incompleteNodes = storage.getIncompleteNodes(nodes, resumeCheck.state)
+    log("Remaining:", incompleteNodes.length, "nodes")
+    
+    // Execute with same workflowId to resume
+    let result = engine.execute(workflow, {}, config)
+} else {
+    log("Starting fresh workflow")
+}
+```
+
+#### Automatic Checkpointing
+
+The DAG executor automatically creates checkpoints every 5 completed nodes:
+
+```karl
+// Checkpoint is created automatically during execution
+// State includes:
+// - completedNodes: which nodes have finished
+// - startedNodes: which nodes are in progress
+// - results: output from completed nodes
+// - totalCompleted: count of finished nodes
+```
+
+#### Manual State Management
+
+```karl
+import "./storage.k" as Storage
+
+let storage = Storage.createStorageEngine({
+    storageDir: "./workflow-state",
+})
+
+// Create initial state
+let state = storage.createInitialState(nodes, edges)
+
+// Save state
+storage.save("workflow-001", state)
+
+// Load state
+let loadResult = storage.load("workflow-001")
+if loadResult.success {
+    let savedState = loadResult.state
+    log("Loaded state with", savedState.totalCompleted, "completed nodes")
+}
+
+// Delete state
+storage.delete("workflow-001")
+```
+
+---
+
+### Combined Features Example
+
+Use all three features together for maximum resilience:
+
+```karl
+import "./retry_policy.k" as Retry
+
+let config = {
+    // Retry policy
+    retryPolicy: {
+        maxAttempts: 3,
+        strategy: Retry.RETRY_EXPONENTIAL,
+        initialDelay: 1000,
+        maxDelay: 10000,
+        jitterEnabled: true,
+    },
+    
+    // Worker pool (for parallel tasks)
+    useWorkerPool: true,
+    workerCount: 4,
+    enableMetrics: true,
+    
+    // State persistence
+    enablePersistence: true,
+    workflowId: "resilient-etl-pipeline",
+    storageConfig: {
+        storageDir: "./workflow-state",
+    },
+}
+
+let workflow = {
+    name: "Resilient ETL Pipeline",
+    type: "dag",
+    nodes: [
+        { id: "fetch-1", name: "Fetch Source 1", handler: fetchData1 },
+        { id: "fetch-2", name: "Fetch Source 2", handler: fetchData2 },
+        { id: "validate", name: "Validate", handler: validateData },
+        { id: "transform", name: "Transform", handler: transformData },
+        { id: "load", name: "Load", handler: loadData },
+    ],
+    edges: [
+        { source: "fetch-1", target: "validate" },
+        { source: "fetch-2", target: "validate" },
+        { source: "validate", target: "transform" },
+        { source: "transform", target: "load" },
+    ],
+}
+
+let result = engine.execute(workflow, {}, config)
+
+// This workflow will:
+// - Retry failed tasks with exponential back-off
+// - Execute fetch-1 and fetch-2 in parallel
+// - Save state periodically (every 5 nodes)
+// - Can be resumed if interrupted
+// - Collect performance metrics
+```
+
+---
+
 ## Configuration
 
 ### Engine Configuration
 
 ```karl
 let config = {
-    defaultRetries: 2,        // Retry failed tasks
-    defaultWorkers: 3,        // Worker pool size
+    // Legacy retry settings
+    defaultRetries: 2,        // Simple retry count
+    defaultWorkers: 3,        // Worker pool size for pipelines
     stopOnError: false,       // Continue on failures
+    
+    // Enhanced features
+    retryPolicy: null,           // Advanced retry (see Retry module)
+    useWorkerPool: false,        // Use worker pool for parallel execution
+    workerCount: 4,              // Number of workers in pool
+    enableMetrics: true,         // Collect performance metrics
+    enablePersistence: false,    // Enable state persistence
+    workflowId: null,            // Unique workflow identifier
+    storageConfig: {             // Storage configuration
+        storageDir: "./workflow-state",
+        enableAutoCheckpoint: false,
+    },
 }
 
 engine.execute(workflow, initialContext, config)
@@ -487,7 +793,10 @@ The engine provides multiple strategies:
 
 | File | Lines | Purpose | Status |
 |------|-------|---------|--------|
-| `engine.k` | ~500 | Core workflow engine | ✅ |
+| `engine.k` | ~650 | Core workflow engine with integrated features | ✅ |
+| `retry_policy.k` | ~350 | Advanced retry strategies & circuit breakers | ✅ |
+| `parallel_executor.k` | ~350 | Worker pool-based parallel execution | ✅ |
+| `storage.k` | ~350 | State persistence & checkpoint management | ✅ |
 | `examples.k` | ~200 | Basic workflow demos | ✅ |
 | `timer_tasks.k` | ~300 | Timer demonstrations | ✅ |
 | `dag_pipeline.k` | ~430 | Advanced DAG demo | ✅ |
@@ -495,12 +804,22 @@ The engine provides multiple strategies:
 | `file_watcher.k` | ~300 | File monitoring | ✅ |
 | `subdag_demo.k` | ~550 | Sub-DAG patterns | ✅ |
 | `quickstart.k` | ~150 | Beginner guide | ✅ |
+| `enhanced_demo.k` | ~350 | New features demonstration | ✅ |
+| `test_integrated_features.k` | ~350 | Integration tests | ✅ |
 
-**Total:** ~2,700 lines of workflow orchestration code
+**Total:** ~4,600 lines of workflow orchestration code
 
 ---
 
 ## Recent Updates
+
+### 2026-02-03: Enhanced Features Release ✨
+- **Advanced Retry Policies** with exponential back-off, jitter, and circuit breakers
+- **Worker Pool Execution** for efficient multi-core parallel processing
+- **State Persistence** with automatic checkpointing and resume capability
+- **Integrated into main engine** - all features work seamlessly together
+- **New modules:** `retry_policy.k`, `parallel_executor.k`, `storage.k`
+- **Comprehensive tests** and documentation
 
 ### 2026-01-30: DAG Executor Fix ✨
 - **Fixed deadlock** in DAG executor
@@ -517,21 +836,26 @@ The engine provides multiple strategies:
 
 ## Future Enhancements
 
+Completed:
+- ✅ Advanced retry policies with exponential back-off
+- ✅ Worker pools for parallel execution
+- ✅ State persistence (save/resume workflows)
+- ✅ Built-in metrics collection
+- ✅ Circuit breakers for failure recovery
+
 Potential additions:
 - Task-level execution timeouts
 - Priority queues for task scheduling
 - Dynamic routing based on results
-- State persistence (save/resume workflows)
-- Built-in metrics collection
-- Circuit breakers for failure recovery
 - Distributed execution across multiple nodes
 - Workflow versioning
+- Real-time monitoring dashboard
 
 ---
 
 **Author:** Nico  
 **Language:** Karl  
 **Created:** 2026-01-29  
-**Updated:** 2026-01-30  
-**Files:** 10  
+**Updated:** 2026-02-03  
+**Files:** 13  
 **Status:** Production Ready ✅
