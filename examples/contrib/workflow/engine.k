@@ -116,7 +116,7 @@ let executeTask = (task, context, config) -> {
                 { success: false, error: "Task execution failed" }
             }
             
-            if taskResult.success {
+            if taskResult.success == true {
                 success = true
                 result = taskResult
             } else {
@@ -143,7 +143,7 @@ let executeSequential = (tasks, initialContext, config) -> {
         
         let taskResult = executeTask(task, context, config)
         
-        if taskResult.success {
+        if taskResult.success == true {
             log("[TASK]", task.name, "- Success")
             results += [{
                 name: task.name,
