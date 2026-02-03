@@ -129,7 +129,7 @@ let createWorker = (workerId, taskChan, resultChan, config) -> {
                 taskName: task.name,
                 success: result.success,
                 data: result.data,
-                error: result.error,
+                error: null,  // TODO: Safely access result.error if it exists
                 duration: duration,
             })
         } then metrics
