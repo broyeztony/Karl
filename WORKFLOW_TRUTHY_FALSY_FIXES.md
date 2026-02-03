@@ -124,19 +124,24 @@ bf32e0e fix: Replace all truthy/falsy checks with explicit boolean comparisons
 
 1. **test_minimal_retry.k** - Minimal retry policy test (PASSES ✅)
 2. **test_minimal_parallel.k** - Minimal parallel executor creation test (PASSES ✅)
-3. **test_deadlock_bug.k** - Minimal test reproducing the deadlock (DEADLOCKS ⚠️)
+
+**Note:** Deadlock reproduction test moved to `bug/parallel-executor-deadlock` branch
 
 ## Known Issues
 
 ### Parallel Executor Deadlock
 
+**Status:** Tracked in separate branch `bug/parallel-executor-deadlock`
+
 **Symptom:** Goroutines get stuck in "chan send" operations
 
-**Reproduction:** Run `test_deadlock_bug.k` with 3 tasks and 2 workers
+**Reproduction:** See `test_deadlock_bug.k` in the bug branch
 
 **Root Cause:** The result channel is not being properly consumed, causing workers to block when trying to send results.
 
 **This is NOT a truthy/falsy issue** - it's a concurrency bug in the parallel executor's channel communication logic.
+
+**See:** `BUG_PARALLEL_EXECUTOR_DEADLOCK.md` in the bug branch for detailed analysis
 
 ## Lessons Learned
 
