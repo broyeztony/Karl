@@ -463,7 +463,7 @@ let fastest = wait | {
 // Concurrency model (event-loop based)
 // --------------------------------------------
 // - Concurrency is cooperative and scheduled by a single event loop.
-// - The model is CSP-style: tasks communicate via rendezvous channels.
+// - The model is CSP-style: tasks communicate via rendezvous channels (created with rendezvous() or channel()).
 // - & call spawns a task and returns a Task handle.
 // - & { call1(), call2(), ... } spawns all calls concurrently and returns a Task handle of results in order.
 // - wait task waits for completion and yields the task result.
@@ -488,7 +488,8 @@ let pages = wait & {
 }
 
 // Rendezvous channels (synchronous; send/recv block)
-let ch = rendezvous()
+// channel() is an alias of rendezvous().
+let ch = channel()
 
 wait & { producer(ch), consumer(ch) }
 
@@ -522,7 +523,7 @@ let streamConsumer = (ch) -> {
     } then ()
 }
 
-// Rendezvous API
+// Channel (rendezvous) API
 // - ch.send(value) blocks until a receiver accepts the value (returns Unit)
 // - ch.recv() blocks until a value arrives or the rendezvous is closed; returns [value, done]
 // - ch.done() closes the rendezvous

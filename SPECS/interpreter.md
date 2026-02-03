@@ -240,7 +240,7 @@ instead (see "Current Go Implementation").
 
 The interpreter runs a **single-threaded event loop** that schedules cooperative tasks.
 There is no preemption; tasks yield only at well-defined points (`wait`, `recv`, `sleep`).
-Concurrency follows CSP-style message passing via rendezvous channels.
+Concurrency follows CSP-style message passing via rendezvous channels (created with `rendezvous()` or `channel()`).
 
 Core data structures (conceptual):
 
@@ -389,9 +389,9 @@ let fastest = wait | { busy(), slow() }
 // so it continues but its result is ignored.
 ```
 
-### Rendezvous
+### Rendezvous (Channel)
 
-- `rendezvous()` returns a Rendezvous channel for task communication.
+- `rendezvous()` (alias: `channel()`) returns a Rendezvous channel for task communication.
 - `ch.send(value)` enqueues a value and returns Unit.
 - `ch.recv()` returns `[value, done]`; `done` is true when the rendezvous is closed (value is `null`).
 - `ch.done()` closes the rendezvous (no further sends allowed).
@@ -428,6 +428,7 @@ Implementation details (current runtime):
 ## Built-in Functions (Assumed)
 
 - `rendezvous()` -> Rendezvous
+- `channel()` -> Rendezvous (alias)
 - `sleep(ms)` -> Unit (yields)
 - `now()` -> Int (epoch ms)
 - `exit(message)` -> no return (terminates)

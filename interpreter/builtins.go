@@ -20,6 +20,8 @@ func RegisterBuiltins() {
 	builtins["exit"] = &Builtin{Name: "exit", Fn: builtinExit}
 	builtins["fail"] = &Builtin{Name: "fail", Fn: builtinFail}
 	builtins["rendezvous"] = &Builtin{Name: "rendezvous", Fn: builtinChannel}
+	builtins["channel"] = &Builtin{Name: "channel", Fn: builtinChannel}
+	builtins["buffered"] = &Builtin{Name: "buffered", Fn: builtinBufferedChannel}
 	builtins["sleep"] = &Builtin{Name: "sleep", Fn: builtinSleep}
 	builtins["log"] = &Builtin{Name: "log", Fn: builtinLog}
 	builtins["str"] = &Builtin{Name: "str", Fn: builtinStr}
@@ -129,6 +131,24 @@ func builtinFail(_ *Evaluator, args []Value) (Value, error) {
 func builtinChannel(_ *Evaluator, _ []Value) (Value, error) {
 	return &Channel{Ch: make(chan Value)}, nil
 }
+
+func builtinBufferedChannel(_ *Evaluator, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return nil, &RuntimeError{Message: "buffered expects 1 argument (buffer size)"}
+	}
+	size, ok := args[0].(*Integer)
+	if !ok {
+		return nil, &RuntimeError{Message: "buffered expects integer buffer size"}
+	}
+	if size.Value < 0 {
+		return nil, &RuntimeError{Message: "buffered expects non-negative buffer size"}
+	}
+	if size.Value > 1000000 {
+		return nil, &RuntimeError{Message: "buffered buffer size too large (max 1000000)"}
+	}
+	return &Channel{Ch: make(chan Value, size.Value)}, nil
+}
+
 
 func builtinSleep(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) != 1 {

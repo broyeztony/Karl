@@ -1,6 +1,6 @@
-// Rendezvous send/recv coordinates tasks.
+// Rendezvous send/recv coordinates tasks (channel() is an alias).
 
-let ch = rendezvous()
+let ch = channel()
 
 let producer = (ch) -> {
     ch.send("a")

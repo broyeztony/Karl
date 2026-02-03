@@ -377,10 +377,10 @@ let task = {
 ```karl
 & taskFunction()          // Spawn async task
 wait task                 // Wait for completion
-rendezvous()             // Create channel
-channel.send(value)      // Send to channel
-channel.recv()           // Receive from channel
-channel.done()           // Close channel
+channel()                 // Create channel (alias: rendezvous())
+ch.send(value)            // Send to channel
+ch.recv()                 // Receive from channel
+ch.done()                 // Close channel
 ```
 
 ### Control Flow
