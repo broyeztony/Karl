@@ -630,23 +630,19 @@ let defaultConfig = {
 }
 
 // Merge user config with defaults to ensure all properties exist
+// NOTE: User config must have all properties defined
 let mergeConfig = (userConfig) -> {
-    // Create a new config with all required properties
-    // Use defaults for new properties that might not exist in user config
     {
-        // Legacy properties (always present in user config)
         defaultRetries: userConfig.defaultRetries,
         defaultWorkers: userConfig.defaultWorkers,
         stopOnError: userConfig.stopOnError,
-        
-        // New properties (use defaults)
-        retryPolicy: defaultConfig.retryPolicy,
-        useWorkerPool: defaultConfig.useWorkerPool,
-        workerCount: defaultConfig.workerCount,
-        enableMetrics: defaultConfig.enableMetrics,
-        enablePersistence: defaultConfig.enablePersistence,
-        workflowId: defaultConfig.workflowId,
-        storageConfig: defaultConfig.storageConfig,
+        retryPolicy: userConfig.retryPolicy,
+        useWorkerPool: userConfig.useWorkerPool,
+        workerCount: userConfig.workerCount,
+        enableMetrics: userConfig.enableMetrics,
+        enablePersistence: userConfig.enablePersistence,
+        workflowId: userConfig.workflowId,
+        storageConfig: userConfig.storageConfig,
     }
 }
 
