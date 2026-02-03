@@ -84,7 +84,7 @@ let saveState = (workflowId, state, config) -> {
         { success: false, error: "Failed to write state file" }
     }
     
-    if writeResult.success {
+    if writeResult.success == true {
         log("[STORAGE] State saved successfully to:", filePath)
         { success: true, path: filePath }
     } else {
@@ -111,9 +111,9 @@ let loadState = (workflowId, config) -> {
             { success: false, error: "Failed to parse state JSON" }
         }
         
-        if parseResult.success {
+        if parseResult.success == true {
             let deserialized = deserializeWorkflowState(parseResult.data)
-            if deserialized.success {
+            if deserialized.success == true {
                 log("[STORAGE] State loaded successfully from:", filePath)
                 { success: true, state: deserialized.state }
             } else {
@@ -137,7 +137,7 @@ let deleteState = (workflowId, config) -> {
         { success: false, error: "Failed to delete state file" }
     }
     
-    if deleteResult.success {
+    if deleteResult.success == true {
         log("[STORAGE] State deleted successfully")
         { success: true }
     } else {
@@ -194,7 +194,7 @@ let startAutoCheckpoint = (workflowId, stateRef, config) -> {
 let canResume = (workflowId, config) -> {
     let loadResult = loadState(workflowId, config)
     
-    if loadResult.success {
+    if loadResult.success == true {
         let state = loadResult.state
         if state.status == "running" || state.status == "paused" {
             log("[RESUME] Workflow can be resumed")

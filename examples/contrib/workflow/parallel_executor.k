@@ -283,7 +283,7 @@ let executeParallelWithPool = (tasks, context, config) -> {
         // Collect results
         let results = for i < tasks.length with i = 0, resultList = [] {
             let resultWrapper = pool.waitForResult()
-            if resultWrapper.success {
+            if resultWrapper.success == true {
                 resultList += [resultWrapper.result]
             }
             i = i + 1
@@ -299,7 +299,7 @@ let executeParallelWithPool = (tasks, context, config) -> {
         {
             success: true,
             results: results,
-            metrics: if shutdownResult.success { shutdownResult.metrics } else { [] },
+            metrics: if shutdownResult.success == true { shutdownResult.metrics } else { [] },
         }
     }
 }
@@ -342,7 +342,7 @@ let executeWithBatching = (tasks, context, config) -> {
         // Execute batch
         let batchResult = executeParallelWithPool(batch, context, config)
         
-        if batchResult.success {
+        if batchResult.success == true {
             allResults += batchResult.results
         }
         

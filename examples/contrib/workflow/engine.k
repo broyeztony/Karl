@@ -269,7 +269,7 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
     // Check if we can resume from saved state
     let resumeState = if storage {
         let resumeCheck = storage.canResume(workflowId)
-        if resumeCheck.resumable {
+        if resumeCheck.resumable == true {
             log("[WORKFLOW] Resuming from saved state")
             resumeCheck.state
         } else {
