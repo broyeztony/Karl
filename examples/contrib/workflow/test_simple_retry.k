@@ -1,29 +1,44 @@
 // Simple retry test
 
-import "examples/contrib/workflow/engine.k"
+let makeEngine = import "examples/contrib/workflow/engine.k"
+let Engine = makeEngine()
 
 log("Testing retry policy...")
 
 let task = {
     name: "TestTask",
-    execute: () -> {
+    handler: (ctx) -> {
         log("Task executing")
-        { success: true, result: "done" }
+        { success: true, data: { result: "done" } }
     },
 }
 
 let config = {
+    defaultRetries: 2,
+    defaultWorkers: 3,
+    stopOnError: false,
     retryPolicy: {
         maxAttempts: 3,
-        backoffMs: 100,
+        strategy: "exponential",
+        initialDelay: 100,
+        maxDelay: 5000,
+        jitterEnabled: false,
+        jitterFactor: 0.1,
         retryableErrors: [],
     },
     useWorkerPool: false,
     workerCount: 1,
+    queueSize: 100,
+    batchSize: 10,
+    enablePriority: false,
+    shutdownTimeout: 30000,
     enableMetrics: false,
     enablePersistence: false,
     workflowId: "test-1",
-    storageConfig: null,
+    storageConfig: {
+        storageDir: "./workflow-state",
+        enableAutoCheckpoint: false,
+    },
 }
 
 let workflow = {
