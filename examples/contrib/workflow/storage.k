@@ -255,7 +255,7 @@ let getReadyNodes = (nodes, edges, state) -> {
                 j = j + 1
             } then allDepsMet
             
-            if allDepsMet {
+            if allDepsMet == true {
                 ready += [node]
             }
         }
