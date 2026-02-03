@@ -211,13 +211,13 @@ let createExponentialRetryPolicy = (maxAttempts, initialDelay, maxDelay) -> {
 // Create a custom retry policy
 let createCustomRetryPolicy = (config) -> {
     {
-        maxAttempts: if config.maxAttempts { config.maxAttempts } else { defaultRetryPolicy.maxAttempts },
-        strategy: if config.strategy { config.strategy } else { defaultRetryPolicy.strategy },
-        initialDelay: if config.initialDelay { config.initialDelay } else { defaultRetryPolicy.initialDelay },
-        maxDelay: if config.maxDelay { config.maxDelay } else { defaultRetryPolicy.maxDelay },
+        maxAttempts: if config.maxAttempts != null { config.maxAttempts } else { defaultRetryPolicy.maxAttempts },
+        strategy: if config.strategy != null { config.strategy } else { defaultRetryPolicy.strategy },
+        initialDelay: if config.initialDelay != null { config.initialDelay } else { defaultRetryPolicy.initialDelay },
+        maxDelay: if config.maxDelay != null { config.maxDelay } else { defaultRetryPolicy.maxDelay },
         jitterEnabled: if config.jitterEnabled != null { config.jitterEnabled } else { defaultRetryPolicy.jitterEnabled },
-        jitterFactor: if config.jitterFactor { config.jitterFactor } else { defaultRetryPolicy.jitterFactor },
-        retryableErrors: if config.retryableErrors { config.retryableErrors } else { defaultRetryPolicy.retryableErrors },
+        jitterFactor: if config.jitterFactor != null { config.jitterFactor } else { defaultRetryPolicy.jitterFactor },
+        retryableErrors: if config.retryableErrors != null { config.retryableErrors } else { defaultRetryPolicy.retryableErrors },
     }
 }
 
@@ -237,9 +237,9 @@ let createCircuitBreaker = (config) -> {
         failureCount: 0,
         successCount: 0,
         lastFailureTime: 0,
-        threshold: if config.threshold { config.threshold } else { 5 },
-        timeout: if config.timeout { config.timeout } else { 60000 },  // 1 minute
-        halfOpenAttempts: if config.halfOpenAttempts { config.halfOpenAttempts } else { 3 },
+        threshold: if config.threshold != null { config.threshold } else { 5 },
+        timeout: if config.timeout != null { config.timeout } else { 60000 },  // 1 minute
+        halfOpenAttempts: if config.halfOpenAttempts != null { config.halfOpenAttempts } else { 3 },
     }
     
     {
