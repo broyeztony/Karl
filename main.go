@@ -123,7 +123,9 @@ func runCommand(args []string) int {
 		fmt.Fprintln(os.Stderr, interpreter.FormatRuntimeError(err, string(data), filename))
 		return 1
 	}
-	fmt.Println(val.Inspect())
+	if _, ok := val.(*interpreter.Unit); !ok {
+		fmt.Println(val.Inspect())
+	}
 	return 0
 }
 
