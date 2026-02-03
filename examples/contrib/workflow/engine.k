@@ -643,6 +643,7 @@ let mergeConfig = (userConfig) -> {
         workerCount: userConfig.workerCount,
         queueSize: userConfig.queueSize,
         batchSize: userConfig.batchSize,
+        enablePriority: userConfig.enablePriority,
         enableMetrics: userConfig.enableMetrics,
         enablePersistence: userConfig.enablePersistence,
         workflowId: userConfig.workflowId,
