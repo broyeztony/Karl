@@ -635,13 +635,13 @@ let mergeConfig = (userConfig) -> {
         defaultRetries: userConfig.defaultRetries,
         defaultWorkers: userConfig.defaultWorkers,
         stopOnError: userConfig.stopOnError,
-        retryPolicy: defaultConfig.retryPolicy,
-        useWorkerPool: defaultConfig.useWorkerPool,
-        workerCount: defaultConfig.workerCount,
-        enableMetrics: defaultConfig.enableMetrics,
-        enablePersistence: defaultConfig.enablePersistence,
-        workflowId: defaultConfig.workflowId,
-        storageConfig: defaultConfig.storageConfig,
+        retryPolicy: if userConfig.retryPolicy != null { userConfig.retryPolicy } else { defaultConfig.retryPolicy },
+        useWorkerPool: if userConfig.useWorkerPool != null { userConfig.useWorkerPool } else { defaultConfig.useWorkerPool },
+        workerCount: if userConfig.workerCount != null { userConfig.workerCount } else { defaultConfig.workerCount },
+        enableMetrics: if userConfig.enableMetrics != null { userConfig.enableMetrics } else { defaultConfig.enableMetrics },
+        enablePersistence: if userConfig.enablePersistence != null { userConfig.enablePersistence } else { defaultConfig.enablePersistence },
+        workflowId: if userConfig.workflowId != null { userConfig.workflowId } else { defaultConfig.workflowId },
+        storageConfig: if userConfig.storageConfig != null { userConfig.storageConfig } else { defaultConfig.storageConfig },
     }
 }
 
