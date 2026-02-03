@@ -78,7 +78,7 @@ log("\n--- TEST 2: Worker Pool Integration ---\n")
 // Create 8 compute tasks
 let computeTasks = for i < 8 with i = 0, tasks = [] {
     tasks += [{
-        name: "Compute-" + (i + 1),
+        name: "Compute-" + str(i + 1),
         handler: (ctx) -> {
             log("[COMPUTE] Processing task", i + 1)
             // Simulate work
