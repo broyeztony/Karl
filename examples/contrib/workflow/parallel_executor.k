@@ -364,6 +364,7 @@ let createParallelExecutor = (config) -> {
             workerCount: if config.workerCount != null { config.workerCount } else { defaultPoolConfig.workerCount },
             queueSize: if config.queueSize != null { config.queueSize } else { defaultPoolConfig.queueSize },
             enablePriority: if config.enablePriority != null { config.enablePriority } else { defaultPoolConfig.enablePriority },
+            shutdownTimeout: if config.shutdownTimeout != null { config.shutdownTimeout } else { defaultPoolConfig.shutdownTimeout },
             enableMetrics: if config.enableMetrics != null { config.enableMetrics } else { defaultPoolConfig.enableMetrics },
             batchSize: if config.batchSize != null { config.batchSize } else { 10 },
         }

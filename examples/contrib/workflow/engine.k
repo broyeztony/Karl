@@ -191,6 +191,7 @@ let executeParallel = (tasks, context, config) -> {
             queueSize: config.queueSize,
             batchSize: null,  // Will use default
             enablePriority: config.enablePriority,
+            shutdownTimeout: null,  // Will use default
             enableMetrics: config.enableMetrics,
         })
         
@@ -645,6 +646,7 @@ let mergeConfig = (userConfig) -> {
         queueSize: userConfig.queueSize,
         batchSize: userConfig.batchSize,
         enablePriority: userConfig.enablePriority,
+        shutdownTimeout: userConfig.shutdownTimeout,
         enableMetrics: userConfig.enableMetrics,
         enablePersistence: userConfig.enablePersistence,
         workflowId: userConfig.workflowId,
