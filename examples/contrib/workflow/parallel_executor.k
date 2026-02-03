@@ -98,7 +98,7 @@ let createWorker = (workerId, taskChan, resultChan, config) -> {
         for running = true with running = true {
             let [task, done] = taskChan.recv()
             
-            if done {
+            if done == true {
                 log("[WORKER", workerId, "] Shutting down")
                 break metrics
             }
@@ -170,7 +170,7 @@ let createWorkerPool = (config) -> {
         
         // Start the worker pool
         start: () -> {
-            if isRunning {
+            if isRunning == true {
                 log("[POOL] Already running")
                 { success: false, error: "Pool already running" }
             } else {
@@ -203,7 +203,7 @@ let createWorkerPool = (config) -> {
         // Wait for a result
         waitForResult: () -> {
             let [result, done] = resultChan.recv()
-            if done {
+            if done == true {
                 { success: false, error: "Result channel closed" }
             } else {
                 { success: true, result: result }

@@ -67,12 +67,14 @@ let calculateDelay = (attempt, policy) -> {
     
     // Add jitter if enabled
     if policy.jitterEnabled == true {
-        let jitterRange = cappedDelay * policy.jitterFactor
-        let jitter = ((now() % 1000) / 1000.0 * jitterRange * 2) - jitterRange
+        // Use integer arithmetic for jitter (no float conversion needed)
+        let jitterRange = (cappedDelay * policy.jitterFactor * 1000) / 1000  // Keep as integer
+        let randomValue = now() % 1000  // 0-999
+        let jitter = (randomValue * jitterRange * 2 / 1000) - jitterRange
         let finalDelay = cappedDelay + jitter
         
-        // Ensure non-negative and convert to integer
-        if finalDelay < 0 { 0 } else { int(finalDelay) }
+        // Ensure non-negative
+        if finalDelay < 0 { 0 } else { finalDelay }
     } else {
         cappedDelay
     }

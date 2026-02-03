@@ -51,7 +51,7 @@ let retryConfig = {
         strategy: Retry.RETRY_EXPONENTIAL,
         initialDelay: 100,
         maxDelay: 3000,
-        jitterEnabled: true,
+        jitterEnabled: false,
         jitterFactor: 0.1,
         retryableErrors: [],
     },
