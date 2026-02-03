@@ -629,8 +629,27 @@ let defaultConfig = {
     },
 }
 
+// Merge user config with defaults to ensure all properties exist
+let mergeConfig = (userConfig) -> {
+    {
+        defaultRetries: userConfig.defaultRetries,
+        defaultWorkers: userConfig.defaultWorkers,
+        stopOnError: userConfig.stopOnError,
+        retryPolicy: defaultConfig.retryPolicy,
+        useWorkerPool: defaultConfig.useWorkerPool,
+        workerCount: defaultConfig.workerCount,
+        enableMetrics: defaultConfig.enableMetrics,
+        enablePersistence: defaultConfig.enablePersistence,
+        workflowId: defaultConfig.workflowId,
+        storageConfig: defaultConfig.storageConfig,
+    }
+}
+
 // Execute workflow based on type
-let execute = (workflow, context, config) -> {
+let execute = (workflow, context, userConfig) -> {
+    // Merge user config with defaults to ensure all properties exist
+    let config = mergeConfig(userConfig)
+    
     log("==================================================")
     log("[ENGINE] Executing workflow:", workflow.name)
     log("==================================================")
