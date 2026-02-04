@@ -160,8 +160,11 @@ let createWorkerPool = (config) -> {
         defaultPoolConfig
     }
     
-    let taskChan = rendezvous()
-    let resultChan = rendezvous()
+    // Use buffered channels to prevent deadlock
+    // Task channel needs to hold all tasks that might be submitted
+    let taskChan = buffered(finalConfig.queueSize)
+    // Result channel needs to hold all results
+    let resultChan = buffered(finalConfig.queueSize)
     let workers = []
     let isRunning = false
     

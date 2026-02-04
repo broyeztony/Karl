@@ -624,6 +624,10 @@ let defaultConfig = {
     retryPolicy: null,           // Use RetryModule for advanced retry
     useWorkerPool: false,        // Use ParallelModule for worker pools
     workerCount: 4,              // Number of workers in pool
+    queueSize: 100,              // Queue size for worker pool
+    batchSize: 10,               // Batch size for processing
+    enablePriority: false,       // Enable priority queue
+    shutdownTimeout: 30000,      // Shutdown timeout in ms
     enableMetrics: true,         // Collect performance metrics
     enablePersistence: false,    // Enable state persistence
     workflowId: null,            // Unique workflow identifier

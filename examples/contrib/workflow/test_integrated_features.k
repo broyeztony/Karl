@@ -207,12 +207,18 @@ let persistConfig = {
     retryPolicy: null,
     useWorkerPool: false,
     workerCount: 4,
+    queueSize: 100,
+    batchSize: 10,
+    enablePriority: false,
+    shutdownTimeout: 30000,
     enableMetrics: true,
     enablePersistence: true,
     workflowId: "test-dag-001",
     storageConfig: {
         storageDir: "./workflow-state",
         enableAutoCheckpoint: false,
+        checkpointInterval: 5000,
+        compressionEnabled: false,
     },
 }
 
@@ -322,6 +328,8 @@ let fullConfig = {
     storageConfig: {
         storageDir: "./workflow-state",
         enableAutoCheckpoint: false,
+        checkpointInterval: 5000,
+        compressionEnabled: false,
     },
 }
 
