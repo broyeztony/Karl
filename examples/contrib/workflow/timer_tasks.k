@@ -8,7 +8,7 @@
 // - Real-world scheduling scenarios
 // ============================================================================
 
-let makeEngine = import "examples/contrib/workflow/engine.k"
+let makeEngine = import "./engine.k"
 let WorkflowEngine = makeEngine()
 
 log("================================================================================")

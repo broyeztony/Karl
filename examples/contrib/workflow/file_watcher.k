@@ -13,7 +13,7 @@
 // ============================================================================
 
 // Import the workflow engine
-let makeEngine = import "examples/contrib/workflow/engine.k"
+let makeEngine = import "./engine.k"
 let engine = makeEngine()
 let execute = engine.execute
 let defaultConfig = engine.defaultConfig

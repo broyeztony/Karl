@@ -4,11 +4,22 @@
 // A comprehensive workflow orchestration engine for Karl demonstrating:
 // - Task-based workflow definitions
 // - DAG (Directed Acyclic Graph) execution
-// - Parallel and sequential task execution
-// - Worker pools for pipeline stages
-// - Error handling and retries
+// - Parallel and sequential task execution with worker pools
+// - Advanced retry policies with exponential back-off
+// - Persisted state for workflow resumption
+// - Error handling and circuit breakers
 // - Status tracking and result aggregation
 // ============================================================================
+
+// Import enhanced modules (relative paths)
+let makeRetry = import "./retry_policy.k"
+let RetryModule = makeRetry()
+
+let makeParallel = import "./parallel_executor.k"
+let ParallelModule = makeParallel()
+
+let makeStorage = import "./storage.k"
+let StorageModule = makeStorage()
 
 // ----------------------------------------------------------------------------
 // TIMER TASK SUPPORT
@@ -90,26 +101,33 @@ let executeIntervalTask = (intervalTask, context) -> {
 
 // Execute a single task with error handling and retry logic
 let executeTask = (task, context, config) -> {
-    let maxRetries = config.defaultRetries
-    
-    for i < maxRetries + 1 with i = 0, result = { success: false, error: "Not executed" }, success = false {
-        if success { break result }
+    // Use advanced retry policy if configured, otherwise fall back to simple retry
+    if config.retryPolicy != null {
+        let retryEngine = RetryModule.createRetryEngine(config.retryPolicy)
+        retryEngine.execute(task, context)
+    } else {
+        // Legacy simple retry logic
+        let maxRetries = config.defaultRetries
         
-        let taskResult = task.handler(context) ? {
-            { success: false, error: "Task execution failed" }
-        }
-        
-        if taskResult.success {
-            success = true
-            result = taskResult
-        } else {
-            result = taskResult  // Keep last failure result
-            if i < maxRetries {
-                log("[RETRY]", task.name, "- Attempt", i + 1)
+        for i < maxRetries + 1 with i = 0, result = { success: false, error: "Not executed" }, success = false {
+            if success { break result }
+            
+            let taskResult = task.handler(context) ? {
+                { success: false, error: "Task execution failed" }
             }
-        }
-        i = i + 1
-    } then result
+            
+            if taskResult.success {
+                success = true
+                result = taskResult
+            } else {
+                result = taskResult  // Keep last failure result
+                if i < maxRetries {
+                    log("[RETRY]", task.name, "- Attempt", i + 1)
+                }
+            }
+            i = i + 1
+        } then result
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -164,59 +182,76 @@ let executeSequential = (tasks, initialContext, config) -> {
 let executeParallel = (tasks, context, config) -> {
     log("[WORKFLOW] Starting parallel execution of", tasks.length, "tasks")
     
-    let resultChan = rendezvous()
-    
-    // Spawn workers for each task
-    let workers = for i < tasks.length with i = 0, taskList = [] {
-        let task = tasks[i]
-        let taskId = i
+    // Use advanced parallel executor if configured
+    if config.useWorkerPool {
+        log("[WORKFLOW] Using worker pool with", config.workerCount, "workers")
         
-        let worker = & (() -> {
-            log("[TASK]", task.name, "- Starting (parallel)")
-            let result = executeTask(task, context, config)
+        let parallelExecutor = ParallelModule.createParallelExecutor({
+            workerCount: config.workerCount,
+            queueSize: config.queueSize,
+            batchSize: null,  // Will use default
+            enablePriority: config.enablePriority,
+            shutdownTimeout: null,  // Will use default
+            enableMetrics: config.enableMetrics,
+        })
+        
+        parallelExecutor.execute(tasks, context)
+    } else {
+        // Legacy parallel execution (one goroutine per task)
+        let resultChan = rendezvous()
+        
+        // Spawn workers for each task
+        let workers = for i < tasks.length with i = 0, taskList = [] {
+            let task = tasks[i]
+            let taskId = i
             
-            if result.success {
-                log("[TASK]", task.name, "- Success (parallel)")
-            } else {
-                log("[TASK]", task.name, "- Failed (parallel)")
-            }
+            let worker = & (() -> {
+                log("[TASK]", task.name, "- Starting (parallel)")
+                let result = executeTask(task, context, config)
+                
+                if result.success {
+                    log("[TASK]", task.name, "- Success (parallel)")
+                } else {
+                    log("[TASK]", task.name, "- Failed (parallel)")
+                }
+                
+                let response = {
+                    taskId: taskId,
+                    name: task.name,
+                    success: result.success,
+                    data: result.data,
+                }
+                
+                resultChan.send(response)
+            })()
             
-            let response = {
-                taskId: taskId,
-                name: task.name,
-                success: result.success,
-                data: result.data,
-            }
-            
-            resultChan.send(response)
+            taskList += [worker]
+            i = i + 1
+        } then taskList
+        
+        // Collect results
+        let aggregator = & (() -> {
+            for i < tasks.length with i = 0, results = [] {
+                let [val, done] = resultChan.recv()
+                if done { break results }
+                
+                results += [val]
+                i = i + 1
+            } then results
         })()
         
-        taskList += [worker]
-        i = i + 1
-    } then taskList
-    
-    // Collect results
-    let aggregator = & (() -> {
-        for i < tasks.length with i = 0, results = [] {
-            let [val, done] = resultChan.recv()
-            if done { break results }
-            
-            results += [val]
+        // Wait for all workers to complete
+        for i < workers.length with i = 0 {
+            wait workers[i]
             i = i + 1
-        } then results
-    })()
-    
-    // Wait for all workers to complete
-    for i < workers.length with i = 0 {
-        wait workers[i]
-        i = i + 1
-    } then {}
-    
-    resultChan.done()
-    let allResults = wait aggregator
-    
-    let response = { success: true, results: allResults }
-    response
+        } then {}
+        
+        resultChan.done()
+        let allResults = wait aggregator
+        
+        let response = { success: true, results: allResults }
+        response
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -226,81 +261,151 @@ let executeParallel = (tasks, context, config) -> {
 let executeDAG = (nodes, edges, initialContext, config) -> {
     log("[WORKFLOW] Starting DAG execution with", nodes.length, "nodes")
     
+    // Initialize storage if persistence is enabled
+    let storage = if config.enablePersistence {
+        StorageModule.createStorageEngine(config.storageConfig)
+    } else {
+        null
+    }
+    
+    let workflowId = if config.workflowId != null { config.workflowId } else { "workflow-" + str(now()) }
+    
+    // Check if we can resume from saved state
+    let resumeState = if storage != null {
+        let resumeCheck = storage.canResume(workflowId)
+        if resumeCheck.resumable {
+            log("[WORKFLOW] Resuming from saved state")
+            resumeCheck.state
+        } else {
+            null
+        }
+    } else {
+        null
+    }
+    
     // Build adjacency map for dependencies
-    let dependencies = for i < nodes.length with i = 0, deps = {} {
-        deps[nodes[i].id] = []
+    let dependencies = for i < nodes.length with i = 0, deps = map() {
+        deps = deps.set(nodes[i].id, [])
         i = i + 1
     } then deps
     
     let finalDeps = for i < edges.length with i = 0, deps = dependencies {
         let edge = edges[i]
-        let currentDeps = deps[edge.target]
-        deps[edge.target] = currentDeps + [edge.source]
+        let currentDeps = deps.get(edge.target)
+        deps = deps.set(edge.target, currentDeps + [edge.source])
         i = i + 1
     } then deps
     
     // Channel for node completion notifications
     let completionChan = rendezvous()
     
-    // Track started/completed nodes with boolean flags keyed by node id.
-    let completedNodes = for i < nodes.length with i = 0, comp = {} {
-        comp[nodes[i].id] = false
-        i = i + 1
-    } then comp
+    // Initialize or restore state
+    let completedNodes = if resumeState != null {
+        resumeState.completedNodes
+    } else {
+        for i < nodes.length with i = 0, comp = map() {
+            comp = comp.set(nodes[i].id, false)
+            i = i + 1
+        } then comp
+    }
     
-    let startedNodes = for i < nodes.length with i = 0, started = {} {
-        started[nodes[i].id] = false
-        i = i + 1
-    } then started
+    let startedNodes = if resumeState != null {
+        resumeState.startedNodes
+    } else {
+        for i < nodes.length with i = 0, started = map() {
+            started = started.set(nodes[i].id, false)
+            i = i + 1
+        } then started
+    }
     
-    // Find nodes with no dependencies and start them
+    let initialTotalCompleted = if resumeState != null { resumeState.totalCompleted } else { 0 }
+    
+    // Find nodes with no dependencies (or ready nodes if resuming) and start them
     for i < nodes.length with i = 0 {
         let node = nodes[i]
-        let deps = finalDeps[node.id]
-        if deps.length == 0 {
-            startedNodes[node.id] = true
-            let task = & (() -> {
-                log("[DAG]", node.id, "- Starting")
-                let result = executeTask(node, initialContext, config)
-                completionChan.send({
-                    nodeId: node.id,
-                    success: result.success,
-                    data: result.data,
-                })
-            })()
+        
+        if !startedNodes.get(node.id) {
+            let deps = finalDeps.get(node.id)
+            let allDepsMet = true
+            
+            for j < deps.length with j = 0 {
+                if !completedNodes.get(deps[j]) {
+                    allDepsMet = false
+                    break allDepsMet
+                }
+                j = j + 1
+            } then allDepsMet
+            
+            if allDepsMet {
+                startedNodes = startedNodes.set(node.id, true)
+                let task = & (() -> {
+                    log("[DAG]", node.id, "- Starting")
+                    let result = executeTask(node, initialContext, config)
+                    completionChan.send({
+                        nodeId: node.id,
+                        success: result.success,
+                        data: result.data,
+                    })
+                })()
+            }
         }
+        
         i = i + 1
     } then {}
     
     // Collect results
-    let initialResults = for i < nodes.length with i = 0, res = {} {
-        res[nodes[i].id] = null
-        i = i + 1
-    } then res
+    let initialResults = if resumeState != null {
+        resumeState.results
+    } else {
+        for i < nodes.length with i = 0, res = map() {
+            res = res.set(nodes[i].id, null)
+            i = i + 1
+        } then res
+    }
+    
     let initialCompleted = completedNodes
     let initialStarted = startedNodes
     
     // Process completions
-    let loopResult = for loop = true with loop = true, totalCompleted = 0, res = initialResults, comp = initialCompleted, started = initialStarted {
+    let loopResult = for loop = true with loop = true, totalCompleted = initialTotalCompleted, res = initialResults, comp = initialCompleted, started = initialStarted, checkpointCounter = 0 {
         let [msg, done] = completionChan.recv()
-        if done { break { results: res, completed: comp } }
+        if done { break { results: res, completed: comp, totalCompleted: totalCompleted } }
         
         log("[DAG]", msg.nodeId, "- Completed")
         
         // Mark as completed
-        comp[msg.nodeId] = true
-        res[msg.nodeId] = msg
+        comp = comp.set(msg.nodeId, true)
+        res = res.set(msg.nodeId, msg)
         totalCompleted = totalCompleted + 1
+        checkpointCounter = checkpointCounter + 1
+        
+        // Checkpoint state periodically if persistence enabled
+        if storage != null {
+            if checkpointCounter >= 5 {  // Checkpoint every 5 completions
+                log("[WORKFLOW] Creating checkpoint...")
+                let currentState = {
+                    completedNodes: comp,
+                    startedNodes: started,
+                    results: res,
+                    totalCompleted: totalCompleted,
+                    status: "running",
+                    nodeCount: nodes.length,
+                    edgeCount: edges.length,
+                }
+                storage.checkpoint(workflowId, currentState)
+                checkpointCounter = 0
+            }
+        }
         
         // Check all nodes to see if any are now ready
         for i < nodes.length with i = 0 {
             let node = nodes[i]
             // If not already completed and dependencies are satisfied, start it
-            if !started[node.id] {
-                let deps = finalDeps[node.id]
+            if !started.get(node.id) {
+                let deps = finalDeps.get(node.id)
                 let ready = true
                 for j < deps.length with j = 0 {
-                    if !comp[deps[j]] {
+                    if !comp.get(deps[j]) {
                         ready = false
                         break ready
                     }
@@ -310,7 +415,7 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
                 if ready {
                     log("[DAG]", node.id, "- Dependencies satisfied, starting")
                     // Mark as started immediately to prevent double-start
-                    started[node.id] = true
+                    started = started.set(node.id, true)
                     
                     let task = & (() -> {
                         let result = executeTask(node, initialContext, config)
@@ -327,16 +432,32 @@ let executeDAG = (nodes, edges, initialContext, config) -> {
         
         // Exit when all nodes have sent completion messages
         if totalCompleted >= nodes.length {
-            break { results: res, completed: comp }
+            break { results: res, completed: comp, totalCompleted: totalCompleted }
         }
-    } then { results: res, completed: comp }
+    } then { results: res, completed: comp, totalCompleted: totalCompleted }
+    
+    // Save final state if persistence enabled
+    if storage != null {
+        log("[WORKFLOW] Saving final state...")
+        let finalState = {
+            completedNodes: loopResult.completed,
+            startedNodes: initialStarted,
+            results: loopResult.results,
+            totalCompleted: loopResult.totalCompleted,
+            status: "completed",
+            nodeCount: nodes.length,
+            edgeCount: edges.length,
+        }
+        storage.save(workflowId, finalState)
+    }
     
     // Return final workflow result with results converted to array
     {
         success: true,
+        workflowId: workflowId,
         results: for i < nodes.length with i = 0, arr = [] {
             let nodeId = nodes[i].id
-            let result = loopResult.results[nodeId]
+            let result = loopResult.results.get(nodeId)
             arr += [result]
             i = i + 1
         } then arr,
@@ -419,7 +540,7 @@ let executePipeline = (stages, items, config) -> {
     // Create workers for each stage
     let allWorkers = for stageIdx < stages.length with stageIdx = 0, workers = [] {
         let stage = stages[stageIdx]
-        let numWorkers = if stage.workers { stage.workers } else { config.defaultWorkers }
+        let numWorkers = if stage.workers != null { stage.workers } else { config.defaultWorkers }
         let inputChan = channels[stageIdx]
         let outputChan = if stageIdx < stages.length - 1 { channels[stageIdx + 1] } else { null }
         
@@ -494,13 +615,54 @@ let executePipeline = (stages, items, config) -> {
 
 // Default configuration
 let defaultConfig = {
+    // Legacy retry settings
     defaultRetries: 2,
     defaultWorkers: 3,
     stopOnError: false,
+    
+    // Enhanced features
+    retryPolicy: null,           // Use RetryModule for advanced retry
+    useWorkerPool: false,        // Use ParallelModule for worker pools
+    workerCount: 4,              // Number of workers in pool
+    queueSize: 100,              // Queue size for worker pool
+    batchSize: 10,               // Batch size for processing
+    enablePriority: false,       // Enable priority queue
+    shutdownTimeout: 30000,      // Shutdown timeout in ms
+    enableMetrics: true,         // Collect performance metrics
+    enablePersistence: false,    // Enable state persistence
+    workflowId: null,            // Unique workflow identifier
+    storageConfig: {             // Storage configuration
+        storageDir: "./workflow-state",
+        enableAutoCheckpoint: false,
+    },
+}
+
+// Merge user config with defaults to ensure all properties exist
+let mergeConfig = (userConfig) -> {
+    let hasRetryPolicy = if userConfig.retryPolicy != null { true } else { false }
+    {
+        defaultRetries: if hasRetryPolicy { 0 } else { if userConfig.defaultRetries != null { userConfig.defaultRetries } else { defaultConfig.defaultRetries } },
+        defaultWorkers: if userConfig.defaultWorkers != null { userConfig.defaultWorkers } else { defaultConfig.defaultWorkers },
+        stopOnError: if userConfig.stopOnError != null { userConfig.stopOnError } else { defaultConfig.stopOnError },
+        retryPolicy: if userConfig.retryPolicy != null { userConfig.retryPolicy } else { null },
+        useWorkerPool: if userConfig.useWorkerPool != null { userConfig.useWorkerPool } else { defaultConfig.useWorkerPool },
+        workerCount: if userConfig.workerCount != null { userConfig.workerCount } else { defaultConfig.workerCount },
+        queueSize: if userConfig.queueSize != null { userConfig.queueSize } else { 100 },
+        batchSize: if userConfig.batchSize != null { userConfig.batchSize } else { 10 },
+        enablePriority: if userConfig.enablePriority != null { userConfig.enablePriority } else { false },
+        shutdownTimeout: if userConfig.shutdownTimeout != null { userConfig.shutdownTimeout } else { 30000 },
+        enableMetrics: if userConfig.enableMetrics != null { userConfig.enableMetrics } else { defaultConfig.enableMetrics },
+        enablePersistence: if userConfig.enablePersistence != null { userConfig.enablePersistence } else { defaultConfig.enablePersistence },
+        workflowId: if userConfig.workflowId != null { userConfig.workflowId } else { null },
+        storageConfig: if userConfig.storageConfig != null { userConfig.storageConfig } else { defaultConfig.storageConfig },
+    }
 }
 
 // Execute workflow based on type
-let execute = (workflow, context, config) -> {
+let execute = (workflow, context, userConfig) -> {
+    // Merge user config with defaults to ensure all properties exist
+    let config = mergeConfig(userConfig)
+    
     log("==================================================")
     log("[ENGINE] Executing workflow:", workflow.name)
     log("==================================================")
@@ -517,4 +679,31 @@ let execute = (workflow, context, config) -> {
     }
 }
 
-log("Workflow Engine Module Loaded!")
+// ----------------------------------------------------------------------------
+// MODULE EXPORT
+// ----------------------------------------------------------------------------
+
+// Export module as a function (Karl module pattern)
+let makeModule = () -> {
+    {
+        // Main execution function
+        execute: execute,
+        
+        // Execution modes
+        executeSequential: executeSequential,
+        executeParallel: executeParallel,
+        executeDAG: executeDAG,
+        executeDAGWithSubDAGs: executeDAGWithSubDAGs,
+        executePipeline: executePipeline,
+        executeTimerTask: executeTimerTask,
+        executeIntervalTask: executeIntervalTask,
+        
+        // Sub-DAG support
+        createSubDAG: createSubDAG,
+        
+        // Configuration
+        defaultConfig: defaultConfig,
+    }
+}
+
+makeModule

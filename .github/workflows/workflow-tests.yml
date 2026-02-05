@@ -1,0 +1,54 @@
+name: Workflow Engine Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'examples/contrib/workflow/**'
+      - '.github/workflows/workflow-tests.yml'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - 'examples/contrib/workflow/**'
+      - '.github/workflows/workflow-tests.yml'
+
+jobs:
+  test-workflow-engine:
+    name: Test Workflow Engine
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Build Karl
+        run: |
+          echo "Building Karl interpreter..."
+          go build -o karl .
+          chmod +x karl
+          sudo mv karl /usr/local/bin/karl
+          karl --version || echo "Karl built successfully"
+      
+      - name: Verify Karl installation
+        run: |
+          which karl
+          karl --help || true
+      
+      - name: Run Workflow Engine Tests
+        run: |
+          cd examples/contrib/workflow
+          chmod +x run_all_tests.sh
+          ./run_all_tests.sh
+      
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: /tmp/karl_test_output.log
+          if-no-files-found: ignore

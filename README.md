@@ -3,6 +3,9 @@
 
 ### The Karl programming language
 
+[![CI](https://github.com/broyeztony/Karl/actions/workflows/ci.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/ci.yml)
+[![Workflow Tests](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml)
+
 <figure>
   <img src="assets/vscode.png" alt="Visual Studio Code plugin for Karl">
   <figcaption>Visual Studio Code plugin for Karl</figcaption>
@@ -99,6 +102,15 @@ The `examples/contrib/workflow/` folder is a small workflow engine and a set of 
 - `file_watcher.k` — event‑driven workflow on file changes
 - `timer_tasks.k` — scheduled/recurring task demos
 - `test_simple_dag.k` — minimal DAG sanity check
+
+**Running Workflow Tests:**
+
+```bash
+cd examples/contrib/workflow
+./run_all_tests.sh
+```
+
+This runs all 13 tests including unit tests, integration tests, demos, and pipeline examples.
 
 ### Get Karl
 

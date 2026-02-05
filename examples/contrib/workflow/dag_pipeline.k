@@ -9,7 +9,7 @@
 // ============================================================================
 
 // Import the workflow engine (not used directly, but shows module loading)
-let makeEngine = import "examples/contrib/workflow/engine.k"
+let makeEngine = import "./engine.k"
 let WorkflowEngine = makeEngine()
 
 log("================================================================================")

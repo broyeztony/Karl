@@ -4,7 +4,7 @@
 // Minimal examples to get started with the new workflow features
 // ============================================================================
 
-let makeEngine = import "examples/contrib/workflow/engine.k"
+let makeEngine = import "./engine.k"
 let WorkflowEngine = makeEngine()
 
 log("================================================================================")
