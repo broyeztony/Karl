@@ -529,6 +529,41 @@ func TestEvalImportLocal(t *testing.T) {
 	assertInteger(t, val, 42)
 }
 
+func TestEvalImportRelativeToImporterFile(t *testing.T) {
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	// Import should resolve relative to the importing file's directory, not CWD.
+	modulePath := filepath.Join(sub, "util.k")
+	if err := os.WriteFile(modulePath, []byte(`let answer = 42`), 0o644); err != nil {
+		t.Fatalf("write module: %v", err)
+	}
+
+	input := `let makeUtil = import "./util.k"; let util = makeUtil(); util.answer`
+	p := parser.New(lexer.New(input))
+	program := p.ParseProgram()
+	if errs := p.Errors(); len(errs) > 0 {
+		for _, e := range errs {
+			t.Errorf("parse error: %s", e)
+		}
+		t.Fatalf("parse failed")
+	}
+
+	eval := interpreter.NewEvaluatorWithSourceFilenameAndRoot(input, filepath.Join(sub, "main.k"), dir)
+	env := interpreter.NewBaseEnvironment()
+	val, sig, err := eval.Eval(program, env)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	if sig != nil {
+		t.Fatalf("unexpected signal: %v", sig.Type)
+	}
+	assertInteger(t, val, 42)
+}
+
 func TestEvalImportFactoryInstances(t *testing.T) {
 	dir := t.TempDir()
 	modulePath := filepath.Join(dir, "counter.k")
