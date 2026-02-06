@@ -8,7 +8,7 @@
 // - Data flow between parent and child DAGs
 // ============================================================================
 
-let makeEngine = import "engine.k"
+let makeEngine = import "./engine.k"
 let WorkflowEngine = makeEngine()
 
 log("================================================================================")

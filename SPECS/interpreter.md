@@ -181,7 +181,9 @@ Ordering requires comparable keys; otherwise runtime error.
 - `import "path"` returns a zero-argument factory function.
 - Calling the factory evaluates the module in a fresh environment and returns an object of its top-level `let` bindings.
 - The returned object is a live view of the module environment; assignments update that instance.
-- Path resolution is relative to the project root.
+- Path resolution:
+  - If the path starts with `./` or `../`, it is resolved relative to the importing file's directory.
+  - Otherwise, it is resolved relative to the project root.
 - Recommended implementation:
   - Resolve the path to an absolute filename.
   - Parse and cache the module program.
