@@ -55,10 +55,18 @@ let label = if items { "non-empty" } else { "empty" }
 label
 ```
 
-```
+``` 
 // Object indexing for external keys.
 let headers = decodeJson("{\"User-Agent\":\"Karl\"}")
 headers["User-Agent"]
+```
+
+```
+// Optional field access (recommended idiom).
+let getOr = (obj, key, fallback) -> obj[key] ? fallback
+let cfg = { retries: 3, }
+let timeoutMs = getOr(cfg, "timeoutMs", 5000)
+timeoutMs
 ```
 
 ```
@@ -72,10 +80,11 @@ firstEven
 ```
 
 ```
-// Recoverable errors with `? { ... }`.
+// Recoverable errors with block or direct fallback.
 let raw = "{ \"bpm\": 120 }"
 let data = decodeJson(raw) ? { bpm: 90, }
-data.bpm
+let trace = data["X-Amzn-Trace-Id"] ? "<missing>"
+{ bpm: data.bpm, trace: trace, }
 ```
 
 ```
