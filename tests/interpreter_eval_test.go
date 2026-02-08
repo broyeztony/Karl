@@ -77,17 +77,6 @@ func assertInteger(t *testing.T, val Value, expected int64) {
 	}
 }
 
-func assertBoolean(t *testing.T, val Value, expected bool) {
-	t.Helper()
-	b, ok := val.(*Boolean)
-	if !ok {
-		t.Fatalf("expected Boolean, got %T (%v)", val, val)
-	}
-	if b.Value != expected {
-		t.Fatalf("expected %v, got %v", expected, b.Value)
-	}
-}
-
 func assertString(t *testing.T, val Value, expected string) {
 	t.Helper()
 	s, ok := val.(*String)

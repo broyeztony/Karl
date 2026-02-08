@@ -301,14 +301,6 @@ func toJSON(node Node) interface{} {
 	}
 }
 
-func nodesToJSON(nodes []Node) []interface{} {
-	list := make([]interface{}, 0, len(nodes))
-	for _, n := range nodes {
-		list = append(list, toJSON(n))
-	}
-	return list
-}
-
 func statementsToJSON(nodes []Statement) []interface{} {
 	list := make([]interface{}, 0, len(nodes))
 	for _, n := range nodes {

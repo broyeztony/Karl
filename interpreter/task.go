@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"os"
-	"sync"
 )
 
 func newTask() *Task {
@@ -34,28 +33,6 @@ func taskAwait(t *Task) (Value, *Signal, error) {
 		return nil, nil, res.err
 	}
 	return res.value, nil, nil
-}
-
-type cancelToken struct {
-	once sync.Once
-	ch   chan struct{}
-}
-
-func newCancelToken() *cancelToken {
-	return &cancelToken{ch: make(chan struct{})}
-}
-
-func (c *cancelToken) cancel() {
-	c.once.Do(func() { close(c.ch) })
-}
-
-func (c *cancelToken) isCanceled() bool {
-	select {
-	case <-c.ch:
-		return true
-	default:
-		return false
-	}
 }
 
 func exitProcess(msg string) {

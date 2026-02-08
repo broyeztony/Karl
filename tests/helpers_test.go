@@ -12,10 +12,6 @@ import (
 	"karl/parser"
 )
 
-func updateGoldens() bool {
-	return os.Getenv("UPDATE_GOLDENS") == "1"
-}
-
 func parseProgram(t *testing.T, input string) *ast.Program {
 	t.Helper()
 	p := parser.New(lexer.New(input))
@@ -70,34 +66,6 @@ func listKarlFiles(t *testing.T, root string) []string {
 	}
 	sort.Strings(files)
 	return files
-}
-
-func compareGolden(t *testing.T, goldenPath string, actual string) {
-	t.Helper()
-	actual = normalizeLineEndings(actual)
-
-	if updateGoldens() {
-		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", filepath.Dir(goldenPath), err)
-		}
-		if err := os.WriteFile(goldenPath, []byte(actual), 0o644); err != nil {
-			t.Fatalf("write %s: %v", goldenPath, err)
-		}
-		return
-	}
-
-	data, err := os.ReadFile(goldenPath)
-	if err != nil {
-		t.Fatalf("read golden %s: %v (run UPDATE_GOLDENS=1 go test ./tests)", goldenPath, err)
-	}
-	expected := normalizeLineEndings(string(data))
-	if expected != actual {
-		t.Fatalf("golden mismatch for %s (run UPDATE_GOLDENS=1 go test ./tests)", goldenPath)
-	}
-}
-
-func normalizeLineEndings(value string) string {
-	return strings.ReplaceAll(value, "\r\n", "\n")
 }
 
 func checkParserErrors(t *testing.T, p *parser.Parser) {

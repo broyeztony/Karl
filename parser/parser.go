@@ -165,7 +165,7 @@ func (p *Parser) ParseProgram() *ast.Program {
 
 	for p.curToken.Type != token.EOF {
 		stmt := p.parseStatement()
-		if stmt != nil {
+		if !statementIsNil(stmt) {
 			program.Statements = append(program.Statements, stmt)
 		}
 		p.nextToken()
@@ -180,6 +180,19 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLetStatement()
 	default:
 		return p.parseExpressionStatement()
+	}
+}
+
+func statementIsNil(stmt ast.Statement) bool {
+	switch s := stmt.(type) {
+	case nil:
+		return true
+	case *ast.LetStatement:
+		return s == nil
+	case *ast.ExpressionStatement:
+		return s == nil
+	default:
+		return false
 	}
 }
 
@@ -638,7 +651,7 @@ func (p *Parser) parseBlockExpression() *ast.BlockExpression {
 	p.nextToken()
 	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
 		stmt := p.parseStatement()
-		if stmt != nil {
+		if !statementIsNil(stmt) {
 			block.Statements = append(block.Statements, stmt)
 		}
 		p.nextToken()
@@ -891,25 +904,6 @@ func (p *Parser) parsePatternFromToken(tok token.Token) ast.Pattern {
 		p.addError(tok, fmt.Sprintf("unexpected pattern token: %s", tok.Type))
 		return nil
 	}
-}
-
-func (p *Parser) parseCallPattern(tok token.Token) ast.Pattern {
-	name := &ast.Identifier{Token: tok, Value: tok.Literal}
-	args := []ast.Pattern{}
-	p.nextToken()
-	if p.curTokenIs(token.RPAREN) {
-		return &ast.CallPattern{Token: tok, Name: name, Args: args}
-	}
-	args = append(args, p.parsePattern())
-	for p.peekTokenIs(token.COMMA) {
-		p.nextToken()
-		p.nextToken()
-		args = append(args, p.parsePattern())
-	}
-	if !p.expectPeek(token.RPAREN) {
-		return &ast.CallPattern{Token: tok, Name: name, Args: args}
-	}
-	return &ast.CallPattern{Token: tok, Name: name, Args: args}
 }
 
 func (p *Parser) parseObjectPattern() ast.Pattern {
