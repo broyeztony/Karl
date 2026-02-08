@@ -14,86 +14,81 @@
 #### Tour of Karl
 
 ```
-// Closures as first-class expressions.
-let addN = n -> x -> n + x
-let add5 = addN(5)
-add5(10)
+// Compose behavior with first-class functions.
+let run = (value, fns) -> for i < fns.length with i = 0, out = value {
+    out = fns[i](out)
+    i++
+} then out
+let double = x -> x * 2
+let inc = x -> x + 1
+run(10, [double, inc, double]) // 42
 ```
 
 ```
 // Match + guards (expression-based branching).
 let tempo = 160
-let feel = match tempo {
-    case _ if tempo >= 180 -> "🔥"
-    case 120..179 -> "🎶"
+match tempo {
+    case _ if tempo >= 180 -> "sprint"
+    case 120..179 -> "groove"
     case _ -> "chill"
 }
-feel
 ```
 
 ```
-// Blocks are expressions and return their last value.
-let computed = {
-    let x = 1
-    let y = 3
-    x + y
+// Blocks and destructuring are expression-friendly.
+let track = {
+    let title = "Neon Steps"
+    let bpm = 160
+    { title: title, bpm: bpm, }
 }
-computed
-```
-
-```
-// Destructuring + object literals (trailing comma disambiguates from blocks).
-let track = { title: "Neon Steps", bpm: 160, }
 let { title, bpm, } = track
 title + " @ " + str(bpm)
 ```
 
 ```
-// Truthy/falsy in conditionals.
-let items = []
-let label = if items { "non-empty" } else { "empty" }
-label
-```
-
-``` 
-// Object indexing for external keys.
-let headers = decodeJson("{\"User-Agent\":\"Karl\"}")
-headers["User-Agent"]
-```
-
-```
-// Optional field access (recommended idiom).
-let getOr = (obj, key, fallback) -> obj[key] ? fallback
-let cfg = { retries: 3, }
-let timeoutMs = getOr(cfg, "timeoutMs", 5000)
-timeoutMs
-```
-
-```
 // `for` is an expression; `then` is a default when the loop doesn't break.
 let nums = [3, 5, 8, 9]
-let firstEven = for i < nums.length with i = 0 {
+for i < nums.length with i = 0 {
     if nums[i] % 2 == 0 { break nums[i] }
     i++
 } then "none"
-firstEven
 ```
 
 ```
-// Recoverable errors with block or direct fallback.
+// Optional field access with object indexing + recover.
+let getOr = (obj, key, fallback) -> obj[key] ? fallback
+let req = decodeJson("{\"headers\":{\"User-Agent\":\"Karl\"}}")
+let ua = getOr(req.headers, "User-Agent", "unknown")
+ua
+```
+
+```
+// Recover with either a block or a direct value.
 let raw = "{ \"bpm\": 120 }"
-let data = decodeJson(raw) ? { bpm: 90, }
-let trace = data["X-Amzn-Trace-Id"] ? "<missing>"
-{ bpm: data.bpm, trace: trace, }
+let parsed = decodeJson(raw) ? { bpm: 90, }
+let trace = parsed["X-Amzn-Trace-Id"] ? "<missing>"
+{ bpm: parsed.bpm, trace: trace, }
 ```
 
 ```
-// Async tasks (`&`) and channels.
+// Async task continuation.
+let delayed = () -> {
+    sleep(50)
+    "{ \"ok\": true }"
+}
+let t1 = & delayed()
+let t2 = t1.then(body -> decodeJson(body))
+wait t2
+```
+
+```
+// Channels for task coordination.
 let ch = channel()
-let producer = & { ch.send("ready"); ch.done() }
-let consumer = & ch.recv()
-wait producer
-wait consumer
+let reader = & ch.recv()
+let writer = & { ch.send("ping"); ch.done() }
+wait writer
+let [msg, done] = wait reader
+msg
 ```
 
 Explore more examples in the `examples/` folder: [Karl Examples](examples/README.md)

@@ -2,70 +2,69 @@ name: Karl CI
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
 
 jobs:
   build-and-test:
     name: Build and Test Karl
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go-version: ['1.21', '1.22']
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
-      
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      
+          go-version-file: go.mod
+          cache: true
+
       - name: Build Karl
         run: |
           echo "Building Karl interpreter..."
           go build -v -o karl .
           chmod +x karl
-      
+
       - name: Run Go tests
         run: |
           go test -v ./...
-      
+
       - name: Install Karl globally
         run: |
           sudo mv karl /usr/local/bin/karl
           karl --version || echo "Karl installed"
-      
-      - name: Run basic Karl examples
+
+      - name: Run feature and program examples
+        shell: bash
         run: |
-          cd examples
-          for example in *.k; do
+          shopt -s nullglob
+          files=(examples/features/*.k examples/programs/*.k)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No examples found."
+            exit 0
+          fi
+          for example in "${files[@]}"; do
             echo "Running $example..."
             timeout 10 karl run "$example" || echo "Skipped or failed: $example"
           done
-      
+
       - name: Run Workflow Engine Test Suite
         run: |
           cd examples/contrib/workflow
           chmod +x run_all_tests.sh
           ./run_all_tests.sh
-      
+
       - name: Upload artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-artifacts-${{ matrix.os }}-go${{ matrix.go-version }}
+          name: test-artifacts-${{ matrix.os }}
           path: |
             /tmp/karl_test_output.log
             examples/contrib/workflow/workflow-state/
@@ -74,16 +73,17 @@ jobs:
   lint:
     name: Lint Code
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
-      
+          go-version-file: go.mod
+          cache: true
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
