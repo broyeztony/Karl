@@ -559,7 +559,9 @@ let util = makeUtil()
 log(util.greet("karl"))
 
 // Import rules:
-// - The path is a string literal resolved from the project root.
+// - The path is a string literal.
+//   - If it starts with `./` or `../`, it is resolved relative to the importing file's directory.
+//   - Otherwise, it is resolved from the project root (currently: the process working directory).
 // - The factory returns an object containing all top-level let bindings.
 // - There is no export keyword yet; all top-level lets are exported.
 // - The returned object is live: assigning to its properties updates the module instance.
