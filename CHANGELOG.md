@@ -2,6 +2,25 @@
 
 All notable changes to Karl are documented here.
 
+## [v0.3.4] - 2026-02-10
+
+Highlights:
+- Concurrency task-failure model updated with explicit policies.
+- Default `karl run` behavior is now `fail-fast` for unobserved detached task failures.
+- `defer` mode remains available for end-of-run unhandled failure reporting.
+
+Concurrency:
+- Task errors are stored on task handles and surface on `wait` / `.then(...)`.
+- `wait task ? { ... }` remains recoverable for observed task failures.
+- Join/race and cancellation behavior is documented with updated feature examples.
+
+CLI:
+- Added `--task-failure-policy=fail-fast|defer` to `karl run`.
+
+Docs & examples:
+- Updated concurrency docs in specs.
+- Updated `examples/features/concurrency/*` to match the new semantics.
+
 ## [v0.3.2] - 2026-02-03
 
 Highlights:
