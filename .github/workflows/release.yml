@@ -50,11 +50,20 @@ jobs:
           mkdir -p dist
           bin="karl-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o "dist/$bin" .
-          if [[ "${{ matrix.goos }}" == "windows" ]]; then
-            (cd dist && zip "${bin}.zip" "$bin")
-          else
-            (cd dist && tar -czf "${bin}.tar.gz" "$bin")
-          fi
+
+      - name: Package (Unix)
+        if: matrix.goos != 'windows'
+        shell: bash
+        run: |
+          bin="karl-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
+          (cd dist && tar -czf "${bin}.tar.gz" "$bin")
+
+      - name: Package (Windows)
+        if: matrix.goos == 'windows'
+        shell: pwsh
+        run: |
+          $bin = "karl-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
+          Compress-Archive -Path "dist/$bin" -DestinationPath "dist/$bin.zip" -Force
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
