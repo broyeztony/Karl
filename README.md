@@ -8,7 +8,7 @@
 
 VS Code plugin available in `karl-vscode/`.
 
-Watch the YouTube video: [**Karl 1o1**](https://www.youtube.com/watch?v=pr4xskpX1UU)
+Watch the YouTube video: [**Karl 1o1**](https://www.youtube.com/watch?v=pes-ZOvM0s0)
 
 #### Tour of Karl
 
