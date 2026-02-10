@@ -2,6 +2,15 @@
 
 All notable changes to Karl are documented here.
 
+## [v0.3.5] - 2026-02-10
+
+Highlights:
+- Fixed Windows release packaging in GitHub Actions.
+
+CI/CD:
+- Release workflow now uses native PowerShell `Compress-Archive` on Windows runners.
+- Unix release packaging remains `tar.gz`.
+
 ## [v0.3.4] - 2026-02-10
 
 Highlights:
