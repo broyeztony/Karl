@@ -133,8 +133,11 @@ go build -o karl .
 ```
 karl parse <file.k> [--format=pretty|json]
 karl run <file.k>
+karl repl
 cat <file.k> | karl run -
 ```
+
+**REPL**: Start an interactive session with `karl repl`. See [repl/README.md](repl/README.md) for details.
 
 ### Tests
 

@@ -10,6 +10,7 @@ import (
 	"karl/interpreter"
 	"karl/lexer"
 	"karl/parser"
+	"karl/repl"
 )
 
 func main() {
@@ -27,6 +28,8 @@ func main() {
 		os.Exit(parseCommand(os.Args[2:]))
 	case "run":
 		os.Exit(runCommand(os.Args[2:]))
+	case "repl":
+		os.Exit(replCommand(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n", sub)
 		usage()
@@ -38,6 +41,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "Usage:\n")
 	fmt.Fprintf(os.Stderr, "  karl parse <file.k> [--format=pretty|json]\n")
 	fmt.Fprintf(os.Stderr, "  karl run <file.k> [--task-failure-policy=fail-fast|defer]\n")
+	fmt.Fprintf(os.Stderr, "  karl repl\n")
 	fmt.Fprintf(os.Stderr, "  <file> can be '-' to read from stdin\n")
 	fmt.Fprintf(os.Stderr, "  Use \"karl <command> --help\" for command help\n")
 }
@@ -259,3 +263,38 @@ func runProgram(program *ast.Program, source string, filename string, taskFailur
 	}
 	return val, nil
 }
+
+func replCommand(args []string) int {
+	help := false
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			help = true
+			break
+		}
+		if strings.HasPrefix(arg, "-") {
+			fmt.Fprintf(os.Stderr, "unknown flag: %s\n", arg)
+			replUsage()
+			return 2
+		}
+	}
+	if help {
+		replUsage()
+		return 0
+	}
+	if len(args) > 0 {
+		fmt.Fprintf(os.Stderr, "repl takes no arguments\n")
+		replUsage()
+		return 2
+	}
+	repl.Start(os.Stdin, os.Stdout)
+	return 0
+}
+
+func replUsage() {
+	fmt.Fprintf(os.Stderr, "Usage:\n")
+	fmt.Fprintf(os.Stderr, "  karl repl\n")
+	fmt.Fprintf(os.Stderr, "\nStarts an interactive Read-Eval-Print Loop.\n")
+	fmt.Fprintf(os.Stderr, "Type expressions and press Enter to evaluate them.\n")
+	fmt.Fprintf(os.Stderr, "Type :help for REPL commands.\n")
+}
+
