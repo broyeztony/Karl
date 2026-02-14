@@ -1,8 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
-	"strings"
 	"time"
 )
 
@@ -64,27 +62,6 @@ func builtinFail(_ *Evaluator, args []Value) (Value, error) {
 	return nil, recoverableError("fail", msg)
 }
 
-func builtinChannel(_ *Evaluator, _ []Value) (Value, error) {
-	return &Channel{Ch: make(chan Value)}, nil
-}
-
-func builtinBufferedChannel(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "buffered expects 1 argument (buffer size)"}
-	}
-	size, ok := args[0].(*Integer)
-	if !ok {
-		return nil, &RuntimeError{Message: "buffered expects integer buffer size"}
-	}
-	if size.Value < 0 {
-		return nil, &RuntimeError{Message: "buffered expects non-negative buffer size"}
-	}
-	if size.Value > 1000000 {
-		return nil, &RuntimeError{Message: "buffered buffer size too large (max 1000000)"}
-	}
-	return &Channel{Ch: make(chan Value, size.Value)}, nil
-}
-
 func builtinSleep(e *Evaluator, args []Value) (Value, error) {
 	if len(args) != 1 {
 		return nil, &RuntimeError{Message: "sleep expects 1 argument"}
@@ -114,36 +91,5 @@ func builtinSleep(e *Evaluator, args []Value) (Value, error) {
 		return nil, canceledError()
 	case <-fatalCh:
 		return nil, runtimeFatalError(e)
-	}
-}
-
-func builtinLog(_ *Evaluator, args []Value) (Value, error) {
-	parts := make([]string, len(args))
-	for i, arg := range args {
-		parts[i] = formatLogValue(arg)
-	}
-	fmt.Println(strings.Join(parts, " "))
-	return UnitValue, nil
-}
-
-func builtinStr(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "str expects 1 argument"}
-	}
-	return &String{Value: formatLogValue(args[0])}, nil
-}
-
-func formatLogValue(val Value) string {
-	switch v := val.(type) {
-	case *String:
-		return v.Value
-	case *Char:
-		return v.Value
-	case *Null:
-		return "null"
-	case *Unit:
-		return "()"
-	default:
-		return val.Inspect()
 	}
 }
