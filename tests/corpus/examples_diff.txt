@@ -1,0 +1,24 @@
+# Fixed, deterministic corpus for branch-vs-base output comparisons.
+
+examples/features/closures.k
+examples/features/concurrency/then_and_errors.k
+examples/features/concurrency/unhandled_failures.k
+examples/features/destructuring.k
+examples/features/equality.k
+examples/features/functions_basic.k
+examples/features/if_else.k
+examples/features/import_instances.k
+examples/features/import_instances_module.k
+examples/features/import_module.k
+examples/features/import_use.k
+examples/features/lists_basic.k
+examples/features/maps_basic.k
+examples/features/match_examples.k
+examples/features/object_disambiguation.k
+examples/features/query_basic.k
+examples/features/ranges_slices.k
+examples/features/recursion.k
+examples/features/sets_basic.k
+examples/features/strings_basic.k
+examples/features/truthy_falsy.k
+examples/features/truthy_falsy_comprehensive.k

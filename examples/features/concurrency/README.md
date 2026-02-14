@@ -23,11 +23,14 @@ Cancellation:
 - Cancellation is cooperative; it takes effect while waiting/blocked (e.g. `wait`, `sleep`, `send`, `recv`, `http`).
 
 Suggested reading order:
-1) `tasks_basics.k`
-2) `then_and_errors.k`
-3) `join_fail_fast.k`
-4) `race_timeout.k`
-5) `cancellation.k`
-6) `channels_and_cancel.k`
-7) `timeout_wrapper.k`
-8) `unhandled_failures.k`
+1) `basic.k`
+2) `advanced.k`
+3) `buffered_channels.k`
+4) `tasks_basics.k`
+5) `then_and_errors.k`
+6) `join_fail_fast.k`
+7) `race_timeout.k`
+8) `cancellation.k`
+9) `channels_and_cancel.k`
+10) `timeout_wrapper.k`
+11) `unhandled_failures.k`
