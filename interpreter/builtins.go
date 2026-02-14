@@ -11,6 +11,7 @@ func RegisterBuiltins() {
 	registerAsyncBuiltins()
 	registerStringBuiltins()
 	registerCollectionBuiltins()
+	registerListBuiltins()
 	registerMathBuiltins()
 }
 
