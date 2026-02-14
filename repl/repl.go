@@ -11,6 +11,7 @@ import (
 	"karl/interpreter"
 	"karl/lexer"
 	"karl/parser"
+	"karl/token"
 )
 
 const (
@@ -71,14 +72,13 @@ func Start(in io.Reader, out io.Writer) {
 		p := parser.New(l)
 		program := p.ParseProgram()
 
-		// Check for parse errors
-		if errs := p.ErrorsDetailed(); len(errs) > 0 {
-			// Check if this looks like incomplete input
-			if isIncompleteInput(input, errs) {
-				multiline = true
-				continue
-			}
-
+		// Check whether we should continue collecting multiline input.
+		errs := p.ErrorsDetailed()
+		if isIncompleteInput(input, errs) {
+			multiline = true
+			continue
+		}
+		if len(errs) > 0 {
 			// Real parse error - show it and reset
 			fmt.Fprintf(out, "Parse error:\n%s\n", parser.FormatParseErrors(errs, input, "<repl>"))
 			inputBuffer.Reset()
@@ -163,10 +163,14 @@ func printEnv(out io.Writer, env *interpreter.Environment) {
 
 // isIncompleteInput checks if parse errors suggest incomplete input
 func isIncompleteInput(input string, errs []parser.ParseError) bool {
-	// Heuristic: if the input ends with an opening brace, bracket, or paren,
-	// or if we have unclosed delimiters, treat it as incomplete
+	// If there are unclosed delimiters, keep collecting lines.
+	if hasUnclosedDelimiters(input) {
+		return true
+	}
+
+	// Heuristic: if the input ends with an opening delimiter or arrow, treat it as incomplete.
 	trimmed := strings.TrimSpace(input)
-	
+
 	if strings.HasSuffix(trimmed, "{") ||
 		strings.HasSuffix(trimmed, "[") ||
 		strings.HasSuffix(trimmed, "(") ||
@@ -188,11 +192,38 @@ func isIncompleteInput(input string, errs []parser.ParseError) bool {
 	return false
 }
 
+func hasUnclosedDelimiters(input string) bool {
+	l := lexer.New(input)
+	parenDepth := 0
+	braceDepth := 0
+	bracketDepth := 0
+
+	for {
+		tok := l.NextToken()
+		switch tok.Type {
+		case token.LPAREN:
+			parenDepth++
+		case token.RPAREN:
+			parenDepth--
+		case token.LBRACE:
+			braceDepth++
+		case token.RBRACE:
+			braceDepth--
+		case token.LBRACKET:
+			bracketDepth++
+		case token.RBRACKET:
+			bracketDepth--
+		case token.EOF:
+			return parenDepth > 0 || braceDepth > 0 || bracketDepth > 0
+		}
+	}
+}
+
 // showExamples displays the EXAMPLES.md file content
 func showExamples(out io.Writer) {
 	// Try to find EXAMPLES.md in the repl directory
 	examplesPath := findExamplesFile()
-	
+
 	if examplesPath == "" {
 		fmt.Fprintln(out, "Examples file not found.")
 		fmt.Fprintln(out, "See repl/EXAMPLES.md in the Karl repository for examples.")
