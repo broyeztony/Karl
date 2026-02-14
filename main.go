@@ -30,6 +30,10 @@ func main() {
 		os.Exit(runCommand(os.Args[2:]))
 	case "repl":
 		os.Exit(replCommand(os.Args[2:]))
+	case "repl-server":
+		os.Exit(replServerCommand(os.Args[2:]))
+	case "repl-client":
+		os.Exit(replClientCommand(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n", sub)
 		usage()
@@ -42,6 +46,8 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  karl parse <file.k> [--format=pretty|json]\n")
 	fmt.Fprintf(os.Stderr, "  karl run <file.k> [--task-failure-policy=fail-fast|defer]\n")
 	fmt.Fprintf(os.Stderr, "  karl repl\n")
+	fmt.Fprintf(os.Stderr, "  karl repl-server [--addr=host:port]\n")
+	fmt.Fprintf(os.Stderr, "  karl repl-client <host:port>\n")
 	fmt.Fprintf(os.Stderr, "  <file> can be '-' to read from stdin\n")
 	fmt.Fprintf(os.Stderr, "  Use \"karl <command> --help\" for command help\n")
 }
@@ -296,5 +302,110 @@ func replUsage() {
 	fmt.Fprintf(os.Stderr, "\nStarts an interactive Read-Eval-Print Loop.\n")
 	fmt.Fprintf(os.Stderr, "Type expressions and press Enter to evaluate them.\n")
 	fmt.Fprintf(os.Stderr, "Type :help for REPL commands.\n")
+}
+
+func replServerCommand(args []string) int {
+	addr := "localhost:9000"
+	help := false
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-h" || arg == "--help":
+			help = true
+		case strings.HasPrefix(arg, "--addr="):
+			addr = strings.TrimPrefix(arg, "--addr=")
+		case arg == "--addr":
+			if i+1 >= len(args) {
+				fmt.Fprintf(os.Stderr, "--addr requires a value\n")
+				replServerUsage()
+				return 2
+			}
+			addr = args[i+1]
+			i++
+		case strings.HasPrefix(arg, "-"):
+			fmt.Fprintf(os.Stderr, "unknown flag: %s\n", arg)
+			replServerUsage()
+			return 2
+		default:
+			fmt.Fprintf(os.Stderr, "unexpected argument: %s\n", arg)
+			replServerUsage()
+			return 2
+		}
+	}
+
+	if help {
+		replServerUsage()
+		return 0
+	}
+
+	if err := repl.Server(addr); err != nil {
+		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
+		return 1
+	}
+
+	return 0
+}
+
+func replServerUsage() {
+	fmt.Fprintf(os.Stderr, "Usage:\n")
+	fmt.Fprintf(os.Stderr, "  karl repl-server [--addr=host:port]\n")
+	fmt.Fprintf(os.Stderr, "\nStarts a Karl REPL server that clients can connect to.\n")
+	fmt.Fprintf(os.Stderr, "\nOptions:\n")
+	fmt.Fprintf(os.Stderr, "  --addr string   address to listen on (default \"localhost:9000\")\n")
+	fmt.Fprintf(os.Stderr, "\nExamples:\n")
+	fmt.Fprintf(os.Stderr, "  karl repl-server\n")
+	fmt.Fprintf(os.Stderr, "  karl repl-server --addr=0.0.0.0:9000\n")
+}
+
+func replClientCommand(args []string) int {
+	help := false
+	var addr string
+
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			help = true
+			break
+		}
+		if strings.HasPrefix(arg, "-") {
+			fmt.Fprintf(os.Stderr, "unknown flag: %s\n", arg)
+			replClientUsage()
+			return 2
+		}
+		if addr == "" {
+			addr = arg
+		} else {
+			fmt.Fprintf(os.Stderr, "unexpected argument: %s\n", arg)
+			replClientUsage()
+			return 2
+		}
+	}
+
+	if help {
+		replClientUsage()
+		return 0
+	}
+
+	if addr == "" {
+		fmt.Fprintf(os.Stderr, "missing required argument: host:port\n")
+		replClientUsage()
+		return 2
+	}
+
+	if err := repl.Client(addr); err != nil {
+		fmt.Fprintf(os.Stderr, "Client error: %v\n", err)
+		return 1
+	}
+
+	return 0
+}
+
+func replClientUsage() {
+	fmt.Fprintf(os.Stderr, "Usage:\n")
+	fmt.Fprintf(os.Stderr, "  karl repl-client <host:port>\n")
+	fmt.Fprintf(os.Stderr, "\nConnects to a remote Karl REPL server.\n")
+	fmt.Fprintf(os.Stderr, "\nExamples:\n")
+	fmt.Fprintf(os.Stderr, "  karl repl-client localhost:9000\n")
+	fmt.Fprintf(os.Stderr, "  karl repl-client 192.168.1.100:9000\n")
 }
 
