@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"karl/interpreter"
@@ -128,6 +130,7 @@ func handleCommand(cmd string, out io.Writer, env *interpreter.Environment) bool
 		fmt.Fprintln(out, "  :help, :h     - Show this help")
 		fmt.Fprintln(out, "  :quit, :q     - Exit the REPL")
 		fmt.Fprintln(out, "  :env          - Show current environment bindings")
+		fmt.Fprintln(out, "  :examples     - Show example code snippets")
 		fmt.Fprintln(out, "  :clear        - Clear the screen")
 		fmt.Fprintln(out, "\nTips:")
 		fmt.Fprintln(out, "  - Press Enter on an incomplete line to continue on the next line")
@@ -137,6 +140,9 @@ func handleCommand(cmd string, out io.Writer, env *interpreter.Environment) bool
 	case ":env":
 		fmt.Fprintln(out, "Current environment bindings:")
 		printEnv(out, env)
+
+	case ":examples", ":ex":
+		showExamples(out)
 
 	case ":clear":
 		fmt.Fprint(out, "\033[H\033[2J")
@@ -180,4 +186,48 @@ func isIncompleteInput(input string, errs []parser.ParseError) bool {
 	}
 
 	return false
+}
+
+// showExamples displays the EXAMPLES.md file content
+func showExamples(out io.Writer) {
+	// Try to find EXAMPLES.md in the repl directory
+	examplesPath := findExamplesFile()
+	
+	if examplesPath == "" {
+		fmt.Fprintln(out, "Examples file not found.")
+		fmt.Fprintln(out, "See repl/EXAMPLES.md in the Karl repository for examples.")
+		return
+	}
+
+	content, err := os.ReadFile(examplesPath)
+	if err != nil {
+		fmt.Fprintf(out, "Error reading examples file: %v\n", err)
+		return
+	}
+
+	fmt.Fprintln(out, string(content))
+}
+
+// findExamplesFile attempts to locate EXAMPLES.md
+func findExamplesFile() string {
+	// Try common locations relative to where karl might be run from
+	candidates := []string{
+		"repl/EXAMPLES.md",
+		"./repl/EXAMPLES.md",
+		"../repl/EXAMPLES.md",
+	}
+
+	// Also try relative to the executable
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		candidates = append(candidates, filepath.Join(exeDir, "repl", "EXAMPLES.md"))
+	}
+
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return ""
 }

@@ -29,6 +29,7 @@ All commands start with a colon (`:`):
 
 - `:help`, `:h` - Show help message
 - `:quit`, `:q`, `:exit` - Exit the REPL
+- `:examples`, `:ex` - Show example code snippets
 - `:env` - Show current environment bindings (coming soon)
 - `:clear` - Clear the screen
 
