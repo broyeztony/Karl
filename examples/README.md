@@ -1,7 +1,7 @@
 # Karl Examples
 
-This folder contains focused, single-feature examples plus a few larger programs.
-Each example is intended to be standalone and to demonstrate one specific feature.
+This folder contains focused, standalone feature examples.
+Each example demonstrates one specific capability.
 
 ## Feature Examples
 
@@ -23,8 +23,9 @@ Each example is intended to be standalone and to demonstrate one specific featur
 - `examples/features/error_handling.k` - recoverable errors with `? {}` and `fail()`
 - `examples/features/truthy_falsy.k` - truthy/falsy basics
 - `examples/features/truthy_falsy_comprehensive.k` - truthy/falsy across values and operators
-- `examples/features/concurrency_basic.k` - `&`, `|`, `then`, `wait`
-- `examples/features/concurrency_advanced.k` - rendezvous/channel send/recv
+- `examples/features/concurrency/basic.k` - `&`, `|`, `then`, `wait`
+- `examples/features/concurrency/advanced.k` - rendezvous/channel send/recv
+- `examples/features/concurrency/buffered_channels.k` - buffered channel basics
 - `examples/features/concurrency/` - deeper dive: join/race semantics, cancellation, and failure recovery
 - `examples/features/import_module.k` - module to import
 - `examples/features/import_use.k` - import factory usage
@@ -36,15 +37,6 @@ Each example is intended to be standalone and to demonstrate one specific featur
 ## Community Examples
 
 - `examples/contrib/nico/README.md` - extended example programs (by [Nico](http://github.com/hellonico))
-
-## Programs
-
-- `examples/programs/loops_and_functions.k`
-- `examples/programs/concurrency.k`
-- `examples/programs/full_program.k`
-- `examples/programs/pulse_pipeline.k`
-- `examples/programs/game_tick.k`
-- `examples/programs/retry_policy.k`
 
 ## Running
 

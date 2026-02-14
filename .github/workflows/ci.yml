@@ -40,19 +40,17 @@ jobs:
           sudo mv karl /usr/local/bin/karl
           karl --version || echo "Karl installed"
 
-      - name: Run feature and program examples
+      - name: Run examples (fail on runtime errors)
         shell: bash
         run: |
-          shopt -s nullglob
-          files=(examples/features/*.k examples/programs/*.k)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No examples found."
-            exit 0
-          fi
-          for example in "${files[@]}"; do
-            echo "Running $example..."
-            timeout 10 karl run "$example" || echo "Skipped or failed: $example"
-          done
+          bash scripts/run_examples_runtime.sh
+
+      - name: Compare fixed example corpus with base branch outputs
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          bash scripts/diff_examples_against_ref.sh "origin/${{ github.base_ref }}"
 
       - name: Run Workflow Engine Test Suite
         run: |
