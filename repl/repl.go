@@ -22,8 +22,13 @@ func Start(in io.Reader, out io.Writer) {
 	env := interpreter.NewBaseEnvironment()
 	eval := interpreter.NewEvaluatorWithSourceAndFilename("", "<repl>")
 
-	fmt.Fprintf(out, "Karl REPL - Type expressions and press Enter\n")
-	fmt.Fprintf(out, "Commands: :help, :quit, :env\n\n")
+	fmt.Fprintf(out, "╔═══════════════════════════════════════╗\n")
+	fmt.Fprintf(out, "║   Karl REPL - Interactive Shell      ║\n")
+	fmt.Fprintf(out, "╚═══════════════════════════════════════╝\n")
+	fmt.Fprintf(out, "\n")
+	fmt.Fprintf(out, "Type expressions and press Enter to evaluate.\n")
+	fmt.Fprintf(out, "Commands: :help, :quit, :env\n")
+	fmt.Fprintf(out, "See repl/EXAMPLES.md for ideas!\n\n")
 
 	var inputBuffer strings.Builder
 	multiline := false
