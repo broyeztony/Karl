@@ -58,12 +58,18 @@ type scannerResult struct {
 }
 
 type startOptions struct {
-	showIntro bool
+	showIntro  bool
+	cliVersion string
 }
 
 // Start begins the REPL session
 func Start(in io.Reader, out io.Writer) {
 	start(in, out, startOptions{showIntro: true})
+}
+
+// StartWithVersion begins the REPL session and displays the provided CLI version.
+func StartWithVersion(in io.Reader, out io.Writer, cliVersion string) {
+	start(in, out, startOptions{showIntro: true, cliVersion: cliVersion})
 }
 
 func start(in io.Reader, out io.Writer, opts startOptions) {
@@ -94,6 +100,9 @@ func start(in io.Reader, out io.Writer, opts startOptions) {
 
 	if opts.showIntro {
 		fmt.Fprintf(sessionOut, "%s\n", replIntroArt)
+		if v := strings.TrimSpace(opts.cliVersion); v != "" {
+			fmt.Fprintf(sessionOut, "Karl CLI version: %s\n", v)
+		}
 		fmt.Fprintf(sessionOut, "\n")
 		fmt.Fprintf(sessionOut, "Type expressions and press Enter to evaluate.\n")
 		fmt.Fprintf(sessionOut, "Commands: :help, :quit, :clear, :env\n")

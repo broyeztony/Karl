@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"karl/ast"
@@ -44,6 +45,7 @@ func main() {
 }
 
 func usage() {
+	fmt.Fprintf(os.Stderr, "Karl CLI version: %s\n\n", cliVersion())
 	fmt.Fprintf(os.Stderr, "Usage:\n")
 	fmt.Fprintf(os.Stderr, "  karl parse <file.k> [--format=pretty|json]\n")
 	fmt.Fprintf(os.Stderr, "  karl run <file.k> [--task-failure-policy=fail-fast|defer]\n")
@@ -328,8 +330,38 @@ func replCommand(args []string) int {
 		replUsage()
 		return 2
 	}
-	repl.Start(os.Stdin, os.Stdout)
+	repl.StartWithVersion(os.Stdin, os.Stdout, cliVersion())
 	return 0
+}
+
+func cliVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	rev := buildInfoSetting(info, "vcs.revision")
+	if len(rev) > 7 {
+		rev = rev[:7]
+	}
+	if rev == "" {
+		return "dev"
+	}
+	if buildInfoSetting(info, "vcs.modified") == "true" {
+		return "dev+" + rev + "-dirty"
+	}
+	return "dev+" + rev
+}
+
+func buildInfoSetting(info *debug.BuildInfo, key string) string {
+	for _, s := range info.Settings {
+		if s.Key == key {
+			return s.Value
+		}
+	}
+	return ""
 }
 
 func replUsage() {
