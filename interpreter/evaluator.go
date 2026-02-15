@@ -36,6 +36,11 @@ func (e *Evaluator) SetProjectRoot(root string) {
 	e.projectRoot = root
 }
 
+func (e *Evaluator) SetSourceAndFilename(source string, filename string) {
+	e.source = source
+	e.filename = filename
+}
+
 func (e *Evaluator) SetTaskFailurePolicy(policy string) error {
 	if e.runtime == nil {
 		e.runtime = newRuntimeState()
