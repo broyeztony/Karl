@@ -8,6 +8,8 @@
 
 VS Code plugin available in `karl-vscode/`.
 
+![Karl REPL](./assets/repl.png)
+
 Watch the YouTube video: [**Karl: First Impressions (Live Language Demo)**](https://www.youtube.com/watch?v=pes-ZOvM0s0)
 
 #### Tour of Karl
