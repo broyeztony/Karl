@@ -2,6 +2,29 @@
 
 All notable changes to Karl are documented here.
 
+## [v0.3.6] - 2026-02-15
+
+Highlights:
+- Added an interactive REPL with both local and remote modes.
+- Introduced the `karl loom` command family for REPL workflows.
+- Refactored the interpreter into a modular architecture (no intended behavior change).
+
+REPL & CLI:
+- Added `karl loom` for local interactive sessions.
+- Added `karl loom serve` and `karl loom connect <host:port>` for remote REPL sessions.
+- Kept compatibility aliases for `repl`, `repl-server`, and `repl-client`.
+- Added REPL docs and examples under `repl/`.
+
+Interpreter:
+- Split monolithic evaluator/builtins/runtime/value code into focused modules.
+- Moved import resolution/loading/evaluation into dedicated files.
+- Added regression tests for concurrency task-failure policy behavior.
+
+Examples & tooling:
+- Reorganized concurrency examples under `examples/features/concurrency/`.
+- Removed legacy `examples/programs/*` in favor of feature-focused examples.
+- Added helper scripts for example runtime validation and example diffs.
+
 ## [v0.3.5] - 2026-02-10
 
 Highlights:
