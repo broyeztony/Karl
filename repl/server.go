@@ -68,7 +68,11 @@ func Client(addr string) error {
 
 	restore, rawEnabled := enableClientRawMode(os.Stdin, os.Stdout)
 	if rawEnabled {
-		defer restore()
+		defer func() {
+			if restoreErr := restore(); restoreErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to restore terminal mode: %v\n", restoreErr)
+			}
+		}()
 	}
 
 	serverOut := io.Writer(os.Stdout)
