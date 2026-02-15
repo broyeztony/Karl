@@ -99,6 +99,12 @@ func start(in io.Reader, out io.Writer, opts startOptions) {
 			}
 		}
 
+		// Support Ctrl+L (form feed) as a clear-screen shortcut.
+		if isCtrlL(line) {
+			fmt.Fprint(out, "\033[H\033[2J")
+			continue
+		}
+
 		// Handle REPL commands
 		if !multiline && strings.HasPrefix(line, ":") {
 			if handleCommand(line, sessionOut, env) {
@@ -280,6 +286,10 @@ func isFatalREPLError(err error) bool {
 	}
 	_, fatal := err.(*interpreter.UnhandledTaskError)
 	return fatal
+}
+
+func isCtrlL(line string) bool {
+	return strings.TrimRight(line, "\r") == "\f"
 }
 
 func scanInput(scanner *bufio.Scanner, out chan<- scannerResult) {
