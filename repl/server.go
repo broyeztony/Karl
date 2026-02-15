@@ -1,6 +1,7 @@
 package repl
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -64,22 +65,24 @@ func Client(addr string) error {
 	fmt.Printf("Press Ctrl+C to disconnect\n\n")
 
 	// Start two goroutines: one for reading from server, one for writing to server
-	done := make(chan bool)
+	done := make(chan error, 2)
 
 	// Read from server and write to stdout
 	go func() {
-		io.Copy(os.Stdout, conn)
-		done <- true
+		_, copyErr := io.Copy(os.Stdout, conn)
+		done <- copyErr
 	}()
 
 	// Read from stdin and write to server
 	go func() {
-		io.Copy(conn, os.Stdin)
-		done <- true
+		_, copyErr := io.Copy(conn, os.Stdin)
+		done <- copyErr
 	}()
 
 	// Wait for either goroutine to finish
-	<-done
+	if copyErr := <-done; copyErr != nil && !errors.Is(copyErr, io.EOF) && !errors.Is(copyErr, net.ErrClosed) {
+		return fmt.Errorf("repl stream copy failed: %w", copyErr)
+	}
 
 	return nil
 }
