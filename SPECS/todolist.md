@@ -2,6 +2,9 @@
 
 ## Current priorities
 
+- handle ENV vars
+- read from command-line (input / scanner)
+- add a httpServer built-in
 - build a debugger (breakpoints, step in/over/out, stack/locals inspection; CLI first, DAP later)
 - build a notebook system for Karl like Jupyter using the repl server
 - Keep tests green as syntax/runtime changes land (`gotest`).
