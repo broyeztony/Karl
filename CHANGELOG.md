@@ -2,6 +2,16 @@
 
 All notable changes to Karl are documented here.
 
+## [v0.4.1] - 2026-02-15
+
+Highlights:
+- Fixed fail-fast behavior for canceled tasks in concurrency examples and runtime checks.
+
+Concurrency:
+- Canceled async tasks are now treated as expected control flow in fail-fast mode.
+- `task.cancel()` no longer risks being surfaced as an unhandled fatal task failure due to timing races.
+- Added regression coverage for canceled detached tasks and canceled blocked `recv()` tasks.
+
 ## [v0.4.0] - 2026-02-15
 
 Highlights:
