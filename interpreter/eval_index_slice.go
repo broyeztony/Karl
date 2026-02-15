@@ -56,46 +56,65 @@ func (e *Evaluator) evalSliceExpression(node *ast.SliceExpression, env *Environm
 	if err != nil || sig != nil {
 		return left, sig, err
 	}
-	arr, ok := left.(*Array)
-	if !ok {
-		return nil, nil, &RuntimeError{Message: "slice requires array"}
+	switch sliced := left.(type) {
+	case *Array:
+		start, end, val, sig, err := e.evalSliceBounds(node, env, len(sliced.Elements))
+		if err != nil || sig != nil {
+			return val, sig, err
+		}
+		if start >= end {
+			return &Array{Elements: []Value{}}, nil, nil
+		}
+		out := append([]Value{}, sliced.Elements[start:end]...)
+		return &Array{Elements: out}, nil, nil
+	case *String:
+		runes := []rune(sliced.Value)
+		start, end, val, sig, err := e.evalSliceBounds(node, env, len(runes))
+		if err != nil || sig != nil {
+			return val, sig, err
+		}
+		if start >= end {
+			return &String{Value: ""}, nil, nil
+		}
+		return &String{Value: string(runes[start:end])}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "slice requires array or string"}
 	}
+}
 
+func (e *Evaluator) evalSliceBounds(node *ast.SliceExpression, env *Environment, length int) (int, int, Value, *Signal, error) {
 	start := 0
-	end := len(arr.Elements)
+	end := length
 
 	if node.Start != nil {
 		val, sig, err := e.Eval(node.Start, env)
 		if err != nil || sig != nil {
-			return val, sig, err
+			return 0, 0, val, sig, err
 		}
 		idx, ok := val.(*Integer)
 		if !ok {
-			return nil, nil, &RuntimeError{Message: "slice start must be integer"}
+			return 0, 0, nil, nil, &RuntimeError{Message: "slice start must be integer"}
 		}
-		start = normalizeIndex(int(idx.Value), len(arr.Elements))
+		start = normalizeIndex(int(idx.Value), length)
 	}
 
 	if node.End != nil {
 		val, sig, err := e.Eval(node.End, env)
 		if err != nil || sig != nil {
-			return val, sig, err
+			return 0, 0, val, sig, err
 		}
 		idx, ok := val.(*Integer)
 		if !ok {
-			return nil, nil, &RuntimeError{Message: "slice end must be integer"}
+			return 0, 0, nil, nil, &RuntimeError{Message: "slice end must be integer"}
 		}
-		end = normalizeIndex(int(idx.Value), len(arr.Elements))
+		end = normalizeIndex(int(idx.Value), length)
 	}
 
-	if start < 0 || start > len(arr.Elements) || end < 0 || end > len(arr.Elements) {
-		return nil, nil, &RuntimeError{Message: "slice bounds out of range"}
+	if start < 0 || start > length || end < 0 || end > length {
+		return 0, 0, nil, nil, &RuntimeError{Message: "slice bounds out of range"}
 	}
-	if start >= end {
-		return &Array{Elements: []Value{}}, nil, nil
-	}
-	out := append([]Value{}, arr.Elements[start:end]...)
-	return &Array{Elements: out}, nil, nil
+
+	return start, end, nil, nil, nil
 }
 
 func normalizeIndex(idx int, length int) int {

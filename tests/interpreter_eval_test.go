@@ -166,6 +166,42 @@ func TestEvalSliceNegative(t *testing.T) {
 	assertEquivalent(t, val, expected)
 }
 
+func TestEvalStringSlice(t *testing.T) {
+	val := mustEval(t, `let s = "some string"; [s[0..4], s[5..], s[..4], s[..-1], s[-3..]]`)
+	expected := &Array{Elements: []Value{
+		&String{Value: "some"},
+		&String{Value: "string"},
+		&String{Value: "some"},
+		&String{Value: "some strin"},
+		&String{Value: "ing"},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestEvalStringSliceUnicode(t *testing.T) {
+	val := mustEval(t, `let s = "héll🙂"; s[1..4]`)
+	assertString(t, val, "éll")
+}
+
+func TestEvalStringSliceEmptyWhenStartAtOrPastEnd(t *testing.T) {
+	val := mustEval(t, `let s = "abc"; [s[2..2], s[2..1]]`)
+	expected := &Array{Elements: []Value{
+		&String{Value: ""},
+		&String{Value: ""},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestEvalStringSliceOutOfRange(t *testing.T) {
+	_, err := evalInput(t, `let s = "abc"; s[0..5]`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "slice bounds out of range") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestEvalEqv(t *testing.T) {
 	val := mustEval(t, "let a = [1, 2]; let b = [1, 2]; [a == b, a eqv b]")
 	expected := &Array{Elements: []Value{

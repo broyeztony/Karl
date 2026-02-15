@@ -418,6 +418,7 @@ let sub = list[1..5]
 let reversed = list[..-1]
 let tail = list[1..]
 let head = list[..5]
+let prefix = "some string"[0..4]   // "some"
 
 // Object key indexing
 let contentType = headers["Content-Type"]
@@ -426,6 +427,8 @@ let contentType = headers["Content-Type"]
 // - Half-open bounds: list[start..end] includes start, excludes end.
 // - Missing start defaults to 0; missing end defaults to length.
 // - Negative indices count from the end (e.g., list[..-1] drops the last element).
+// - Slicing works for arrays and strings.
+// - String slicing is rune-based (Unicode-safe), not byte-based.
 
 // ============================================
 // 11. RECURSIVE EXPRESSIONS

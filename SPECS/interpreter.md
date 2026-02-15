@@ -144,7 +144,9 @@ Proposed algorithm:
 - `obj.field` reads a property; missing property is a runtime error.
 - `obj["field-name"]` reads a property by string/char key; missing property is a runtime error.
 - `arr[i]` reads by index; out-of-bounds is a runtime error.
-- Slice `arr[i..j]` returns a new array.
+- Slice `value[i..j]` is supported for arrays and strings.
+  - Array slice returns a new array.
+  - String slice returns a new string (rune-based, not byte-based).
 
 Slice semantics:
 - Slices are half-open: `list[start..end]` includes `start` and excludes `end`.
@@ -153,7 +155,7 @@ Slice semantics:
   - Example: `list[..-1]` returns all but the last element.
   - Example: `list[-3..]` returns the last 3 elements.
 - After normalization, `start` and `end` must be within `[0, len]`; otherwise runtime error.
-- If `start >= end`, the result is an empty array.
+- If `start >= end`, the result is empty (`[]` for arrays, `""` for strings).
 
 ### Range
 
