@@ -8,6 +8,17 @@ func (e *Evaluator) arrayMethod(arr *Array, name string) (Value, *Signal, error)
 			return nil, nil, &RuntimeError{Message: "unknown builtin: " + name}
 		}
 		return &Builtin{Name: name, Fn: bindReceiver(builtin.Fn, arr)}, nil, nil
+	case "push":
+		return &Builtin{
+			Name: "push",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "push expects 1 argument"}
+				}
+				arr.Elements = append(arr.Elements, args[0])
+				return UnitValue, nil
+			},
+		}, nil, nil
 	default:
 		return nil, nil, &RuntimeError{Message: "unknown array member: " + name}
 	}

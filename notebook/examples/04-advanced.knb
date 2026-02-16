@@ -10,7 +10,7 @@
     {
       "type": "code",
       "title": "Pattern matching",
-      "source": "let classify = x -> match x {\n  case 0 -> \"zero\"\n  case 1 -> \"one\"\n  case _ -> \"other\"\n}\n[classify(0), classify(1), classify(5)]"
+      "source": "let classify = x -> match x {\n  case 0 -> \"zero\"\n  case 1 -> \"one\"\n  case _ -> \"other\"\n};\n[classify(0), classify(1), classify(5)]"
     },
     {
       "type": "code",

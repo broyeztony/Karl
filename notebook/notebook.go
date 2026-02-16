@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
 	"time"
 
 	"karl/interpreter"
@@ -120,7 +118,7 @@ type Runner struct {
 	env        *interpreter.Environment
 	eval       *interpreter.Evaluator
 	outputs    []CellOutput
-	lastOutput interpreter.Object
+	lastOutput interpreter.Value
 }
 
 // NewRunner creates a new notebook runner.
@@ -182,7 +180,7 @@ func (r *Runner) executeCell(cellIndex int, cell Cell) (CellOutput, error) {
 	}
 
 	// Evaluate the program
-	result, err := r.eval.Eval(program, r.env)
+	result, _, err := r.eval.Eval(program, r.env)
 	if err != nil {
 		errMsg := fmt.Sprintf("Evaluation error: %v", err)
 		output.Error = &ExecutionError{
@@ -209,7 +207,7 @@ func (r *Runner) GetOutputs() []CellOutput {
 }
 
 // GetLastOutput returns the last output value.
-func (r *Runner) GetLastOutput() interpreter.Object {
+func (r *Runner) GetLastOutput() interpreter.Value {
 	return r.lastOutput
 }
 

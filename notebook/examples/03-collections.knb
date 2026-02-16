@@ -15,7 +15,7 @@
     {
       "type": "code",
       "title": "Find unique elements using sets",
-      "source": "let list = [3, 1, 4, 1, 5, 9, 2, 6]\nlet uniqueSet = set(list)\nunique_set.size"
+      "source": "let list = [3, 1, 4, 1, 5, 9, 2, 6]\nlet uniqueSet = set(list)\nuniqueSet.size"
     },
     {
       "type": "code",
@@ -30,7 +30,7 @@
     {
       "type": "code",
       "title": "Pattern matching with ranges",
-      "source": "let grade = score -> match score {\n  case 90..100 -> \"A\"\n  case 80..89 -> \"B\"\n  case 70..79 -> \"C\"\n  case 60..69 -> \"D\"\n  case _ -> \"F\"\n}\n[grade(95), grade(87), grade(72), grade(55)]"
+      "source": "let grade = score -> match score {\n  case 90..100 -> \"A\"\n  case 80..89 -> \"B\"\n  case 70..79 -> \"C\"\n  case 60..69 -> \"D\"\n  case _ -> \"F\"\n};\n[grade(95), grade(87), grade(72), grade(55)]"
     },
     {
       "type": "code",

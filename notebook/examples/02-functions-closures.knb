@@ -10,12 +10,12 @@
     {
       "type": "code",
       "title": "First-class functions",
-      "source": "let inc = x -> x + 1\nlet square = x -> x * x\nlet double = x -> x * 2\n[inc(5), square(5), double(5)]"
+      "source": "let inc = x -> x + 1;\nlet square = x -> x * x;\nlet double = x -> x * 2;\n[inc(5), square(5), double(5)]"
     },
     {
       "type": "code",
       "title": "Closures - makeAdder",
-      "source": "let makeAdder = n -> x -> n + x\nlet add5 = makeAdder(5)\nlet add10 = makeAdder(10)\n[add5(3), add10(3)]"
+      "source": "let makeAdder = n -> x -> n + x;\nlet add5 = makeAdder(5);\nlet add10 = makeAdder(10);\n[add5(3), add10(3)]"
     },
     {
       "type": "code",
