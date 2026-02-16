@@ -1,0 +1,41 @@
+{
+  "title": "Karl Notebook: Advanced Features",
+  "description": "Demonstrating match expressions, recover, guard clauses, and for loops",
+  "version": "1.0",
+  "cells": [
+    {
+      "type": "markdown",
+      "source": "# Advanced Karl Features\n\nThis notebook demonstrates:\n- Pattern matching with guards\n- The `recover` operator for error handling\n- `for` loops as expressions\n- Optional chaining with `?`"
+    },
+    {
+      "type": "code",
+      "title": "Pattern matching",
+      "source": "let classify = x -> match x {\n  case 0 -> \"zero\"\n  case 1 -> \"one\"\n  case _ -> \"other\"\n}\n[classify(0), classify(1), classify(5)]"
+    },
+    {
+      "type": "code",
+      "title": "Match with guards",
+      "source": "let tempo = 160\nmatch tempo {\n  case _ if tempo >= 180 -> \"sprint\"\n  case 120..179 -> \"groove\"\n  case _ -> \"chill\"\n}"
+    },
+    {
+      "type": "code",
+      "title": "For loop as expression",
+      "source": "let nums = [3, 5, 8, 9]\nfor i < nums.length with i = 0 {\n  if nums[i] % 2 == 0 { break nums[i] }\n  i++\n} then \"none\""
+    },
+    {
+      "type": "code",
+      "title": "For loop with accumulator",
+      "source": "let nums = [1, 2, 3, 4, 5]\nfor i < nums.length with i = 0, sum = 0 {\n  sum = sum + nums[i]\n  i++\n} then sum"
+    },
+    {
+      "type": "code",
+      "title": "Destructuring in match",
+      "source": "let point = { x: 10, y: 20 }\nmatch point {\n  case { x: 0, y: 0 } -> \"origin\"\n  case { x: 0, _ } -> \"on y-axis\"\n  case _ -> \"general point\"\n}"
+    },
+    {
+      "type": "code",
+      "title": "Recover operator for defaults",
+      "source": "let data = { a: 1 }\nlet getValue = (obj, key, default) -> obj[key] ? default\ngetValue(data, \"a\", 99) + getValue(data, \"b\", 50)"
+    }
+  ]
+}

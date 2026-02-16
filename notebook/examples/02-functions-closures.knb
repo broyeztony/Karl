@@ -1,0 +1,36 @@
+{
+  "title": "Karl Notebook: Functions & Closures",
+  "description": "Intermediate examples with functions, closures, and function composition",
+  "version": "1.0",
+  "cells": [
+    {
+      "type": "markdown",
+      "source": "# Functions & Closures in Karl\n\nThis notebook explores:\n- First-class functions\n- Closures\n- Function composition\n- Higher-order functions"
+    },
+    {
+      "type": "code",
+      "title": "First-class functions",
+      "source": "let inc = x -> x + 1\nlet square = x -> x * x\nlet double = x -> x * 2\n[inc(5), square(5), double(5)]"
+    },
+    {
+      "type": "code",
+      "title": "Closures - makeAdder",
+      "source": "let makeAdder = n -> x -> n + x\nlet add5 = makeAdder(5)\nlet add10 = makeAdder(10)\n[add5(3), add10(3)]"
+    },
+    {
+      "type": "code",
+      "title": "Compose functions",
+      "source": "let compose = (f, g) -> x -> f(g(x))\nlet addOne = x -> x + 1\nlet double = x -> x * 2\nlet addOneThenDouble = compose(double, addOne)\naddOneThenDouble(5)"
+    },
+    {
+      "type": "code",
+      "title": "Map with higher-order function",
+      "source": "let mapper = (list, fn) -> {\n  let result = []\n  for i < list.length with i = 0 {\n    result.push(fn(list[i]))\n    i++\n  } then result\n}\nlet nums = [1, 2, 3, 4, 5]\nmapper(nums, x -> x * 2)"
+    },
+    {
+      "type": "code",
+      "title": "Reduce/fold operation",
+      "source": "let sum = nums -> {\n  let total = 0\n  for i < nums.length with i = 0, acc = 0 {\n    acc = acc + nums[i]\n    i++\n  } then acc\n}\nsum([1, 2, 3, 4, 5])"
+    }
+  ]
+}

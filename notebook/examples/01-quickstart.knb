@@ -1,0 +1,46 @@
+{
+  "title": "Karl Notebook: Quickstart",
+  "description": "A minimal example notebook to get started with Karl",
+  "version": "1.0",
+  "cells": [
+    {
+      "type": "markdown",
+      "source": "# Karl Notebook: Quickstart\n\nThis notebook demonstrates basic Karl operations:\n- Arithmetic\n- Variables\n- Simple functions"
+    },
+    {
+      "type": "code",
+      "title": "Basic arithmetic",
+      "source": "2 + 3"
+    },
+    {
+      "type": "code",
+      "title": "String concatenation",
+      "source": "\"Hello, \" + \"World\""
+    },
+    {
+      "type": "code",
+      "title": "Variable binding",
+      "source": "let x = 10\nlet y = 20\nx + y"
+    },
+    {
+      "type": "code",
+      "title": "Simple function",
+      "source": "let double = x -> x * 2\ndouble(21)"
+    },
+    {
+      "type": "code",
+      "title": "Working with lists",
+      "source": "let nums = [1, 2, 3, 4, 5]\nnums.length"
+    },
+    {
+      "type": "code",
+      "title": "List access",
+      "source": "nums[0] + nums[4]"
+    },
+    {
+      "type": "code",
+      "title": "Working with objects",
+      "source": "let person = { name: \"Alice\", age: 30 }\nperson.name + \" is \" + str(person.age)"
+    }
+  ]
+}
