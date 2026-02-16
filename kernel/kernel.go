@@ -470,7 +470,9 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 				"traceback":        []string{errResult.Error()},
 			},
 		}
-		k.sendMessage(k.shell, reply, identities...)
+		if err := k.sendMessage(k.shell, reply, identities...); err != nil {
+		log.Printf("Error sending execute error reply: %v", err)
+	}
 
 	} else {
 		// Publish Result (execute_result) if there is output
@@ -495,7 +497,9 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 				ParentHeader: msg.Header,
 				Content:      resultContent,
 			}
-			k.sendMessage(k.iopub, resultMsg)
+			if err := k.sendMessage(k.iopub, resultMsg); err != nil {
+				log.Printf("Error sending execute result: %v", err)
+			}
 		}
 
 		// Send execute_reply (ok)
@@ -516,7 +520,9 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 				"user_expressions": map[string]interface{}{},
 			},
 		}
-		k.sendMessage(k.shell, reply, identities...)
+		if err := k.sendMessage(k.shell, reply, identities...); err != nil {
+		log.Printf("Error sending execute reply: %v", err)
+	}
 	}
 
 	k.publishStatus("idle", msg.Header)
