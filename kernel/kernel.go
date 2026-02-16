@@ -544,7 +544,9 @@ func (k *Kernel) publishStatus(status string, parentHeader Header) {
 		ParentHeader: parentHeader,
 		Content:      content,
 	}
-	k.sendMessage(k.iopub, msg)
+	if err := k.sendMessage(k.iopub, msg); err != nil {
+		log.Printf("Error sending status message: %v", err)
+	}
 }
 
 func (k *Kernel) publishExecuteInput(code string, count int, parentHeader Header) {
@@ -564,7 +566,9 @@ func (k *Kernel) publishExecuteInput(code string, count int, parentHeader Header
 		ParentHeader: parentHeader,
 		Content:      content,
 	}
-	k.sendMessage(k.iopub, msg)
+	if err := k.sendMessage(k.iopub, msg); err != nil {
+		log.Printf("Error sending execute_input message: %v", err)
+	}
 }
 
 func newUUID() string {
