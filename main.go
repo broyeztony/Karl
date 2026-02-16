@@ -11,6 +11,7 @@ import (
 
 	"karl/ast"
 	"karl/interpreter"
+	"karl/kernel"
 	"karl/lexer"
 	"karl/notebook"
 	"karl/parser"
@@ -42,6 +43,8 @@ func main() {
 		os.Exit(replClientCommand(os.Args[2:]))
 	case "notebook", "nb":
 		os.Exit(notebookCommand(os.Args[2:]))
+	case "kernel":
+		os.Exit(kernelCommand(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n", sub)
 		usage()
@@ -58,6 +61,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  karl loom serve [--addr=host:port]\n")
 	fmt.Fprintf(os.Stderr, "  karl loom connect <host:port>\n")
 	fmt.Fprintf(os.Stderr, "  karl notebook <file.knb> [--output=file.json]\n")
+	fmt.Fprintf(os.Stderr, "  karl kernel <connection_file.json>\n")
 	fmt.Fprintf(os.Stderr, "\nCompatibility aliases:\n")
 	fmt.Fprintf(os.Stderr, "  karl repl\n")
 	fmt.Fprintf(os.Stderr, "  karl repl-server [--addr=host:port]\n")
@@ -581,5 +585,26 @@ func notebookUsage() {
 	fmt.Fprintf(os.Stderr, "\nExamples:\n")
 	fmt.Fprintf(os.Stderr, "  karl notebook example.knb\n")
 	fmt.Fprintf(os.Stderr, "  karl notebook example.knb --output=results.json\n")
+}
+
+func kernelCommand(args []string) int {
+	if len(args) != 1 {
+		fmt.Fprintf(os.Stderr, "Usage: karl kernel <connection_file>\n")
+		return 2
+	}
+	
+	configFile := args[0]
+	k, err := kernel.NewKernel(configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize kernel: %v\n", err)
+		return 1
+	}
+	
+	if err := k.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Kernel error: %v\n", err)
+		return 1
+	}
+	
+	return 0
 }
 

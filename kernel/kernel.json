@@ -1,0 +1,9 @@
+{
+    "argv": [
+        "Karl_Path_Placeholder",
+        "kernel",
+        "{connection_file}"
+    ],
+    "display_name": "Karl",
+    "language": "karl"
+}
