@@ -6,7 +6,7 @@ package notebook
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"karl/interpreter"
@@ -86,7 +86,7 @@ func (n *Notebook) AddMarkdownCell(source string) {
 
 // LoadNotebook loads a notebook from a JSON file.
 func LoadNotebook(filename string) (*Notebook, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read notebook: %w", err)
 	}
@@ -106,7 +106,7 @@ func (n *Notebook) SaveNotebook(filename string) error {
 		return fmt.Errorf("failed to marshal notebook: %w", err)
 	}
 
-	if err := ioutil.WriteFile(filename, data, 0644); err != nil {
+	if err := os.WriteFile(filename, data, 0644); err != nil {
 		return fmt.Errorf("failed to write notebook: %w", err)
 	}
 

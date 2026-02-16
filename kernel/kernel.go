@@ -179,7 +179,9 @@ func (k *Kernel) handleHeartbeat() {
 		if err != nil {
 			return
 		}
-		k.hb.Send(msg)
+	if err := k.hb.Send(msg); err != nil {
+			log.Printf("Error sending heartbeat: %v", err)
+		}
 	}
 }
 
@@ -357,7 +359,9 @@ func (k *Kernel) handleKernelInfoRequest(sock zmq4.Socket, msg *Message, identit
 		Content:      content,
 	}
 
-	k.sendMessage(sock, reply, identities...) 
+	if err := k.sendMessage(sock, reply, identities...); err != nil {
+		log.Printf("Error sending kernel info reply: %v", err)
+	} 
 }
 
 func (k *Kernel) handleShutdownRequest(sock zmq4.Socket, msg *Message, identities [][]byte) {
@@ -378,7 +382,9 @@ func (k *Kernel) handleShutdownRequest(sock zmq4.Socket, msg *Message, identitie
 		},
 	}
 	
-	k.sendMessage(sock, reply, identities...)
+	if err := k.sendMessage(sock, reply, identities...); err != nil {
+		log.Printf("Error sending shutdown reply: %v", err)
+	}
 	if !restart {
 		k.Stop()
 	}
@@ -441,7 +447,9 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 			ParentHeader: msg.Header,
 			Content:      errorContent,
 		}
-		k.sendMessage(k.iopub, errorMsg)
+		if err := k.sendMessage(k.iopub, errorMsg); err != nil {
+			log.Printf("Error sending error message: %v", err)
+		}
 
 		// Send execute_reply (error)
 		reply := &Message{

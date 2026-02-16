@@ -162,8 +162,6 @@ func (r *Runner) RunInteractive(nb *Notebook, step bool, replMode bool, filename
 				nb.AddCodeCell(input, "")
 				if err := nb.SaveNotebook(filename); err != nil {
 					fmt.Printf("Warning: Failed to save notebook: %v\n", err)
-				} else {
-					// fmt.Println("Wait, saved.") // Removed annoying log
 				}
 			}
 		}

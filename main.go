@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -612,7 +611,7 @@ func notebookCommand(args []string) int {
 			fmt.Fprintf(os.Stderr, "failed to marshal output: %v\n", err)
 			return 1
 		}
-		if err := ioutil.WriteFile(outputFile, jsonData, 0644); err != nil {
+		if err := os.WriteFile(outputFile, jsonData, 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to write output file: %v\n", err)
 			return 1
 		}
