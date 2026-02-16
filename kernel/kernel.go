@@ -91,6 +91,10 @@ func NewKernel(configPath string) (*Kernel, error) {
 
 // Start starts the kernel and its ZeroMQ sockets
 func (k *Kernel) Start() error {
+	setupDebugLog()
+	log.Printf("Kernel starting...")
+	log.Printf("Config: %+v", k.config)
+
 	var err error
 	ctx := context.Background()
 
@@ -189,11 +193,11 @@ func (k *Kernel) handleShell() {
 		
 		switch msg.Header.MsgType {
 		case "kernel_info_request":
-			k.handleKernelInfoRequest(msg, identities)
+			k.handleKernelInfoRequest(k.shell, msg, identities)
 		case "execute_request":
 			k.handleExecuteRequest(msg, identities)
 		case "shutdown_request":
-			k.handleShutdownRequest(msg, identities)
+			k.handleShutdownRequest(k.shell, msg, identities)
 		default:
 			log.Printf("Unknown shell message type: %s", msg.Header.MsgType)
 		}
@@ -209,8 +213,10 @@ func (k *Kernel) handleControl() {
 		}
 
 		switch msg.Header.MsgType {
+		case "kernel_info_request":
+			k.handleKernelInfoRequest(k.control, msg, identities)
 		case "shutdown_request":
-			k.handleShutdownRequest(msg, identities)
+			k.handleShutdownRequest(k.control, msg, identities)
 		default:
 			log.Printf("Unknown control message type: %s", msg.Header.MsgType)
 		}
@@ -241,16 +247,36 @@ func (k *Kernel) receiveMessage(sock zmq4.Socket) ([][]byte, *Message, error) {
 	}
 
 	identities := frames[:delimiterParams]
-	// signature := string(frames[delimiterParams+1])
+	log.Printf("Received %d identities", len(identities))
+
+	signature := string(frames[delimiterParams+1])
 	headerBytes := frames[delimiterParams+2]
 	parentHeaderBytes := frames[delimiterParams+3]
 	metadataBytes := frames[delimiterParams+4]
 	contentBytes := frames[delimiterParams+5]
 
+	// Validate Signature
+	mac := hmac.New(sha256.New, []byte(k.config.Key))
+	mac.Write(headerBytes)
+	mac.Write(parentHeaderBytes)
+	mac.Write(metadataBytes)
+	mac.Write(contentBytes)
+	expectedSignature := hex.EncodeToString(mac.Sum(nil))
+
+	if signature != expectedSignature {
+		log.Printf("Signature mismatch! Expected %s, got %s", expectedSignature, signature)
+		// return nil, nil, fmt.Errorf("invalid signature") // Don't fail yet, just log
+	} else {
+		log.Println("Signature verified")
+	}
+
 	var m Message
 	if err := json.Unmarshal(headerBytes, &m.Header); err != nil {
 		return nil, nil, err
 	}
+	
+	log.Printf("Received message type: %s", m.Header.MsgType)
+
 	if err := json.Unmarshal(parentHeaderBytes, &m.ParentHeader); err != nil {
 		return nil, nil, err
 	}
@@ -288,13 +314,22 @@ func (k *Kernel) sendMessage(sock zmq4.Socket, msg *Message, identities ...[]byt
 	}
 	
 	// Prepend identities if provided (needed for Router sockets)
-	allFrames := append(identities, frames...)
+	// The problem in previous code might be how append works with variadic args in NewMsgFrom
+	// or simple slice manipulation.
+	// identities is [][]byte. frames is [][]byte.
+	
+	allFrames := make([][]byte, 0, len(identities)+len(frames))
+	allFrames = append(allFrames, identities...)
+	allFrames = append(allFrames, frames...)
 	
 	zmsg := zmq4.NewMsgFrom(allFrames...)
 	return sock.Send(zmsg)
 }
 
-func (k *Kernel) handleKernelInfoRequest(msg *Message, identities [][]byte) {
+func (k *Kernel) handleKernelInfoRequest(sock zmq4.Socket, msg *Message, identities [][]byte) {
+	k.publishStatus("busy", msg.Header)
+	defer k.publishStatus("idle", msg.Header)
+
 	content := map[string]interface{}{
 		"protocol_version":       "5.3",
 		"implementation":         "karl-kernel",
@@ -322,10 +357,10 @@ func (k *Kernel) handleKernelInfoRequest(msg *Message, identities [][]byte) {
 		Content:      content,
 	}
 
-	k.sendMessage(k.shell, reply, identities...) 
+	k.sendMessage(sock, reply, identities...) 
 }
 
-func (k *Kernel) handleShutdownRequest(msg *Message, identities [][]byte) {
+func (k *Kernel) handleShutdownRequest(sock zmq4.Socket, msg *Message, identities [][]byte) {
 	restart := msg.Content["restart"].(bool)
 	
 	reply := &Message{
@@ -343,7 +378,7 @@ func (k *Kernel) handleShutdownRequest(msg *Message, identities [][]byte) {
 		},
 	}
 	
-	k.sendMessage(k.shell, reply, identities...)
+	k.sendMessage(sock, reply, identities...)
 	if !restart {
 		k.Stop()
 	}
@@ -377,7 +412,11 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 			errResult = err
 		} else if val != nil {
 			if _, ok := val.(*interpreter.Unit); !ok {
-				result = val.Inspect()
+				if pp, ok := val.(interpreter.PrettyPrinter); ok {
+					result = pp.Pretty(0)
+				} else {
+					result = val.Inspect()
+				}
 			}
 		}
 	}
@@ -520,4 +559,13 @@ func newUUID() string {
 	// rand.Read(b) - using time-based for now to avoid imports
 	t := time.Now().UnixNano()
 	return fmt.Sprintf("%x-%x", t, b)
+}
+
+func setupDebugLog() {
+	f, err := os.OpenFile("/tmp/karl_kernel.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		fmt.Printf("error opening file: %v", err)
+		return
+	}
+	log.SetOutput(f)
 }

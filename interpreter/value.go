@@ -89,3 +89,4 @@ func (s *Set) Inspect() string {
 	out.WriteString("}")
 	return out.String()
 }
+
