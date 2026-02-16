@@ -25,7 +25,7 @@
     {
       "type": "code",
       "title": "Simple function",
-      "source": "let double = x -> x * 2\ndouble(21)"
+      "source": "let double = x -\u003e x * 2\ndouble(21)"
     },
     {
       "type": "code",
@@ -41,6 +41,26 @@
       "type": "code",
       "title": "Working with objects",
       "source": "let person = { name: \"Alice\", age: 30 }\nperson.name + \" is \" + str(person.age)"
+    },
+    {
+      "type": "code",
+      "source": ""
+    },
+    {
+      "type": "code",
+      "source": ""
+    },
+    {
+      "type": "code",
+      "source": ""
+    },
+    {
+      "type": "code",
+      "source": "person"
+    },
+    {
+      "type": "code",
+      "source": "x"
     }
   ]
 }

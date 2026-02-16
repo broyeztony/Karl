@@ -13,7 +13,22 @@ karl notebook example.knb
 ### Save execution results
 
 ```bash
+
 karl notebook example.knb --output=results.json
+```
+
+### Interactive Modes
+
+#### Step-by-Step Execution
+Run cells one by one with confirmation:
+```bash
+karl notebook example.knb --step
+```
+
+#### REPL Mode
+Run all cells (displaying their output) and then enter an interactive session to append new cells:
+```bash
+karl notebook example.knb --repl
 ```
 
 ## Notebook Format
