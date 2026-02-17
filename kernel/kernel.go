@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -402,8 +403,8 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 	
 	k.publishExecuteInput(code, execCount, msg.Header)
 
-	// Execute Code
-	var result string
+	// Execute code
+	var resultData map[string]interface{}
 	var errResult error
 	
 	l := lexer.New(code)
@@ -418,11 +419,7 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 			errResult = err
 		} else if val != nil {
 			if _, ok := val.(*interpreter.Unit); !ok {
-				if pp, ok := val.(interpreter.PrettyPrinter); ok {
-					result = pp.Pretty(0)
-				} else {
-					result = val.Inspect()
-				}
+				resultData = kernelResultData(val)
 			}
 		}
 	}
@@ -476,12 +473,10 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 
 	} else {
 		// Publish Result (execute_result) if there is output
-		if result != "" {
+		if len(resultData) > 0 {
 			resultContent := map[string]interface{}{
 				"execution_count": execCount,
-				"data": map[string]interface{}{
-					"text/plain": result,
-				},
+				"data":            resultData,
 				"metadata": map[string]interface{}{},
 			}
 			
@@ -526,6 +521,34 @@ func (k *Kernel) handleExecuteRequest(msg *Message, identities [][]byte) {
 	}
 
 	k.publishStatus("idle", msg.Header)
+}
+
+func kernelResultData(val interpreter.Value) map[string]interface{} {
+	switch v := val.(type) {
+	case *interpreter.String:
+		plain := v.Value
+		data := map[string]interface{}{
+			"text/plain": plain,
+		}
+		if looksLikeHTMLTable(plain) {
+			data["text/html"] = plain
+		}
+		return data
+	default:
+		if pp, ok := val.(interpreter.PrettyPrinter); ok {
+			return map[string]interface{}{
+				"text/plain": pp.Pretty(0),
+			}
+		}
+		return map[string]interface{}{
+			"text/plain": val.Inspect(),
+		}
+	}
+}
+
+func looksLikeHTMLTable(s string) bool {
+	trimmed := strings.ToLower(strings.TrimSpace(s))
+	return strings.HasPrefix(trimmed, "<table") && strings.Contains(trimmed, "</table>")
 }
 
 func (k *Kernel) publishStatus(status string, parentHeader Header) {

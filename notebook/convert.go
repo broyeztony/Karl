@@ -4,97 +4,197 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
-// JupyterNotebook represents a .ipynb file structure
+// JupyterNotebook represents a .ipynb file structure.
 type JupyterNotebook struct {
-	Cells []JupyterCell `json:"cells"`
+	Cells         []JupyterCell          `json:"cells"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	NBFormat      int                    `json:"nbformat"`
+	NBFormatMinor int                    `json:"nbformat_minor"`
 }
 
-// JupyterCell represents a cell in a .ipynb file
+// JupyterCell represents a cell in a .ipynb file.
 type JupyterCell struct {
-	CellType string      `json:"cell_type"`
-	Source   interface{} `json:"source"`
+	ID             string                 `json:"id,omitempty"`
+	CellType       string                 `json:"cell_type"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	Source         interface{}            `json:"source"`
+	ExecutionCount interface{}            `json:"execution_count,omitempty"`
+	Outputs        []interface{}          `json:"outputs,omitempty"`
 }
 
-// ConvertCommand handles the convert subcommand
+func formatFromFilename(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".ipynb":
+		return "ipynb"
+	case ".knb":
+		return "knb"
+	default:
+		return ""
+	}
+}
+
+func loadIPYNB(filename string) (*Notebook, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read notebook: %w", err)
+	}
+
+	var jnb JupyterNotebook
+	if err := json.Unmarshal(data, &jnb); err != nil {
+		return nil, fmt.Errorf("failed to parse Jupyter notebook: %w", err)
+	}
+
+	title := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
+	nb := &Notebook{
+		Title:       title,
+		Description: "",
+		Version:     "1.0",
+		Cells:       make([]Cell, 0, len(jnb.Cells)),
+		Metadata:    make(map[string]interface{}),
+	}
+
+	for _, jCell := range jnb.Cells {
+		source, ok := jupyterSourceToString(jCell.Source)
+		if !ok {
+			continue
+		}
+
+		switch jCell.CellType {
+		case "code":
+			nb.Cells = append(nb.Cells, Cell{Type: CodeCell, Source: source, Metadata: map[string]interface{}{}})
+		case "markdown":
+			nb.Cells = append(nb.Cells, Cell{Type: MarkdownCell, Source: source, Metadata: map[string]interface{}{}})
+		}
+	}
+
+	return nb, nil
+}
+
+func saveIPYNB(nb *Notebook, filename string) error {
+	cells := make([]map[string]interface{}, 0, len(nb.Cells))
+	for i, cell := range nb.Cells {
+		cellID := fmt.Sprintf("karl-cell-%d", i+1)
+		switch cell.Type {
+		case CodeCell:
+			cells = append(cells, map[string]interface{}{
+				"id":              cellID,
+				"cell_type":       "code",
+				"metadata":        map[string]interface{}{},
+				"source":          splitLinesForJupyter(cell.Source),
+				"execution_count": nil,
+				"outputs":         []interface{}{},
+			})
+		case MarkdownCell:
+			cells = append(cells, map[string]interface{}{
+				"id":        cellID,
+				"cell_type": "markdown",
+				"metadata":  map[string]interface{}{},
+				"source":    splitLinesForJupyter(cell.Source),
+			})
+		}
+	}
+
+	jnb := map[string]interface{}{
+		"cells": cells,
+		"metadata": map[string]interface{}{
+			"kernelspec": map[string]interface{}{
+				"display_name": "Karl",
+				"language":     "karl",
+				"name":         "karl",
+			},
+			"language_info": map[string]interface{}{
+				"name":           "karl",
+				"file_extension": ".k",
+			},
+		},
+		"nbformat":       4,
+		"nbformat_minor": 5,
+	}
+
+	data, err := json.MarshalIndent(jnb, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal Jupyter notebook: %w", err)
+	}
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write notebook: %w", err)
+	}
+	return nil
+}
+
+func jupyterSourceToString(src interface{}) (string, bool) {
+	switch v := src.(type) {
+	case string:
+		return v, true
+	case []interface{}:
+		parts := make([]string, 0, len(v))
+		for _, part := range v {
+			s, ok := part.(string)
+			if !ok {
+				continue
+			}
+			parts = append(parts, s)
+		}
+		return strings.Join(parts, ""), true
+	default:
+		return "", false
+	}
+}
+
+func splitLinesForJupyter(source string) []string {
+	if source == "" {
+		return []string{}
+	}
+	lines := strings.SplitAfter(source, "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
+}
+
+// ConvertCommand handles the convert subcommand.
 func ConvertCommand(args []string) int {
 	if len(args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: karl notebook convert <input.ipynb> <output.knb>\n")
+		fmt.Fprintf(os.Stderr, "Usage: karl notebook convert <input.{ipynb|knb}> <output.{ipynb|knb}>\n")
 		return 2
 	}
 
 	inputFile := args[0]
 	outputFile := args[1]
+	inFmt := formatFromFilename(inputFile)
+	outFmt := formatFromFilename(outputFile)
 
-	data, err := os.ReadFile(inputFile)
+	if inFmt == "" || outFmt == "" {
+		fmt.Fprintf(os.Stderr, "unsupported notebook format (expected .ipynb or .knb)\n")
+		return 2
+	}
+
+	var nb *Notebook
+	var err error
+	if inFmt == "knb" {
+		nb, err = LoadNotebook(inputFile)
+	} else {
+		nb, err = loadIPYNB(inputFile)
+	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error loading input notebook: %v\n", err)
 		return 1
 	}
 
-	var jnb JupyterNotebook
-	if err := json.Unmarshal(data, &jnb); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing Jupyter notebook: %v\n", err)
-		return 1
+	if outFmt == "knb" {
+		err = nb.SaveNotebook(outputFile)
+	} else {
+		err = saveIPYNB(nb, outputFile)
 	}
-
-	knb := &Notebook{
-		Title:       "Imported Notebook",
-		Description: "Converted from " + inputFile,
-		Version:     "1.0",
-		Cells:       make([]Cell, 0),
-	}
-
-	for _, jCell := range jnb.Cells {
-		var content string
-		
-		// Jupyter source can be string or []string
-		switch src := jCell.Source.(type) {
-		case string:
-			content = src
-		case []interface{}:
-			var lines []string
-			for _, line := range src {
-				if s, ok := line.(string); ok {
-					lines = append(lines, s)
-				}
-			}
-			content = strings.Join(lines, "")
-		default:
-			continue
-		}
-
-		var kCell Cell
-		if jCell.CellType == "code" {
-			kCell = Cell{
-				Type:   CodeCell,
-				Source: content,
-			}
-		} else if jCell.CellType == "markdown" {
-			kCell = Cell{
-				Type:   MarkdownCell,
-				Source: content,
-			}
-		} else {
-			continue // Skip unknown types
-		}
-		
-		knb.Cells = append(knb.Cells, kCell)
-	}
-
-	outData, err := json.MarshalIndent(knb, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating Karl notebook: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error saving output notebook: %v\n", err)
 		return 1
 	}
 
-	if err := os.WriteFile(outputFile, outData, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing output file: %v\n", err)
-		return 1
-	}
-
-	fmt.Printf("Successfully converted %s to %s\n", inputFile, outputFile)
+	fmt.Printf("Successfully converted %s (%s) -> %s (%s)\n", inputFile, inFmt, outputFile, outFmt)
 	return 0
 }
