@@ -165,7 +165,7 @@ func start(in io.Reader, out io.Writer, opts startOptions) {
 
 		// Check whether we should continue collecting multiline input.
 		errs := p.ErrorsDetailed()
-		if isIncompleteInput(input, errs) {
+		if IsIncompleteInput(input, errs) {
 			multiline = true
 			continue
 		}
@@ -259,8 +259,8 @@ func printEnv(out io.Writer, env *interpreter.Environment) {
 	fmt.Fprintln(out, "  (environment inspection not yet implemented)")
 }
 
-// isIncompleteInput checks if parse errors suggest incomplete input
-func isIncompleteInput(input string, errs []parser.ParseError) bool {
+// IsIncompleteInput checks if parse errors suggest incomplete input
+func IsIncompleteInput(input string, errs []parser.ParseError) bool {
 	// If there are unclosed delimiters, keep collecting lines.
 	if hasUnclosedDelimiters(input) {
 		return true

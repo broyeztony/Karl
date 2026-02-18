@@ -46,8 +46,23 @@ func builtinMapSet(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) == 0 {
 		return &Set{Elements: make(map[MapKey]struct{})}, nil
 	}
+	if len(args) == 1 {
+		arr, ok := args[0].(*Array)
+		if !ok {
+			return nil, &RuntimeError{Message: "set expects array when called with 1 argument"}
+		}
+		newSet := &Set{Elements: make(map[MapKey]struct{})}
+		for _, el := range arr.Elements {
+			key, err := setKeyForValue(el)
+			if err != nil {
+				return nil, err
+			}
+			newSet.Elements[key] = struct{}{}
+		}
+		return newSet, nil
+	}
 	if len(args) != 3 {
-		return nil, &RuntimeError{Message: "set expects no arguments or map, key, value"}
+		return nil, &RuntimeError{Message: "set expects: (), (array), or (map, key, value)"}
 	}
 	m, ok := args[0].(*Map)
 	if !ok {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,7 +10,9 @@ import (
 
 	"karl/ast"
 	"karl/interpreter"
+	"karl/kernel"
 	"karl/lexer"
+	"karl/notebook"
 	"karl/parser"
 	"karl/repl"
 )
@@ -37,6 +40,11 @@ func main() {
 		os.Exit(replServerCommand(os.Args[2:]))
 	case "repl-client":
 		os.Exit(replClientCommand(os.Args[2:]))
+	case "notebook", "nb":
+		os.Exit(notebookCommand(os.Args[2:]))
+
+	case "kernel": // Added kernel subcommand
+		os.Exit(kernelCommand(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n", sub)
 		usage()
@@ -45,19 +53,19 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Karl CLI version: %s\n\n", cliVersion())
 	fmt.Fprintf(os.Stderr, "Usage:\n")
-	fmt.Fprintf(os.Stderr, "  karl parse <file.k> [--format=pretty|json]\n")
-	fmt.Fprintf(os.Stderr, "  karl run <file.k> [--task-failure-policy=fail-fast|defer]\n")
-	fmt.Fprintf(os.Stderr, "  karl loom\n")
-	fmt.Fprintf(os.Stderr, "  karl loom serve [--addr=host:port]\n")
-	fmt.Fprintf(os.Stderr, "  karl loom connect <host:port>\n")
-	fmt.Fprintf(os.Stderr, "\nCompatibility aliases:\n")
-	fmt.Fprintf(os.Stderr, "  karl repl\n")
-	fmt.Fprintf(os.Stderr, "  karl repl-server [--addr=host:port]\n")
-	fmt.Fprintf(os.Stderr, "  karl repl-client <host:port>\n")
-	fmt.Fprintf(os.Stderr, "  <file> can be '-' to read from stdin\n")
-	fmt.Fprintf(os.Stderr, "  Use \"karl <command> --help\" for command help\n")
+	fmt.Fprintf(os.Stderr, "  karl <command> [arguments]\n")
+	fmt.Fprintf(os.Stderr, "\nCommands:\n")
+	fmt.Fprintf(os.Stderr, "  parse <file.k>           parse a file and print the AST\n")
+	fmt.Fprintf(os.Stderr, "  run <file.k>             run a file using the interpreter\n")
+	fmt.Fprintf(os.Stderr, "  loom <file.k>            run a file using the Loom runtime\n")
+	fmt.Fprintf(os.Stderr, "  repl                     start the REPL\n")
+	fmt.Fprintf(os.Stderr, "  repl-server              start the REPL server\n")
+	fmt.Fprintf(os.Stderr, "  repl-client              start the REPL client\n")
+	fmt.Fprintf(os.Stderr, "  notebook <file.knb>      run a notebook\n")
+	fmt.Fprintf(os.Stderr, "  notebook convert <in.ipynb> <out.knb> convert Jupyter notebook to Karl notebook\n")
+	fmt.Fprintf(os.Stderr, "  kernel <connection_file> start Jupyter kernel\n")
+	fmt.Fprintf(os.Stderr, "  help                     show this help message\n")
 }
 
 func parseCommand(args []string) int {
@@ -478,4 +486,177 @@ func replClientUsage() {
 	fmt.Fprintf(os.Stderr, "\nExamples:\n")
 	fmt.Fprintf(os.Stderr, "  karl loom connect localhost:9000\n")
 	fmt.Fprintf(os.Stderr, "  karl loom connect 192.168.1.100:9000\n")
+}
+
+func notebookCommand(args []string) int {
+	if len(args) < 1 {
+		notebookUsage()
+		return 2
+	}
+
+	if args[0] == "convert" {
+		return convertCommand(args[1:])
+	}
+
+	help := false
+	outputFile := ""
+	var inputFile string
+	step := false
+	replMode := false
+	quiet := false
+
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			help = true
+			break
+		}
+		if strings.HasPrefix(arg, "--output=") {
+			outputFile = strings.TrimPrefix(arg, "--output=")
+			continue
+		}
+		if arg == "--step" || arg == "-s" {
+			step = true
+			continue
+		}
+		if arg == "--repl" || arg == "-r" {
+			replMode = true
+			continue
+		}
+		if arg == "--quiet" || arg == "-q" {
+			quiet = true
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			fmt.Fprintf(os.Stderr, "unknown flag: %s\n", arg)
+			notebookUsage()
+			return 2
+		}
+		
+		if inputFile == "" {
+			inputFile = arg
+		} else {
+			fmt.Fprintf(os.Stderr, "unexpected argument: %s\n", arg)
+			notebookUsage()
+			return 2
+		}
+	}
+
+	if help {
+		notebookUsage()
+		return 0
+	}
+
+	if inputFile == "" {
+		fmt.Fprintf(os.Stderr, "missing required argument: <file.knb>\n")
+		notebookUsage()
+		return 2
+	}
+
+	nb, err := notebook.LoadNotebook(inputFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading notebook: %v\n", err)
+		return 1
+	}
+
+	runner := notebook.NewRunner()
+	
+	if step || replMode {
+		if err := runner.RunInteractive(nb, step, replMode, inputFile); err != nil {
+			fmt.Fprintf(os.Stderr, "Interactive execution error: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+
+	outputs, err := runner.ExecuteNotebook(nb)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Execution error: %v\n", err)
+		// We still output what we have
+	}
+
+	// Print results
+	if !quiet {
+		fmt.Printf("Notebook: %s\n", nb.Title)
+		fmt.Printf("Executed %d cells\n", len(outputs))
+		fmt.Println()
+	}
+
+	for i, output := range outputs {
+		if quiet {
+			// In quiet mode, only print the last output if it has a value and no error
+			if i == len(outputs)-1 {
+				if output.Error != nil {
+					fmt.Printf("Error: %s\n", output.Error.Message)
+				} else if output.Value != "" {
+					fmt.Println(output.Value)
+				}
+			}
+		} else {
+			if output.Error != nil {
+				fmt.Printf("Cell %d [ERROR]: %s\n", output.CellIndex, output.Error.Message)
+			} else if output.Value != "" {
+				fmt.Printf("Cell %d: %s\n", output.CellIndex, output.Value)
+			}
+		}
+	}
+
+	// Save output if requested
+	if outputFile != "" {
+		data := map[string]interface{}{
+			"notebook": nb,
+			"outputs":  outputs,
+		}
+		jsonData, err := json.MarshalIndent(data, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal output: %v\n", err)
+			return 1
+		}
+		if err := os.WriteFile(outputFile, jsonData, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to write output file: %v\n", err)
+			return 1
+		}
+		fmt.Printf("\nOutput saved to: %s\n", outputFile)
+	}
+
+	return 0
+}
+
+func notebookUsage() {
+	fmt.Fprintf(os.Stderr, "Usage:\n")
+	fmt.Fprintf(os.Stderr, "  karl notebook <file.knb> [--output=output.json] [--step] [--repl]\n")
+	fmt.Fprintf(os.Stderr, "  karl notebook convert <in.ipynb> <out.knb>\n")
+	fmt.Fprintf(os.Stderr, "  karl nb <file.knb> ... (alias)\n")
+	fmt.Fprintf(os.Stderr, "\nExecutes a Karl notebook and displays results.\n")
+	fmt.Fprintf(os.Stderr, "\nOptions:\n")
+	fmt.Fprintf(os.Stderr, "  --output string   save execution results to JSON file\n")
+	fmt.Fprintf(os.Stderr, "  --step, -s        run step-by-step with confirmation\n")
+	fmt.Fprintf(os.Stderr, "  --repl, -r        run all cells then enter REPL mode\n")
+	fmt.Fprintf(os.Stderr, "\nExamples:\n")
+	fmt.Fprintf(os.Stderr, "  karl notebook nums.knb --step\n")
+	fmt.Fprintf(os.Stderr, "  karl notebook nums.knb --repl\n")
+}
+
+func convertCommand(args []string) int {
+	return notebook.ConvertCommand(args)
+}
+
+func kernelCommand(args []string) int {
+	if len(args) != 1 {
+		fmt.Fprintf(os.Stderr, "Usage: karl kernel <connection_file>\n")
+		return 2
+	}
+	
+	configFile := args[0]
+	k, err := kernel.NewKernel(configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize kernel: %v\n", err)
+		return 1
+	}
+	
+	if err := k.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Kernel error: %v\n", err)
+		return 1
+	}
+	
+	return 0
 }
