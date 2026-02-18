@@ -6,7 +6,10 @@
 [![CI](https://github.com/broyeztony/Karl/actions/workflows/ci.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/ci.yml)
 [![Workflow Tests](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml)
 
-VS Code plugin available in `karl-vscode/`.
+### VS Code
+
+Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.
+See setup and usage details in [karl-vscode/README.md](karl-vscode/README.md).
 
 ![Karl REPL](./assets/repl.png)
 
@@ -129,6 +132,20 @@ Or build from source:
 ```
 go build -o karl .
 ```
+
+### Jupyter Kernel and Notebook Command
+
+Use Karl notebooks from the CLI with:
+```
+karl notebook notebook/examples/01-quickstart.knb
+karl notebook convert in.ipynb out.knb
+```
+
+To run Karl inside Jupyter Notebook/Lab, install the kernel with:
+```
+./kernel/install.sh
+```
+Then select **Karl** as the notebook kernel in Jupyter. More details: [kernel/README.md](kernel/README.md) and [notebook/README.md](notebook/README.md).
 
 ### CLI
 
