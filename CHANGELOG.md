@@ -2,6 +2,31 @@
 
 All notable changes to Karl are documented here.
 
+## [v0.5.0] - 2026-02-18
+
+Highlights:
+- Added a Karl notebook runner with execution, export, and interactive modes.
+- Added a Jupyter kernel implementation for Karl.
+- Improved value pretty-printing for notebook and REPL outputs.
+
+Notebook & kernel:
+- Added `karl notebook <file.knb>` support.
+- Added notebook interactive modes and output export support.
+- Added `.ipynb`/`.knb` conversion tooling.
+- Added a Karl Jupyter kernel (`karl kernel <connection_file>`) with install assets and docs.
+- Added notebook examples under `notebook/examples/`.
+
+Interpreter & UX:
+- Added array `push(...)` member method support.
+- Extended `set(...)` to accept arrays.
+- Added value pretty-printer module for cleaner rendered output.
+
+Docs:
+- Added notebook spec (`SPECS/notebook.md`).
+- Added notebook and kernel documentation (`notebook/README.md`, `kernel/README.md`).
+- Updated main README with REPL screenshot, VS Code section placement, and notebook/kernel section.
+- Added TODO entry for divide-by-zero semantics follow-up.
+
 ## [v0.4.3] - 2026-02-15
 
 Highlights:
