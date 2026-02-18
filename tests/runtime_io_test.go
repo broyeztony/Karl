@@ -200,3 +200,11 @@ func TestRuntimeIOReadLineErrorIsRecoverable(t *testing.T) {
 	}
 	assertString(t, val, "readLine")
 }
+
+func TestRuntimeIOReadLineUnavailableByDefault(t *testing.T) {
+	val, err := evalInput(t, `readLine() ? { error.kind }`)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "readLine")
+}

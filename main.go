@@ -297,6 +297,7 @@ func runProgram(program *ast.Program, source string, filename string, taskFailur
 	}
 	eval.SetProgramArgs(programArgs)
 	eval.SetProgramPath(filename)
+	eval.SetInput(os.Stdin)
 	env := interpreter.NewBaseEnvironment()
 	val, sig, err := eval.Eval(program, env)
 	if err != nil {
@@ -556,7 +557,7 @@ func notebookCommand(args []string) int {
 			notebookUsage()
 			return 2
 		}
-		
+
 		if inputFile == "" {
 			inputFile = arg
 		} else {
@@ -584,7 +585,7 @@ func notebookCommand(args []string) int {
 	}
 
 	runner := notebook.NewRunner()
-	
+
 	if step || replMode {
 		if err := runner.RunInteractive(nb, step, replMode, inputFile); err != nil {
 			fmt.Fprintf(os.Stderr, "Interactive execution error: %v\n", err)
@@ -670,19 +671,19 @@ func kernelCommand(args []string) int {
 		fmt.Fprintf(os.Stderr, "Usage: karl kernel <connection_file>\n")
 		return 2
 	}
-	
+
 	configFile := args[0]
 	k, err := kernel.NewKernel(configFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize kernel: %v\n", err)
 		return 1
 	}
-	
+
 	if err := k.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "Kernel error: %v\n", err)
 		return 1
 	}
-	
+
 	return 0
 }
 

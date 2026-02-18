@@ -75,6 +75,7 @@ func StartWithVersion(in io.Reader, out io.Writer, cliVersion string) {
 func start(in io.Reader, out io.Writer, opts startOptions) {
 	env := interpreter.NewBaseEnvironment()
 	eval := interpreter.NewEvaluatorWithSourceAndFilename("", "<repl>")
+	eval.SetInputUnavailableMessage("readLine is not available in REPL; use `karl run` for stdin input")
 
 	var (
 		scanCh chan scannerResult

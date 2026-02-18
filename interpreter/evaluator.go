@@ -85,6 +85,13 @@ func (e *Evaluator) SetInput(input io.Reader) {
 	e.runtime.setInput(input)
 }
 
+func (e *Evaluator) SetInputUnavailableMessage(message string) {
+	if e.runtime == nil {
+		e.runtime = newRuntimeState()
+	}
+	e.runtime.setInputUnavailableMessage(message)
+}
+
 func (e *Evaluator) cloneForTask(task *Task) *Evaluator {
 	return &Evaluator{
 		source:      e.source,

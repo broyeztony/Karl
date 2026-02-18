@@ -24,6 +24,7 @@ type runtimeState struct {
 	input             io.Reader
 	inputReader       *bufio.Reader
 	inputMu           sync.Mutex
+	inputUnavailable  string
 }
 
 func newRuntimeState() *runtimeState {
@@ -35,7 +36,7 @@ func newRuntimeState() *runtimeState {
 		argv:              []string{},
 		environ:           cloneStrings(envSnapshot),
 		envMap:            makeEnvMap(envSnapshot),
-		input:             os.Stdin,
+		inputUnavailable:  "stdin unavailable",
 	}
 }
 
@@ -152,6 +153,15 @@ func (r *runtimeState) setInput(input io.Reader) {
 	r.mu.Unlock()
 }
 
+func (r *runtimeState) setInputUnavailableMessage(message string) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.inputUnavailable = message
+	r.mu.Unlock()
+}
+
 func (r *runtimeState) readLine() (string, bool, error) {
 	if r == nil {
 		return "", false, nil
@@ -185,7 +195,11 @@ func (r *runtimeState) inputBufReader() (*bufio.Reader, error) {
 		return r.inputReader, nil
 	}
 	if r.input == nil {
-		return nil, &RuntimeError{Message: "stdin unavailable"}
+		msg := r.inputUnavailable
+		if msg == "" {
+			msg = "stdin unavailable"
+		}
+		return nil, &RuntimeError{Message: msg}
 	}
 	r.inputReader = bufio.NewReader(r.input)
 	return r.inputReader, nil
