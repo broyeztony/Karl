@@ -157,7 +157,7 @@ let found = for true with msg = null {
 // - Non-recoverable errors still call exit(), even if wrapped in `? {}`.
 
 // Builtins that can produce recoverable errors:
-// decodeJson, readFile, writeFile, appendFile, deleteFile, exists, listDir, http, fail
+// decodeJson, readFile, writeFile, appendFile, deleteFile, exists, listDir, http, fail, readLine
 
 // Example: recover from bad JSON
 let raw = "{\"foo\":\"bar\"}"
@@ -187,6 +187,19 @@ let parseAge = (s) -> {
 
 let user = fetchUser(id)
 if user == null { exit("user not found") }
+
+// ============================================
+// 3.5 SYSTEM PRIMITIVES (PHASE 1)
+// ============================================
+
+// Program args (only values passed after `--` in `karl run`)
+let args = argv()           // [string]
+let first = env("HOME")     // string | null
+let all = environ()         // ["KEY=value", ...]
+let path = programPath()    // "file.k" | "<stdin>" | null
+
+// readLine() returns line without trailing newline, null on EOF.
+let line = readLine() ? { null }
 
 // ============================================
 // 4. FUNCTIONAL EXPRESSIONS

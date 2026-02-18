@@ -146,7 +146,7 @@ Then select **Karl** as the notebook kernel in Jupyter. More details: [kernel/RE
 
 ```
 karl parse <file.k> [--format=pretty|json]
-karl run <file.k>
+karl run <file.k> [--task-failure-policy=fail-fast|defer] [-- <program args...>]
 karl loom
 cat <file.k> | karl run -
 ```
