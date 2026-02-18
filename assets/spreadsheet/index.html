@@ -526,49 +526,7 @@
             }
         });
 
-        function handleMessage(msg) {
-            // ... strict check ...
-            if (msg.type === 'cell_updated') {
-                const input = document.getElementById(msg.id);
-                if (!input) return;
 
-                // Store state
-                input.dataset.raw = msg.value;
-                input.dataset.display = msg.display; // Store display value locally
-
-                // Update UI based on focus state
-                if (document.activeElement === input) {
-                    // If user is editing this cell, keep showing raw value (unless they just hit Enter?)
-                    // Actually, if we just hit enter, we lose focus usually? 
-                    // No, 'change' event happens on blur or enter committed. 
-                    // If we are still focused (e.g. just typing), we don't want to overwrite.
-                    // But if this is the ACK of our change, we might want to show result?
-                    // Let's standardise: 
-                    // Focused = Raw. 
-                    // Blurred = Display.
-                    // So if we are focused, we show msg.value (Raw).
-                    input.value = msg.value;
-                } else {
-                    // If not focused, show Display.
-                    input.value = msg.display;
-                }
-
-                // Sync formula bar if selected
-                if (selectedCellId === msg.id) {
-                    formulaBar.value = msg.value;
-                }
-
-                // Error handling...
-                if (msg.error) {
-                    input.parentElement.classList.add('error');
-                    input.title = msg.error;
-                } else {
-                    input.parentElement.classList.remove('error');
-                    input.title = "";
-                }
-            }
-            // ...
-        }
 
         // Initialization
         initGrid();
