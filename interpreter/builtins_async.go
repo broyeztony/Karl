@@ -5,6 +5,47 @@ func registerAsyncBuiltins() {
 	builtins["send"] = &Builtin{Name: "send", Fn: builtinSend}
 	builtins["recv"] = &Builtin{Name: "recv", Fn: builtinRecv}
 	builtins["done"] = &Builtin{Name: "done", Fn: builtinDone}
+	builtins["spawn"] = &Builtin{Name: "spawn", Fn: builtinSpawn}
+}
+
+func builtinSpawn(e *Evaluator, args []Value) (Value, error) {
+	if len(args) < 1 {
+		return nil, &RuntimeError{Message: "spawn expects at least 1 argument (function)"}
+	}
+
+	fn := args[0]
+	
+	// Internal helper to spawn the task
+	spawnTask := func(targetFn Value, callArgs []Value) (Value, error) {
+		task := e.newTask(e.currentTask, false)
+		taskEval := e.cloneForTask(task)
+		go func() {
+			res, sig, err := taskEval.applyFunction(targetFn, callArgs)
+			if err != nil {
+				taskEval.handleAsyncError(task, err)
+				return
+			}
+			if sig != nil {
+				exitProcess("break/continue outside loop")
+				return
+			}
+			task.complete(res, nil)
+		}()
+		return task, nil
+	}
+
+	// If more arguments are provided, spawn immediately with those arguments
+	if len(args) > 1 {
+		return spawnTask(fn, args[1:])
+	}
+	
+	// If only 1 argument, return a wrapper function (curried style)
+	return &Builtin{
+		Name: "spawn_wrapper",
+		Fn: func(_ *Evaluator, spawnArgs []Value) (Value, error) {
+			return spawnTask(fn, spawnArgs)
+		},
+	}, nil
 }
 
 func builtinThen(e *Evaluator, args []Value) (Value, error) {

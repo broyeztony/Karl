@@ -225,7 +225,7 @@ log(c.recv()) // Returns ["Hello from thread!", false] (value, is_closed)
         function initWorker() {
             if (worker) worker.terminate();
 
-            worker = new Worker("worker.js");
+            worker = new Worker("worker.js?v=" + Date.now());
 
             worker.onmessage = (e) => {
                 const msg = e.data;
