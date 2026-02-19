@@ -111,6 +111,7 @@ let nums = [1, 2, 3, 4, 5]
 let squares = nums.map((x) -> x * x)
 
 log("Squares:", squares)
+sleep(2000) // Sleep for 2 seconds (non-blocking in worker)
 log("Sum of squares:", squares.reduce(add, 0))
 
 // Example of concurrency
@@ -129,79 +130,47 @@ log("Sum of squares:", squares.reduce(add, 0))
         const editor = document.getElementById('editor');
         const output = document.getElementById('output');
 
-        if (!WebAssembly.instantiateStreaming) {
-            WebAssembly.instantiateStreaming = async (resp, importObject) => {
-                const source = await (await resp).arrayBuffer();
-                return await WebAssembly.instantiate(source, importObject);
+        let worker;
+
+        function initWorker() {
+            if (worker) worker.terminate();
+
+            worker = new Worker("worker.js");
+
+            worker.onmessage = (e) => {
+                const msg = e.data;
+                if (msg.type === 'ready') {
+                    runBtn.disabled = false;
+                    status.textContent = "Ready";
+                } else if (msg.type === 'output') {
+                    output.textContent += msg.data;
+                    output.scrollTop = output.scrollHeight;
+                } else if (msg.type === 'error') {
+                    console.error("Worker error:", msg.data);
+                    status.textContent = "Error: " + msg.data;
+                    status.style.color = "red";
+                } else if (msg.type === 'done') {
+                    status.textContent = "Ready";
+                    runBtn.disabled = false;
+                }
             };
+
+            // Send init message
+            worker.postMessage({ type: 'init' });
         }
 
-        const go = new Go();
-
-        let outputBuffer = "";
-        const decoder = new TextDecoder("utf-8");
-
-        // Override fs to capture stdout/stderr for display
-        window.fs = {
-            constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 },
-            writeSync(fd, buf) {
-                const str = decoder.decode(buf);
-                outputBuffer += str;
-                output.textContent += str;
-                output.scrollTop = output.scrollHeight;
-                return buf.length;
-            },
-            write(fd, buf, offset, length, position, callback) {
-                // For stdout/stderr (1 & 2), we can generally ignore position.
-                // We should handle offset/length if provided to slice the buffer.
-                let data = buf;
-                if (offset !== undefined && length !== undefined && length !== null) {
-                    data = buf.subarray(offset, offset + length);
-                }
-                const n = this.writeSync(fd, data);
-                callback(null, n);
-            },
-            open(path, flags, mode, callback) {
-                const err = new Error("not implemented");
-                err.code = "ENOSYS";
-                callback(err);
-            },
-            stat(path, callback) {
-                callback(null, { isDirectory: () => false });
-            },
-            fstat(fd, callback) {
-                callback(null, { isDirectory: () => false });
-            }
-        };
-
-        WebAssembly.instantiateStreaming(fetch("karl.wasm"), go.importObject).then((result) => {
-            runBtn.disabled = false;
-            status.textContent = "Ready";
-            go.run(result.instance);
-        }).catch((err) => {
-            console.error(err);
-            status.textContent = "Error loading Karl runtime. Check console.";
-            status.style.color = "red";
-        });
+        initWorker();
 
         // Run function
         const runCode = () => {
             output.textContent = "";
-            outputBuffer = "";
 
-            if (window.runKarl) {
+            if (worker) {
                 status.textContent = "Running...";
-                // Small delay to allow UI update
-                setTimeout(() => {
-                    try {
-                        window.runKarl(editor.value);
-                    } catch (e) {
-                        output.textContent += "\nJS Error: " + e;
-                    }
-                    status.textContent = "Ready";
-                }, 0);
+                runBtn.disabled = true; // Prevent double click
+                worker.postMessage({ type: 'run', source: editor.value });
             } else {
-                output.textContent = "Error: Runtime not initialized";
+                output.textContent = "Error: Worker not initialized";
             }
         };
 
