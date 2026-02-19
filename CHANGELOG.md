@@ -2,6 +2,30 @@
 
 All notable changes to Karl are documented here.
 
+## [v0.6.0] - 2026-02-19
+
+Highlights:
+- Added Karl Sheets: a reactive spreadsheet showcase powered by the Karl interpreter.
+- Added a browser Karl Playground powered by WebAssembly.
+- Expanded interpreter and concurrency coverage used by the new interactive surfaces.
+
+Karl Sheets:
+- Added `karl spreadsheet [addr]` command to launch the spreadsheet server.
+- Added spreadsheet engine with dependency tracking, formula evaluation, and update propagation.
+- Added spreadsheet WebSocket server and interactive frontend under `assets/spreadsheet/`.
+- Added spreadsheet tests (`spreadsheet/engine_test.go`).
+
+Playground:
+- Added `karl playground [addr]` command to launch the playground server.
+- Added WASM runtime entrypoint (`wasm/main.go`) and browser worker runtime.
+- Added playground frontend assets under `assets/playground/`.
+- Added playground docs in `SPECS/playground.md` and `playground/README.md`.
+
+Interpreter:
+- Added `len(...)` builtin for string/array/map/set/object.
+- Extended `keys(...)` to support objects in addition to maps.
+- Added spawn/concurrency tests (`interpreter/spawn_test.go`) and interpreter eval coverage updates.
+
 ## [v0.5.0] - 2026-02-18
 
 Highlights:
