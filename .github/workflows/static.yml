@@ -1,11 +1,11 @@
-name: Deploy Playground
+name: Deploy static content to Pages
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
     paths:
       - "assets/playground/**"
-      - ".github/workflows/pages-playground.yml"
+      - ".github/workflows/static.yml"
   workflow_dispatch:
 
 permissions:
@@ -14,18 +14,18 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Check Pages availability
@@ -42,15 +42,15 @@ jobs:
             echo "::notice::GitHub Pages is not enabled. Enable Settings > Pages and choose GitHub Actions as source to activate deployment."
           fi
 
-      - name: Configure Pages
+      - name: Setup Pages
         if: steps.pages_check.outputs.enabled == 'true'
         uses: actions/configure-pages@v5
 
-      - name: Upload playground artifact
+      - name: Upload artifact
         if: steps.pages_check.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: assets/playground
+          path: "./assets/playground"
 
       - name: Deploy to GitHub Pages
         if: steps.pages_check.outputs.enabled == 'true'
