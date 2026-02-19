@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Karl Playground</title>
+    <!-- CodeMirror & Theme -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #282a36;
+            /* Dracula background */
+            color: #f8f8f2;
+        }
+
+        #toolbar {
+            padding: 10px;
+            background: #21222c;
+            /* Dracula selection/darker */
+            border-bottom: 1px solid #44475a;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            /* Ensure CodeMirror scrolls internally */
+        }
+
+        /* CodeMirror Customization */
+        .CodeMirror {
+            flex: 1;
+            height: 100%;
+            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* Hide the middle (editor-side) scrollbar while keeping wheel/keyboard scrolling. */
+        .CodeMirror-vscrollbar {
+            display: none !important;
+        }
+
+        .CodeMirror-scroll {
+            margin-right: 0 !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+        }
+
+        .CodeMirror-scroll::-webkit-scrollbar {
+            width: 0 !important;
+            height: 0 !important;
+            display: none !important;
+        }
+
+        #output {
+            flex: 1;
+            padding: 15px;
+            background: #1e1e1e;
+            /* VS Code dark output style */
+            color: #d4d4d4;
+            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 13px;
+            overflow: auto;
+            white-space: pre-wrap;
+            border-left: 1px solid #44475a;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #bd93f9;
+            /* Dracula Purple */
+            color: #282a36;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #ff79c6;
+            /* Dracula Pink */
+        }
+
+        button:disabled {
+            background: #6272a4;
+            /* Dracula Comment */
+            cursor: not-allowed;
+            color: #f8f8f2;
+        }
+
+        #status {
+            font-size: 0.9em;
+            color: #bd93f9;
+        }
+
+        .title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #f8f8f2;
+            margin-right: 10px;
+        }
+
+        label {
+            color: #f8f8f2;
+        }
+    </style>
+    <script src="wasm_exec.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/simple.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+</head>
+
+<body>
+    <div id="toolbar">
+        <div class="title">Karl Playground</div>
+        <button id="runBtn" disabled>Run ▶</button>
+        <label style="margin-left: 10px; font-size: 14px; user-select: none;">
+            <input type="checkbox" id="autoRun"> Auto Run
+        </label>
+        <span id="status" style="margin-left: 15px;">Loading WASM environment...</span>
+    </div>
+    <div id="container">
+        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">// Welcome to Karl Playground
+// Karl is a functional-first language.
+
+// Define a function
+let add = (a, b) -> a + b
+
+// Use list operations
+let nums = [1, 2, 3, 4, 5]
+let squares = nums.map((x) -> x * x)
+
+log("Squares:", squares)
+sleep(1500) // Sleep for 1.5 seconds (non-blocking in worker)
+log("Sum of squares:", squares.reduce(add, 0))
+
+// Example of concurrency
+let c = channel()
+spawn((ch) -> {
+    ch.send("Hello from thread!")
+})(c)
+log(c.recv()) // Returns ["Hello from thread!", false] (value, is_closed)
+</textarea>
+        <pre id="output"></pre>
+    </div>
+    <script>
+        const runBtn = document.getElementById('runBtn');
+        const autoRunCheckbox = document.getElementById('autoRun');
+        const status = document.getElementById('status');
+        const output = document.getElementById('output');
+        let cm;
+        let worker;
+        let debounceTimer;
+
+        // Initialize CodeMirror if loaded
+        if (typeof CodeMirror !== 'undefined') {
+            // Define Karl Syntax Mode
+            CodeMirror.defineSimpleMode("karl", {
+                start: [
+                    { regex: /"(?:[^\\]|\\.)*?(?:"|$)/, token: "string" },
+                    { regex: /'(?:[^\\]|\\.)*?(?:'|$)/, token: "string" },
+                    // Keywords
+                    { regex: /(?:let|if|else|for|match|wait|break|continue|return|then|with|shape|fn)\b/, token: "keyword" },
+                    { regex: /\/\/.*/, token: "comment" },
+                    // Atoms/Booleans
+                    { regex: /\b(?:true|false|nil|null)\b/, token: "atom" },
+                    { regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number" },
+                    // Built-ins
+                    { regex: /\b(?:log|http|decodeJson|rendezvous|send|recv|done|sleep|fail|map|filter|reduce|sum|find|sort|length|trim|toLower|toUpper|split)\b/, token: "builtin" },
+                    { regex: /->|&|\|/, token: "operator" },
+                    // Variables (basic heuristic)
+                    { regex: /[a-z$][\w$]*/, token: "variable" },
+                ],
+                meta: {
+                    dontIndentStates: ["comment"],
+                    lineComment: "//"
+                }
+            });
+
+            // Initialize CodeMirror instance
+            cm = CodeMirror.fromTextArea(document.getElementById("editor"), {
+                mode: "karl",
+                theme: "dracula",
+                lineNumbers: true,
+                indentUnit: 4,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                tabSize: 4,
+                extraKeys: {
+                    "Cmd-Enter": function (cm) { runCode(); },
+                    "Ctrl-Enter": function (cm) { runCode(); }
+                }
+            });
+
+            // Auto-run listener
+            cm.on("change", () => {
+                if (autoRunCheckbox.checked) {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        runCode();
+                    }, 800);
+                }
+            });
+
+        } else {
+            console.error("CodeMirror failed to load.");
+            output.textContent = "Error: CodeMirror library could not be loaded.";
+        }
+
+        function initWorker() {
+            if (worker) worker.terminate();
+
+            worker = new Worker("worker.js?v=" + Date.now());
+
+            worker.onmessage = (e) => {
+                const msg = e.data;
+                if (msg.type === 'ready') {
+                    runBtn.disabled = false;
+                    status.textContent = "Ready";
+                    status.style.color = "#bd93f9"; // Reset color
+                } else if (msg.type === 'output') {
+                    output.textContent += msg.data;
+                    output.scrollTop = output.scrollHeight;
+                } else if (msg.type === 'error') {
+                    console.error("Worker error:", msg.data);
+                    status.textContent = "Error: " + msg.data;
+                    status.style.color = "#ff5555"; // Dracula Red
+                } else if (msg.type === 'done') {
+                    status.textContent = "Ready";
+                    status.style.color = "#bd93f9"; // Reset color
+                    runBtn.disabled = false;
+                }
+            };
+
+            // Send init message
+            worker.postMessage({ type: 'init' });
+        }
+
+        initWorker();
+
+        // Run function
+        const runCode = () => {
+            output.textContent = "";
+
+            if (worker) {
+                status.textContent = "Running...";
+                runBtn.disabled = true; // Prevent double click
+                const code = cm ? cm.getValue() : document.getElementById("editor").value;
+                worker.postMessage({ type: 'run', source: code });
+            } else {
+                output.textContent = "Error: Worker not initialized";
+            }
+        };
+
+        runBtn.addEventListener('click', runCode);
+
+        // Fallback listener in case CodeMirror fails and textarea is used
+        if (!cm) {
+            document.getElementById('editor').addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    runCode();
+                }
+            });
+            document.getElementById('editor').addEventListener('input', () => {
+                if (autoRunCheckbox.checked) {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        runCode();
+                    }, 800);
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

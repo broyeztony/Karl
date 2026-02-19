@@ -223,6 +223,41 @@ func TestEvalStrBuiltin(t *testing.T) {
 	assertString(t, val, "123")
 }
 
+func TestEvalLenBuiltin(t *testing.T) {
+	val := mustEval(t, `
+let m = map()
+m.set("a", 1)
+let s = set([1, 2, 2])
+let o = { x: 1, y: 2, }
+let arr = [1, 2]
+let a = len("hé")
+let b = len(arr)
+let c = len(m)
+let d = len(s)
+let e = len(o)
+let out = [a, b, c, d, e]
+out
+`)
+	expected := &Array{Elements: []Value{
+		&Integer{Value: 2},
+		&Integer{Value: 2},
+		&Integer{Value: 1},
+		&Integer{Value: 2},
+		&Integer{Value: 2},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
+	_, err := evalInput(t, `len(1)`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "len expects string, array, map, set, or object") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestEvalEncodeDecodeJSON(t *testing.T) {
 	val := mustEval(t, `decodeJson(encodeJson({ a: 1, b: [true, null, "x"] }))`)
 	expected := &Object{Pairs: map[string]Value{

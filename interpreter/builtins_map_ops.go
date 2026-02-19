@@ -52,8 +52,8 @@ func builtinMapSet(_ *Evaluator, args []Value) (Value, error) {
 			return nil, &RuntimeError{Message: "set expects array when called with 1 argument"}
 		}
 		newSet := &Set{Elements: make(map[MapKey]struct{})}
-		for _, el := range arr.Elements {
-			key, err := setKeyForValue(el)
+		for _, e := range arr.Elements {
+			key, err := setKeyForValue(e)
 			if err != nil {
 				return nil, err
 			}
@@ -78,15 +78,25 @@ func builtinMapSet(_ *Evaluator, args []Value) (Value, error) {
 
 func builtinMapKeys(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "keys expects map"}
+		return nil, &RuntimeError{Message: "keys expects map/object"}
 	}
-	m, ok := args[0].(*Map)
-	if !ok {
-		return nil, &RuntimeError{Message: "keys expects map as first argument"}
+
+	switch val := args[0].(type) {
+	case *Map:
+		out := make([]Value, 0, len(val.Pairs))
+		for k := range val.Pairs {
+			out = append(out, mapKeyToValue(k))
+		}
+		return &Array{Elements: out}, nil
+
+	case *Object:
+		out := make([]Value, 0, len(val.Pairs))
+		for k := range val.Pairs {
+			out = append(out, &String{Value: k})
+		}
+		return &Array{Elements: out}, nil
+
+	default:
+		return nil, &RuntimeError{Message: "keys expects map or object"}
 	}
-	out := make([]Value, 0, len(m.Pairs))
-	for key := range m.Pairs {
-		out = append(out, mapKeyToValue(key))
-	}
-	return &Array{Elements: out}, nil
 }

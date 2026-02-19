@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karl Reactive Spreadsheet</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f8f9fa;
+        }
+
+        #toolbar {
+            padding: 10px;
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #formula-bar {
+            flex-grow: 1;
+            padding: 5px;
+            font-family: monospace;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #spreadsheet {
+            flex-grow: 1;
+            overflow: auto;
+            position: relative;
+            background: #fff;
+        }
+
+        /* Grid Layout */
+        .grid-container {
+            display: grid;
+            /* Grid template columns will be set by JS dynamically */
+            /* grid-template-columns: 50px repeat(26, 100px); */
+        }
+
+        .header-cell {
+            background: #f0f0f0;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+            padding: 5px;
+            font-weight: bold;
+            color: #555;
+            user-select: none;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            position: relative;
+            /* For resizer */
+        }
+
+        .header-cell.hidden-col {
+            display: none;
+        }
+
+        .cell.hidden-col {
+            display: none;
+        }
+
+        /* Resizer Handle */
+        .resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            user-select: none;
+            z-index: 10;
+        }
+
+        .resizer:hover {
+            background: #1a73e8;
+            opacity: 0.5;
+        }
+
+        /* Context Menu */
+        #context-menu {
+            display: none;
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            border-radius: 4px;
+            padding: 5px 0;
+        }
+
+        #context-menu div {
+            padding: 5px 15px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #context-menu div:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* ... existing styles ... */
+        .row-header {
+            background: #f0f0f0;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+            padding: 5px;
+            color: #555;
+            user-select: none;
+            position: sticky;
+            left: 0;
+            z-index: 1;
+        }
+
+        .corner-header {
+            z-index: 3;
+            top: 0;
+            left: 0;
+        }
+
+        .cell {
+            border-right: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+            /* Clip content if resized small */
+        }
+
+        .cell input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            padding: 4px;
+            box-sizing: border-box;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .cell input:focus {
+            border: 2px solid #1a73e8;
+            padding: 2px;
+            /* Adjust for border */
+        }
+
+        .cell.error input {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="toolbar">
+        <div style="font-weight: bold; color: #1a73e8; margin-right: 15px;">Karl Sheets</div>
+
+        <select onchange="loadExample(this.value)" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+            <option value="" disabled selected>Load Example...</option>
+            <option value="intro">🏠 Intro</option>
+            <option value="heavy">⚡ Heavy</option>
+            <option value="syntax">🧠 Syntax</option>
+            <option value="matrix">🧮 Matrix</option>
+            <option value="ranges">📊 Ranges</option>
+            <option value="factorial">🌀 Factorial</option>
+        </select>
+        <button onclick="sendCmd('clear', {})">📄 New</button>
+        <!-- <button onclick="alert('Open not implemented yet')">📂 Open</button> -->
+        <div style="border-right: 1px solid #ccc; height: 20px; margin: 0 5px;"></div>
+
+        <div id="selected-cell-indicator"
+            style="border: 1px solid #ccc; padding: 2px 5px; border-radius: 4px; min-width: 30px; text-align: center; background: #eee;">
+        </div>
+        <input type="text" id="formula-bar" placeholder="Select a cell to edit..." disabled>
+        <div id="status" style="font-size: 0.8em; color: #888;">Connecting...</div>
+    </div>
+
+    <div id="spreadsheet">
+        <div class="grid-container" id="grid">
+            <!-- Generated by JS -->
+        </div>
+    </div>
+
+    <script>
+        const ROWS = 100;
+        const COLS = 50; // A-AX
+        const grid = document.getElementById('grid');
+        const formulaBar = document.getElementById('formula-bar');
+        const selectedCellIndicator = document.getElementById('selected-cell-indicator');
+        const statusDiv = document.getElementById('status');
+        let selectedCellId = null;
+        let ws;
+
+        function getColName(n) {
+            let name = "";
+            n++; // Convert to 1-based index
+            while (n > 0) {
+                n--;
+                name = String.fromCharCode(65 + (n % 26)) + name;
+                n = Math.floor(n / 26);
+            }
+            return name;
+        }
+
+        function sendCmd(cmd, data = {}) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: cmd, ...data }));
+        }
+
+        function loadExample(name) {
+            sendCmd('load_example', { example: name });
+        }
+
+        // Initialize columns state
+        let colWidths = new Array(COLS).fill(100);
+        let hiddenCols = new Array(COLS).fill(false);
+        const ROW_HEADER_WIDTH = 50;
+
+        // Context Menu State
+        const contextMenu = document.createElement('div');
+        contextMenu.id = 'context-menu';
+        contextMenu.innerHTML = `<div id="ctx-hide">Hide Column</div><div id="ctx-unhide">Unhide All</div>`;
+        document.body.appendChild(contextMenu);
+        let ctxColIndex = -1;
+
+        // --- Grid Generation ---
+        function updateGridTemplate() {
+            // Build grid-template-columns string
+            let template = `${ROW_HEADER_WIDTH}px`; // Row header
+            for (let i = 0; i < COLS; i++) {
+                if (hiddenCols[i]) {
+                    template += ` 0px`; // Hidden
+                } else {
+                    template += ` ${colWidths[i]}px`;
+                }
+            }
+            grid.style.gridTemplateColumns = template;
+
+            // Also toggle visibility class for clean hiding (though 0px width handles layout, 
+            // hiding content is safer for borders/padding artifacts)
+            document.querySelectorAll('.header-cell:not(.corner-header)').forEach((el, idx) => {
+                if (hiddenCols[idx]) el.style.display = 'none';
+                else el.style.display = '';
+            });
+
+            // Cells are harder to target by index without class.
+            // But 0px width usually hides them effectively if overflow hidden.
+            // Let's rely on 0px width + overflow:hidden.
+        }
+
+        function initGrid() {
+            // Corner
+            const corner = document.createElement('div');
+            corner.className = 'header-cell corner-header';
+            corner.addEventListener('click', () => {
+                // Unhide all on corner click?
+                hiddenCols.fill(false);
+                updateGridTemplate();
+            });
+            grid.appendChild(corner);
+
+            // Column Headers (A-..., AA-...)
+            for (let i = 0; i < COLS; i++) {
+                const colHeader = document.createElement('div');
+                colHeader.className = 'header-cell';
+                colHeader.textContent = getColName(i); // Display Name
+
+                // Resizer
+                const resizer = document.createElement('div');
+                resizer.className = 'resizer';
+                initResize(resizer, i);
+                colHeader.appendChild(resizer);
+
+                // Context Menu
+                colHeader.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    data = { colIndex: i };
+                    showContextMenu(e.pageX, e.pageY, i);
+                });
+
+                grid.appendChild(colHeader);
+            }
+
+            // Rows
+            for (let r = 1; r <= ROWS; r++) {
+                // Row Header
+                const rowHeader = document.createElement('div');
+                rowHeader.className = 'row-header';
+                rowHeader.textContent = r;
+                grid.appendChild(rowHeader);
+
+                // Cells
+                for (let c = 0; c < COLS; c++) {
+                    const cellId = getColName(c) + r;
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'cell';
+                    // Tag column for potentially hiding via CSS class if we wanted, 
+                    // but grid-template 0px is better.
+
+                    const input = document.createElement('input');
+                    input.id = cellId;
+                    input.dataset.raw = ""; // Store raw value here
+
+                    // Event Listeners
+                    input.addEventListener('focus', () => selectCell(cellId));
+                    input.addEventListener('change', (e) => updateCell(cellId, e.target.value));
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.target.blur();
+                        }
+                    });
+
+                    cellDiv.appendChild(input);
+                    grid.appendChild(cellDiv);
+                }
+            }
+            updateGridTemplate();
+        }
+
+        // --- Resizing Logic ---
+        function initResize(resizer, colIndex) {
+            let startX, startWidth;
+
+            resizer.addEventListener('mousedown', (e) => {
+                e.stopPropagation(); // Don't trigger sort/select
+                startX = e.clientX;
+                startWidth = colWidths[colIndex];
+
+                document.documentElement.addEventListener('mousemove', doDrag, false);
+                document.documentElement.addEventListener('mouseup', stopDrag, false);
+            });
+
+            function doDrag(e) {
+                const newWidth = startWidth + (e.clientX - startX);
+                if (newWidth > 20) { // Min width
+                    colWidths[colIndex] = newWidth;
+                    updateGridTemplate();
+                }
+            }
+
+            function stopDrag() {
+                document.documentElement.removeEventListener('mousemove', doDrag, false);
+                document.documentElement.removeEventListener('mouseup', stopDrag, false);
+            }
+        }
+
+        // --- Context Menu Logic ---
+        function showContextMenu(x, y, colIndex) {
+            ctxColIndex = colIndex;
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+        }
+
+        document.addEventListener('click', () => {
+            contextMenu.style.display = 'none';
+        });
+
+        document.getElementById('ctx-hide').addEventListener('click', () => {
+            if (ctxColIndex >= 0) {
+                hiddenCols[ctxColIndex] = true;
+                updateGridTemplate();
+            }
+        });
+
+        document.getElementById('ctx-unhide').addEventListener('click', () => {
+            hiddenCols.fill(false);
+            updateGridTemplate();
+        });
+
+        // --- State Management ---
+        function selectCell(id) {
+            selectedCellId = id;
+            selectedCellIndicator.textContent = id;
+            formulaBar.disabled = false;
+
+            const input = document.getElementById(id);
+            // Formula bar shows RAW value
+            formulaBar.value = input.dataset.raw || "";
+        }
+
+        formulaBar.addEventListener('input', (e) => {
+            if (selectedCellId) {
+                const input = document.getElementById(selectedCellId);
+                // Updating formula bar updates the cells DATA, but not necessarily its display immediately?
+                // Actually, let's update local raw state and send update on enter/blur?
+                // Google Sheets updates cell real-time.
+                // For simplicity, update on Enter or Blur.
+            }
+        });
+
+        formulaBar.addEventListener('change', (e) => {
+            if (selectedCellId) {
+                updateCell(selectedCellId, e.target.value);
+            }
+        });
+
+        function updateCell(id, value) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.error("Not connected");
+                return;
+            }
+
+            // Optimistic update of raw value ? 
+            // Wait for server?
+            // Let's send to server.
+            ws.send(JSON.stringify({
+                type: "update_cell",
+                id: id,
+                value: value
+            }));
+
+            // Also update local raw storage immediately so UI feels responsive for editing
+            const input = document.getElementById(id);
+            input.dataset.raw = value;
+        }
+
+        // --- WebSocket ---
+        function connect() {
+            ws = new WebSocket("ws://" + window.location.host + "/ws");
+
+            ws.onopen = () => {
+                statusDiv.textContent = "Connected";
+                statusDiv.style.color = "green";
+            };
+
+            ws.onclose = () => {
+                statusDiv.textContent = "Disconnected (Reconnecting...)";
+                statusDiv.style.color = "red";
+                setTimeout(connect, 1000);
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleMessage(msg);
+            };
+        }
+
+        function handleMessage(msg) {
+            if (msg.type === 'reset') {
+                // Clear all cells locally
+                document.querySelectorAll('.cell input').forEach(input => {
+                    input.value = "";
+                    input.dataset.raw = "";
+                    input.dataset.display = ""; // Reset display
+                    input.parentElement.classList.remove('error');
+                    input.title = "";
+                });
+                return;
+            }
+
+            if (msg.type === 'cell_updated') {
+                const input = document.getElementById(msg.id);
+                if (!input) return;
+
+                // Store state
+                input.dataset.raw = msg.value;
+                input.dataset.display = msg.display; // Store display value locally
+
+                // Update UI based on focus state
+                if (document.activeElement === input) {
+                    // If user is editing this cell, keep showing raw value.
+                    // This creates a consistent editing experience.
+                    // When they hit Enter (blur), it will switch to display value.
+                    // The only edge case is if another user updates this cell while we are editing.
+                    // In that case, we overwrite their edit visually until we commit ours.
+                    input.value = msg.value; // Show Raw
+                } else {
+                    // If not focused, show Display (Result).
+                    input.value = msg.display;
+                }
+
+                // Sync formula bar if selected
+                if (selectedCellId === msg.id) {
+                    formulaBar.value = msg.value;
+                }
+
+                // Error handling...
+                if (msg.error) {
+                    input.parentElement.classList.add('error');
+                    input.title = msg.error;
+                } else {
+                    input.parentElement.classList.remove('error');
+                    input.title = "";
+                }
+            }
+        }
+
+        // Add focus listener again to switch to RAW value on edit?
+        // This is a common spreadsheet UX.
+        // When you click a cell, you see the result. When you double click or type, you edit raw.
+        // For this simple input based grid:
+        // Focus -> show raw?
+        // Blur -> show display?
+
+        // Grid Event Listeners for Cell Editing UX
+        grid.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'INPUT') {
+                // When focusing, show the RAW formula for editing
+                e.target.value = e.target.dataset.raw || "";
+                selectCell(e.target.id);
+            }
+        });
+
+        grid.addEventListener('focusout', (e) => {
+            if (e.target.tagName === 'INPUT') {
+                // When blurring, revert to the DISPLAY value (stored in dataset.display)
+                // This prevents the cell from staying in "formula mode" if no change was made.
+                // If a change WAS made, the 'change' event fires first, sends to server, 
+                // and the server response will update the cell with the new display value.
+                // So this is safe for "no-op" blurs.
+                e.target.value = e.target.dataset.display || "";
+            }
+        });
+
+
+
+        // Initialization
+        initGrid();
+        connect();
+
+    </script>
+</body>
+
+</html>

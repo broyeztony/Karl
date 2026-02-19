@@ -153,6 +153,8 @@ cat <file.k> | karl run -
 
 **REPL**: Start an interactive session with `karl loom`. See [repl/README.md](repl/README.md) for details.
 
+**Playground**: Launch the web-based playground with `karl playground`. See [playground/README.md](playground/README.md) for details.
+
 ### VS Code
 
 Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.

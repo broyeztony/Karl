@@ -4,6 +4,7 @@ go 1.25.3
 
 require (
 	github.com/go-zeromq/zmq4 v0.17.0
+	github.com/gorilla/websocket v1.5.3
 	golang.org/x/term v0.36.0
 )
 
