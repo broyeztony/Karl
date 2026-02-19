@@ -45,6 +45,23 @@
             line-height: 1.5;
         }
 
+        /* Hide the middle (editor-side) scrollbar while keeping wheel/keyboard scrolling. */
+        .CodeMirror-vscrollbar {
+            display: none !important;
+        }
+
+        .CodeMirror-scroll {
+            margin-right: 0 !important;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+        }
+
+        .CodeMirror-scroll::-webkit-scrollbar {
+            width: 0 !important;
+            height: 0 !important;
+            display: none !important;
+        }
+
         #output {
             flex: 1;
             padding: 15px;
