@@ -117,6 +117,26 @@
         label {
             color: #f8f8f2;
         }
+
+        #exampleSelect {
+            background: #44475a;
+            color: #f8f8f2;
+            border: 1px solid #6272a4;
+            border-radius: 4px;
+            padding: 7px 10px;
+            font-size: 13px;
+            min-width: 250px;
+            outline: none;
+        }
+
+        #exampleSelect:hover {
+            border-color: #bd93f9;
+        }
+
+        #exampleSelect:focus {
+            border-color: #ff79c6;
+            box-shadow: 0 0 0 2px rgba(255, 121, 198, 0.25);
+        }
     </style>
     <script src="wasm_exec.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
@@ -127,8 +147,23 @@
 
 <body>
     <div id="toolbar">
-        <div class="title">Karl Playground</div>
+        <div class="title">Karl Playground [Experimental]</div>
         <button id="runBtn" disabled>Run ▶</button>
+        <label style="font-size: 13px; user-select: none;">
+            <select id="exampleSelect" title="Load a feature example">
+                <option value="quickstart" selected>Quickstart</option>
+                <option value="language_concurrency">Language + Concurrency</option>
+                <option value="functions_lists">Functions + List Ops</option>
+                <option value="ranges_slices">Ranges + Slices</option>
+                <option value="for_then">For Expression + Then Block</option>
+                <option value="match_guards">Match with Guards</option>
+                <option value="maps_sets_objects">Maps, Sets, Objects</option>
+                <option value="recover_operator">Recover Operator (?)</option>
+                <option value="tasks_then">Tasks + then()</option>
+                <option value="join_group">Join Group (&amp; { ... })</option>
+                <option value="channels_stream">Channels Stream</option>
+            </select>
+        </label>
         <label style="margin-left: 10px; font-size: 14px; user-select: none;">
             <input type="checkbox" id="autoRun"> Auto Run
         </label>
@@ -159,7 +194,211 @@ log(c.recv()) // Returns ["Hello from thread!", false] (value, is_closed)
         <pre id="output"></pre>
     </div>
     <script>
+        const EXAMPLES = {
+            quickstart: `// Welcome to Karl Playground
+// Karl is a functional-first language.
+
+// Define a function
+let add = (a, b) -> a + b
+
+// Use list operations
+let nums = [1, 2, 3, 4, 5]
+let squares = nums.map((x) -> x * x)
+
+log("Squares:", squares)
+sleep(1500) // Sleep for 1.5 seconds (non-blocking in worker)
+log("Sum of squares:", squares.reduce(add, 0))
+
+// Example of concurrency
+let c = channel()
+spawn((ch) -> {
+    ch.send("Hello from thread!")
+})(c)
+log(c.recv()) // Returns ["Hello from thread!", false] (value, is_closed)`,
+            language_concurrency: `// Karl Playground: language + concurrency demo
+
+let section = (title) -> {
+    log("")
+    log("=== " + title + " ===")
+}
+
+section("1) Dot-dot ranges + slices")
+let delays = 40..44
+let picked = delays[1..4]
+let banner = "karl-language"
+log("delays          :", delays)
+log("picked          :", picked)
+log("string head/tail:", [banner[..4], banner[5..]])
+
+section("2) Task chaining with then()")
+let t = & (() -> {
+    sleep(120)
+    20
+})()
+let chained = wait t.then(x -> x + 22)
+log("chained result  :", chained)
+
+section("3) Join: parallel work, ordered output")
+let joined = wait & {
+    (() -> { sleep(picked[2]); { label: "A", ms: picked[2], value: 3, } })(),
+    (() -> { sleep(picked[0]); { label: "B", ms: picked[0], value: 7, } })(),
+    (() -> { sleep(picked[1]); { label: "C", ms: picked[1], value: 11, } })()
+}
+
+for i < joined.length with i = 0 {
+    let row = joined[i]
+    log("task " + row.label + " (" + str(row.ms) + "ms):", row.value)
+    i++
+} then ()
+log("labels order    :", joined.map(x -> x.label))
+
+section("4) for-expression + then block result")
+let stats = for i < joined.length with i = 0, out = [] {
+    let row = joined[i]
+    out += [row.value * 2]
+    i++
+} then {
+    let total = out.reduce((acc, x) -> acc + x, 0)
+    let avg = total / out.length
+    {
+        doubled: out,
+        firstTwo: out[..2],
+        total: total,
+        avg: avg,
+    }
+}
+
+log("doubled         :", stats.doubled)
+log("firstTwo        :", stats.firstTwo)
+log("total / avg     :", [stats.total, stats.avg])
+let done = true`,
+            functions_lists: `// Functions + list built-ins
+let add = (a, b) -> a + b
+let nums = 1..10
+let evens = nums.filter(x -> x % 2 == 0)
+let doubled = evens.map(x -> x * 2)
+let total = doubled.reduce(add, 0)
+{
+    nums: nums,
+    evens: evens,
+    doubled: doubled,
+    total: total,
+}`,
+            ranges_slices: `// Dot-dot ranges + array/string slices
+let xs = 0..12
+let mid = xs[3..9]
+let word = "karl-language"
+let head = word[..4]
+let tail = word[-8..]
+{
+    all: xs,
+    mid: mid,
+    head: head,
+    tail: tail,
+}`,
+            for_then: `// for-expression returns a value
+let report = for i < 6 with i = 0, out = [] {
+    out += [i * i]
+    i++
+} then {
+    let total = out.reduce((acc, x) -> acc + x, 0)
+    {
+        squares: out,
+        firstThree: out[..3],
+        total: total,
+        avg: total / out.length,
+    }
+}
+report`,
+            match_guards: `// match expression with guards
+let classify = x -> match x {
+    case n if n < 0 -> "negative"
+    case 0 -> "zero"
+    case n if n % 2 == 0 -> "even"
+    case _ -> "odd"
+}
+
+let values = [-3, -2, -1, 0, 1, 2, 3, 4]
+values.map(v -> {
+    value: v,
+    kind: classify(v),
+})`,
+            maps_sets_objects: `// Maps, sets, objects
+let m = map()
+m.set("name", "Karl")
+m.set("version", "0.6.0")
+let s = set([1, 2, 2, 3, 3, 4])
+let o = { team: "runtime", feature: "playground", }
+{
+    mapKeys: m.keys(),
+    mapValues: m.values(),
+    has3: s.has(3),
+    setSize: len(s),
+    objectKeys: keys(o),
+}`,
+            recover_operator: `// Recover operator (?) on runtime/recoverable errors
+let cfg = { retries: 3, }
+
+let retries = cfg.retryCount ? {
+    log("recover member access:", error.message)
+    0
+}
+
+let parsed = parseInt("not-an-int") ? {
+    log("recover parseInt:", error.message);
+    -1
+}
+
+{ retries: retries, parsed: parsed }`,
+            tasks_then: `// Task + then chaining
+let base = & (() -> {
+    sleep(100)
+    20
+})()
+
+let out = wait base.then(v -> v + 1).then(v -> v * 2)
+
+out`,
+            join_group: `// Join group runs calls concurrently, output keeps input order
+let work = (label, ms, value) -> {
+    sleep(ms)
+    { label: label, value: value, }
+}
+
+let joined = wait & {
+    work("A", 120, 1),
+    work("B", 40, 2),
+    work("C", 80, 3)
+}
+
+{
+    labels: joined.map(x -> x.label),
+    sum: joined.map(x -> x.value).reduce((a, b) -> a + b, 0),
+}`,
+            channels_stream: `// Channel producer/consumer stream
+let ch = channel()
+
+let producer = & (() -> {
+    ch.send("alpha")
+    ch.send("beta")
+    ch.send("gamma")
+    ch.done()
+})()
+
+let stream = for true with res = ch.recv(), acc = [] {
+    let [v, done] = res
+    if done { break acc }
+    acc += [v]
+    res = ch.recv()
+} then acc
+
+wait producer
+stream`
+        };
+
         const runBtn = document.getElementById('runBtn');
+        const editorArea = document.getElementById('editor');
+        const exampleSelect = document.getElementById('exampleSelect');
         const autoRunCheckbox = document.getElementById('autoRun');
         const status = document.getElementById('status');
         const output = document.getElementById('output');
@@ -193,7 +432,7 @@ log(c.recv()) // Returns ["Hello from thread!", false] (value, is_closed)
             });
 
             // Initialize CodeMirror instance
-            cm = CodeMirror.fromTextArea(document.getElementById("editor"), {
+            cm = CodeMirror.fromTextArea(editorArea, {
                 mode: "karl",
                 theme: "dracula",
                 lineNumbers: true,
@@ -221,6 +460,35 @@ log(c.recv()) // Returns ["Hello from thread!", false] (value, is_closed)
             console.error("CodeMirror failed to load.");
             output.textContent = "Error: CodeMirror library could not be loaded.";
         }
+
+        function setEditorValue(code) {
+            if (cm) {
+                cm.setValue(code);
+            } else {
+                editorArea.value = code;
+            }
+        }
+
+        function loadExample(exampleId) {
+            const code = EXAMPLES[exampleId];
+            if (!code) {
+                return;
+            }
+            setEditorValue(code);
+            output.textContent = "";
+            status.textContent = "Example loaded";
+            status.style.color = "#bd93f9";
+            if (autoRunCheckbox.checked && runBtn.disabled === false) {
+                runCode();
+            }
+        }
+
+        exampleSelect.addEventListener('change', () => {
+            loadExample(exampleSelect.value);
+        });
+
+        // Ensure default content is in sync with selected sample.
+        loadExample(exampleSelect.value);
 
         function initWorker() {
             if (worker) worker.terminate();
@@ -271,12 +539,12 @@ log(c.recv()) // Returns ["Hello from thread!", false] (value, is_closed)
 
         // Fallback listener in case CodeMirror fails and textarea is used
         if (!cm) {
-            document.getElementById('editor').addEventListener('keydown', (e) => {
+            editorArea.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     runCode();
                 }
             });
-            document.getElementById('editor').addEventListener('input', () => {
+            editorArea.addEventListener('input', () => {
                 if (autoRunCheckbox.checked) {
                     clearTimeout(debounceTimer);
                     debounceTimer = setTimeout(() => {
