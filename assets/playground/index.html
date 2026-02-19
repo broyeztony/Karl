@@ -4,6 +4,9 @@
 <head>
     <meta charset="utf-8">
     <title>Karl Playground</title>
+    <!-- CodeMirror & Theme -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
     <style>
         body {
             margin: 0;
@@ -11,12 +14,16 @@
             flex-direction: column;
             height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #282a36;
+            /* Dracula background */
+            color: #f8f8f2;
         }
 
         #toolbar {
             padding: 10px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #ddd;
+            background: #21222c;
+            /* Dracula selection/darker */
+            border-bottom: 1px solid #44475a;
             display: flex;
             align-items: center;
             gap: 15px;
@@ -25,31 +32,30 @@
         #container {
             flex: 1;
             display: flex;
+            overflow: hidden;
+            /* Ensure CodeMirror scrolls internally */
         }
 
-        #editor {
+        /* CodeMirror Customization */
+        .CodeMirror {
             flex: 1;
-            padding: 15px;
+            height: 100%;
             font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
             font-size: 14px;
-            border: none;
-            resize: none;
-            outline: none;
-            background: #fff;
             line-height: 1.5;
-            color: #24292e;
         }
 
         #output {
             flex: 1;
             padding: 15px;
             background: #1e1e1e;
+            /* VS Code dark output style */
             color: #d4d4d4;
             font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
             font-size: 14px;
             overflow: auto;
             white-space: pre-wrap;
-            border-left: 1px solid #ddd;
+            border-left: 1px solid #44475a;
             margin: 0;
             line-height: 1.5;
         }
@@ -57,8 +63,9 @@
         button {
             padding: 8px 16px;
             cursor: pointer;
-            background: #1a73e8;
-            color: white;
+            background: #bd93f9;
+            /* Dracula Purple */
+            color: #282a36;
             border: none;
             border-radius: 4px;
             font-weight: 600;
@@ -67,27 +74,38 @@
         }
 
         button:hover {
-            background: #1557b0;
+            background: #ff79c6;
+            /* Dracula Pink */
         }
 
         button:disabled {
-            background: #ccc;
+            background: #6272a4;
+            /* Dracula Comment */
             cursor: not-allowed;
+            color: #f8f8f2;
         }
 
         #status {
             font-size: 0.9em;
-            color: #666;
+            color: #bd93f9;
         }
 
         .title {
             font-weight: bold;
             font-size: 18px;
-            color: #202124;
+            color: #f8f8f2;
             margin-right: 10px;
+        }
+
+        label {
+            color: #f8f8f2;
         }
     </style>
     <script src="wasm_exec.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/simple.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
 </head>
 
 <body>
@@ -100,7 +118,8 @@
         <span id="status" style="margin-left: 15px;">Loading WASM environment...</span>
     </div>
     <div id="container">
-        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">// Welcome to Karl Playground
+        <!-- Replaced textarea with a text area that CodeMirror will attach to -->
+        <textarea id="editor" spellcheck="false">// Welcome to Karl Playground
 // Karl is a functional-first language.
 
 // Define a function
@@ -127,10 +146,65 @@ log("Sum of squares:", squares.reduce(add, 0))
         const runBtn = document.getElementById('runBtn');
         const autoRunCheckbox = document.getElementById('autoRun');
         const status = document.getElementById('status');
-        const editor = document.getElementById('editor');
         const output = document.getElementById('output');
-
+        let cm;
         let worker;
+        let debounceTimer;
+
+        // Initialize CodeMirror if loaded
+        if (typeof CodeMirror !== 'undefined') {
+            // Define Karl Syntax Mode
+            CodeMirror.defineSimpleMode("karl", {
+                start: [
+                    { regex: /"(?:[^\\]|\\.)*?(?:"|$)/, token: "string" },
+                    { regex: /'(?:[^\\]|\\.)*?(?:'|$)/, token: "string" },
+                    // Keywords
+                    { regex: /(?:let|if|else|for|match|wait|break|continue|return|then|with|shape|fn)\b/, token: "keyword" },
+                    { regex: /\/\/.*/, token: "comment" },
+                    // Atoms/Booleans
+                    { regex: /\b(?:true|false|nil|null)\b/, token: "atom" },
+                    { regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number" },
+                    // Built-ins
+                    { regex: /\b(?:log|http|decodeJson|rendezvous|send|recv|done|sleep|fail|map|filter|reduce|sum|find|sort|length|trim|toLower|toUpper|split)\b/, token: "builtin" },
+                    { regex: /->|&|\|/, token: "operator" },
+                    // Variables (basic heuristic)
+                    { regex: /[a-z$][\w$]*/, token: "variable" },
+                ],
+                meta: {
+                    dontIndentStates: ["comment"],
+                    lineComment: "//"
+                }
+            });
+
+            // Initialize CodeMirror instance
+            cm = CodeMirror.fromTextArea(document.getElementById("editor"), {
+                mode: "karl",
+                theme: "dracula",
+                lineNumbers: true,
+                indentUnit: 4,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                tabSize: 4,
+                extraKeys: {
+                    "Cmd-Enter": function (cm) { runCode(); },
+                    "Ctrl-Enter": function (cm) { runCode(); }
+                }
+            });
+
+            // Auto-run listener
+            cm.on("change", () => {
+                if (autoRunCheckbox.checked) {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        runCode();
+                    }, 800);
+                }
+            });
+
+        } else {
+            console.error("CodeMirror failed to load.");
+            output.textContent = "Error: CodeMirror library could not be loaded.";
+        }
 
         function initWorker() {
             if (worker) worker.terminate();
@@ -142,15 +216,17 @@ log("Sum of squares:", squares.reduce(add, 0))
                 if (msg.type === 'ready') {
                     runBtn.disabled = false;
                     status.textContent = "Ready";
+                    status.style.color = "#bd93f9"; // Reset color
                 } else if (msg.type === 'output') {
                     output.textContent += msg.data;
                     output.scrollTop = output.scrollHeight;
                 } else if (msg.type === 'error') {
                     console.error("Worker error:", msg.data);
                     status.textContent = "Error: " + msg.data;
-                    status.style.color = "red";
+                    status.style.color = "#ff5555"; // Dracula Red
                 } else if (msg.type === 'done') {
                     status.textContent = "Ready";
+                    status.style.color = "#bd93f9"; // Reset color
                     runBtn.disabled = false;
                 }
             };
@@ -168,7 +244,8 @@ log("Sum of squares:", squares.reduce(add, 0))
             if (worker) {
                 status.textContent = "Running...";
                 runBtn.disabled = true; // Prevent double click
-                worker.postMessage({ type: 'run', source: editor.value });
+                const code = cm ? cm.getValue() : document.getElementById("editor").value;
+                worker.postMessage({ type: 'run', source: code });
             } else {
                 output.textContent = "Error: Worker not initialized";
             }
@@ -176,22 +253,22 @@ log("Sum of squares:", squares.reduce(add, 0))
 
         runBtn.addEventListener('click', runCode);
 
-        editor.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                runCode();
-            }
-        });
-
-        // Auto-run Logic
-        let debounceTimer;
-        editor.addEventListener('input', () => {
-            if (autoRunCheckbox.checked) {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
+        // Fallback listener in case CodeMirror fails and textarea is used
+        if (!cm) {
+            document.getElementById('editor').addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     runCode();
-                }, 800); // 800ms delay
-            }
-        });
+                }
+            });
+            document.getElementById('editor').addEventListener('input', () => {
+                if (autoRunCheckbox.checked) {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        runCode();
+                    }, 800);
+                }
+            });
+        }
     </script>
 </body>
 
