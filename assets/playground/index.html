@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Karl Playground</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #toolbar {
+            padding: 10px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #container {
+            flex: 1;
+            display: flex;
+        }
+
+        #editor {
+            flex: 1;
+            padding: 15px;
+            font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
+            font-size: 14px;
+            border: none;
+            resize: none;
+            outline: none;
+            background: #fff;
+            line-height: 1.5;
+            color: #24292e;
+        }
+
+        #output {
+            flex: 1;
+            padding: 15px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
+            font-size: 14px;
+            overflow: auto;
+            white-space: pre-wrap;
+            border-left: 1px solid #ddd;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1557b0;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        #status {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #202124;
+            margin-right: 10px;
+        }
+    </style>
+    <script src="wasm_exec.js"></script>
+</head>
+
+<body>
+    <div id="toolbar">
+        <div class="title">Karl Playground</div>
+        <button id="runBtn" disabled>Run ▶</button>
+        <label style="margin-left: 10px; font-size: 14px; user-select: none;">
+            <input type="checkbox" id="autoRun"> Auto Run
+        </label>
+        <span id="status" style="margin-left: 15px;">Loading WASM environment...</span>
+    </div>
+    <div id="container">
+        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">// Welcome to Karl Playground
+// Karl is a functional-first language.
+
+// Define a function
+let add = (a, b) -> a + b
+
+// Use list operations
+let nums = [1, 2, 3, 4, 5]
+let squares = nums.map((x) -> x * x)
+
+log("Squares:", squares)
+log("Sum of squares:", squares.reduce(add, 0))
+
+// Example of concurrency
+// let c = channel()
+// spawn (ch) -> {
+//     ch.send("Hello from thread!")
+// }(c)
+// log(c.recv())
+</textarea>
+        <pre id="output"></pre>
+    </div>
+    <script>
+        const runBtn = document.getElementById('runBtn');
+        const autoRunCheckbox = document.getElementById('autoRun');
+        const status = document.getElementById('status');
+        const editor = document.getElementById('editor');
+        const output = document.getElementById('output');
+
+        if (!WebAssembly.instantiateStreaming) {
+            WebAssembly.instantiateStreaming = async (resp, importObject) => {
+                const source = await (await resp).arrayBuffer();
+                return await WebAssembly.instantiate(source, importObject);
+            };
+        }
+
+        const go = new Go();
+
+        let outputBuffer = "";
+        const decoder = new TextDecoder("utf-8");
+
+        // Override fs to capture stdout/stderr for display
+        window.fs = {
+            constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 },
+            writeSync(fd, buf) {
+                const str = decoder.decode(buf);
+                outputBuffer += str;
+                output.textContent += str;
+                output.scrollTop = output.scrollHeight;
+                return buf.length;
+            },
+            write(fd, buf, offset, length, position, callback) {
+                // For stdout/stderr (1 & 2), we can generally ignore position.
+                // We should handle offset/length if provided to slice the buffer.
+                let data = buf;
+                if (offset !== undefined && length !== undefined && length !== null) {
+                    data = buf.subarray(offset, offset + length);
+                }
+                const n = this.writeSync(fd, data);
+                callback(null, n);
+            },
+            open(path, flags, mode, callback) {
+                const err = new Error("not implemented");
+                err.code = "ENOSYS";
+                callback(err);
+            },
+            stat(path, callback) {
+                callback(null, { isDirectory: () => false });
+            },
+            fstat(fd, callback) {
+                callback(null, { isDirectory: () => false });
+            }
+        };
+
+        WebAssembly.instantiateStreaming(fetch("karl.wasm"), go.importObject).then((result) => {
+            runBtn.disabled = false;
+            status.textContent = "Ready";
+            go.run(result.instance);
+        }).catch((err) => {
+            console.error(err);
+            status.textContent = "Error loading Karl runtime. Check console.";
+            status.style.color = "red";
+        });
+
+        // Run function
+        const runCode = () => {
+            output.textContent = "";
+            outputBuffer = "";
+
+            if (window.runKarl) {
+                status.textContent = "Running...";
+                // Small delay to allow UI update
+                setTimeout(() => {
+                    try {
+                        window.runKarl(editor.value);
+                    } catch (e) {
+                        output.textContent += "\nJS Error: " + e;
+                    }
+                    status.textContent = "Ready";
+                }, 0);
+            } else {
+                output.textContent = "Error: Runtime not initialized";
+            }
+        };
+
+        runBtn.addEventListener('click', runCode);
+
+        editor.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                runCode();
+            }
+        });
+
+        // Auto-run Logic
+        let debounceTimer;
+        editor.addEventListener('input', () => {
+            if (autoRunCheckbox.checked) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    runCode();
+                }, 800); // 800ms delay
+            }
+        });
+    </script>
+</body>
+
+</html>
