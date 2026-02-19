@@ -1,5 +1,7 @@
 package interpreter
 
+import "unicode/utf8"
+
 func registerCollectionBuiltins() {
 	builtins["map"] = &Builtin{Name: "map", Fn: builtinMap}
 	builtins["get"] = &Builtin{Name: "get", Fn: builtinMapGet}
@@ -18,14 +20,16 @@ func builtinLen(_ *Evaluator, args []Value) (Value, error) {
 	}
 	switch arg := args[0].(type) {
 	case *String:
-		return &Integer{Value: int64(len(arg.Value))}, nil
+		return &Integer{Value: int64(utf8.RuneCountInString(arg.Value))}, nil
 	case *Array:
 		return &Integer{Value: int64(len(arg.Elements))}, nil
 	case *Map:
 		return &Integer{Value: int64(len(arg.Pairs))}, nil
 	case *Set:
 		return &Integer{Value: int64(len(arg.Elements))}, nil
+	case *Object:
+		return &Integer{Value: int64(len(arg.Pairs))}, nil
 	default:
-		return nil, &RuntimeError{Message: "len expects string, array, map, or set"}
+		return nil, &RuntimeError{Message: "len expects string, array, map, set, or object"}
 	}
 }
