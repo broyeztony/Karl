@@ -33,6 +33,12 @@ func NewServer() *Server {
 	return s
 }
 
+func (s *Server) mustSetCell(id CellID, rawValue string) {
+	if err := s.Sheet.SetCell(id, rawValue); err != nil {
+		log.Printf("set cell %s failed: %v", id, err)
+	}
+}
+
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -104,7 +110,11 @@ func (s *Server) broadcastAll() {
 
 	s.mu.Lock()
 	for client := range s.clients {
-		client.WriteJSON(resetMsg)
+		if err := client.WriteJSON(resetMsg); err != nil {
+			log.Printf("reset write failed: %v", err)
+			_ = client.Close()
+			delete(s.clients, client)
+		}
 	}
 	s.mu.Unlock()
 
@@ -113,7 +123,11 @@ func (s *Server) broadcastAll() {
 		resp := s.createUpdateResponse(cell)
 		s.mu.Lock()
 		for client := range s.clients {
-			client.WriteJSON(resp)
+			if err := client.WriteJSON(resp); err != nil {
+				log.Printf("broadcast write failed: %v", err)
+				_ = client.Close()
+				delete(s.clients, client)
+			}
 		}
 		s.mu.Unlock()
 	}
@@ -123,52 +137,52 @@ func (s *Server) populateIntro() {
 	s.Sheet.Clear()
 
 	// Header
-	s.Sheet.SetCell("A1", "🚀 Karl Sheets")
-	s.Sheet.SetCell("B1", "Interactivty Demo")
+	s.mustSetCell("A1", "🚀 Karl Sheets")
+	s.mustSetCell("B1", "Interactivty Demo")
 
 	// 1. Math
-	s.Sheet.SetCell("A3", "1. Math")
-	s.Sheet.SetCell("B3", "10")
-	s.Sheet.SetCell("C3", "32")
-	s.Sheet.SetCell("D3", "= B3 + C3")
-	s.Sheet.SetCell("E3", "<- Sum")
+	s.mustSetCell("A3", "1. Math")
+	s.mustSetCell("B3", "10")
+	s.mustSetCell("C3", "32")
+	s.mustSetCell("D3", "= B3 + C3")
+	s.mustSetCell("E3", "<- Sum")
 
 	// 2. Logic
-	s.Sheet.SetCell("A5", "2. Logic")
-	s.Sheet.SetCell("B5", "true")
-	s.Sheet.SetCell("C5", "= if B5 { \"Yes\" } else { \"No\" }")
-	s.Sheet.SetCell("D5", "<- Change B5!")
+	s.mustSetCell("A5", "2. Logic")
+	s.mustSetCell("B5", "true")
+	s.mustSetCell("C5", "= if B5 { \"Yes\" } else { \"No\" }")
+	s.mustSetCell("D5", "<- Change B5!")
 
 	// 3. Functions
-	s.Sheet.SetCell("A7", "3. Functions")
-	s.Sheet.SetCell("B7", "= (x) -> x * x")
-	s.Sheet.SetCell("C7", "= B7(10)")
-	s.Sheet.SetCell("D7", "<- Square(10)")
+	s.mustSetCell("A7", "3. Functions")
+	s.mustSetCell("B7", "= (x) -> x * x")
+	s.mustSetCell("C7", "= B7(10)")
+	s.mustSetCell("D7", "<- Square(10)")
 
 	// 4. Comparison
-	s.Sheet.SetCell("A9", "4. Comparison")
-	s.Sheet.SetCell("B9", "= 10 > 5")
-	s.Sheet.SetCell("C9", "= 10 < 5")
-	s.Sheet.SetCell("D9", "<- True/False")
+	s.mustSetCell("A9", "4. Comparison")
+	s.mustSetCell("B9", "= 10 > 5")
+	s.mustSetCell("C9", "= 10 < 5")
+	s.mustSetCell("D9", "<- True/False")
 
-	s.Sheet.SetCell("A11", "5. Lists")
-	s.Sheet.SetCell("B11", "= [1, 2, 3, 4]")
-	s.Sheet.SetCell("C11", "= B11.length")
-	s.Sheet.SetCell("D11", "= B11[0] + B11[3]")
+	s.mustSetCell("A11", "5. Lists")
+	s.mustSetCell("B11", "= [1, 2, 3, 4]")
+	s.mustSetCell("C11", "= B11.length")
+	s.mustSetCell("D11", "= B11[0] + B11[3]")
 
 	// 6. Chain
-	s.Sheet.SetCell("A13", "6. Chain")
-	s.Sheet.SetCell("B13", "1")
-	s.Sheet.SetCell("C13", "= B13 + 1")
-	s.Sheet.SetCell("D13", "= C13 * 2")
-	s.Sheet.SetCell("E13", "= D13 * 10")
+	s.mustSetCell("A13", "6. Chain")
+	s.mustSetCell("B13", "1")
+	s.mustSetCell("C13", "= B13 + 1")
+	s.mustSetCell("D13", "= C13 * 2")
+	s.mustSetCell("E13", "= D13 * 10")
 }
 
 func (s *Server) populateHeavy() {
 	s.Sheet.Clear()
 
-	s.Sheet.SetCell("A1", "🚀 Heavy Computation")
-	s.Sheet.SetCell("B1", "1000 chained cells")
+	s.mustSetCell("A1", "🚀 Heavy Computation")
+	s.mustSetCell("B1", "1000 chained cells")
 
 	// Chain 1000 calculations across 20 columns and 50 rows
 	// A2 = 1
@@ -176,7 +190,7 @@ func (s *Server) populateHeavy() {
 	// ...
 
 	val := 1
-	s.Sheet.SetCell("A2", fmt.Sprintf("%d", val))
+	s.mustSetCell("A2", fmt.Sprintf("%d", val))
 
 	rows := 50
 	cols := 20
@@ -194,7 +208,7 @@ func (s *Server) populateHeavy() {
 			id := CellID(fmt.Sprintf("%s%d", colName, r))
 
 			formula := fmt.Sprintf("= %s + 1", prev)
-			s.Sheet.SetCell(id, formula)
+			s.mustSetCell(id, formula)
 			prev = string(id)
 		}
 	}
@@ -203,70 +217,70 @@ func (s *Server) populateHeavy() {
 func (s *Server) populateSyntax() {
 	s.Sheet.Clear()
 
-	s.Sheet.SetCell("A1", "🧠 Karl Syntax Demo")
+	s.mustSetCell("A1", "🧠 Karl Syntax Demo")
 
 	// 1. First Class Functions
-	s.Sheet.SetCell("A3", "1. Functions")
-	s.Sheet.SetCell("B3", "= (x) -> x * 2")
-	s.Sheet.SetCell("C3", "= (f, x) -> f(x) + 1")
-	s.Sheet.SetCell("D3", "= C3(B3, 10)") // (10*2)+1 = 21
-	s.Sheet.SetCell("E3", "<- Higher Order")
+	s.mustSetCell("A3", "1. Functions")
+	s.mustSetCell("B3", "= (x) -> x * 2")
+	s.mustSetCell("C3", "= (f, x) -> f(x) + 1")
+	s.mustSetCell("D3", "= C3(B3, 10)") // (10*2)+1 = 21
+	s.mustSetCell("E3", "<- Higher Order")
 
 	// 2. Maps & Objects
-	s.Sheet.SetCell("A5", "2. Objects")
-	s.Sheet.SetCell("B5", "= {name: \"Karl\", ver: 1.0}")
-	s.Sheet.SetCell("D5", "= B5[\"ver\"] ? null")
-	s.Sheet.SetCell("E5", "= keys(B5)") // keys return order implementation specific
+	s.mustSetCell("A5", "2. Objects")
+	s.mustSetCell("B5", "= {name: \"Karl\", ver: 1.0}")
+	s.mustSetCell("D5", "= B5[\"ver\"] ? null")
+	s.mustSetCell("E5", "= keys(B5)") // keys return order implementation specific
 
 	// 3. List Processing
-	s.Sheet.SetCell("A7", "3. List Ops")
-	s.Sheet.SetCell("B7", "= [1, 2, 3, 4, 5]")
-	s.Sheet.SetCell("C7", "= B7.map((x) -> x * x)")
-	s.Sheet.SetCell("D7", "= B7.filter((x) -> x > 2)")
-	s.Sheet.SetCell("E7", "= B7.reduce((acc, x) -> acc + x, 0)")
+	s.mustSetCell("A7", "3. List Ops")
+	s.mustSetCell("B7", "= [1, 2, 3, 4, 5]")
+	s.mustSetCell("C7", "= B7.map((x) -> x * x)")
+	s.mustSetCell("D7", "= B7.filter((x) -> x > 2)")
+	s.mustSetCell("E7", "= B7.reduce((acc, x) -> acc + x, 0)")
 
 	// 4. String Manipulation
-	s.Sheet.SetCell("A9", "4. Strings")
-	s.Sheet.SetCell("B9", "Hello World")
-	s.Sheet.SetCell("C9", "= toUpper(B9)")
-	s.Sheet.SetCell("D9", "= split(B9, \" \")")
-	s.Sheet.SetCell("E9", "= replace(B9, \"l\", \"1\")")
+	s.mustSetCell("A9", "4. Strings")
+	s.mustSetCell("B9", "Hello World")
+	s.mustSetCell("C9", "= toUpper(B9)")
+	s.mustSetCell("D9", "= split(B9, \" \")")
+	s.mustSetCell("E9", "= replace(B9, \"l\", \"1\")")
 
 	// 5. Conditionals & Pattern Matching (simulated)
-	s.Sheet.SetCell("A11", "5. Logic")
-	s.Sheet.SetCell("B11", "admin")
-	s.Sheet.SetCell("C11", "= if B11 == \"admin\" { \"Access Granted\" } else { \"Denied\" }")
+	s.mustSetCell("A11", "5. Logic")
+	s.mustSetCell("B11", "admin")
+	s.mustSetCell("C11", "= if B11 == \"admin\" { \"Access Granted\" } else { \"Denied\" }")
 
 	// 6. Complex Chain
-	s.Sheet.SetCell("A13", "6. Pipeline")
-	s.Sheet.SetCell("B13", "= [\"apple\", \"banana\", \"cherry\"]")
-	s.Sheet.SetCell("C13", "= map(B13, toUpper)")
-	s.Sheet.SetCell("D13", "= filter(C13, (s) -> contains(s, \"A\"))") // APPLE, BANANA
+	s.mustSetCell("A13", "6. Pipeline")
+	s.mustSetCell("B13", "= [\"apple\", \"banana\", \"cherry\"]")
+	s.mustSetCell("C13", "= map(B13, toUpper)")
+	s.mustSetCell("D13", "= filter(C13, (s) -> contains(s, \"A\"))") // APPLE, BANANA
 	// 6. Complex Chain
-	s.Sheet.SetCell("A13", "6. Pipeline")
-	s.Sheet.SetCell("B13", "= [\"apple\", \"banana\", \"cherry\"]")
-	s.Sheet.SetCell("C13", "= map(B13, toUpper)")
-	s.Sheet.SetCell("D13", "= filter(C13, (s) -> contains(s, \"A\"))") // APPLE, BANANA
-	s.Sheet.SetCell("E13", "= D13.length")
+	s.mustSetCell("A13", "6. Pipeline")
+	s.mustSetCell("B13", "= [\"apple\", \"banana\", \"cherry\"]")
+	s.mustSetCell("C13", "= map(B13, toUpper)")
+	s.mustSetCell("D13", "= filter(C13, (s) -> contains(s, \"A\"))") // APPLE, BANANA
+	s.mustSetCell("E13", "= D13.length")
 }
 
 func (s *Server) populateMatrix() {
 	s.Sheet.Clear()
 
-	s.Sheet.SetCell("A1", "🚀 Reactive Matrix")
+	s.mustSetCell("A1", "🚀 Reactive Matrix")
 
 	// A2: Scalar Value
-	s.Sheet.SetCell("A2", "Scalar:")
-	s.Sheet.SetCell("B2", "2")
-	s.Sheet.SetCell("C2", "<- Change me!")
+	s.mustSetCell("A2", "Scalar:")
+	s.mustSetCell("B2", "2")
+	s.mustSetCell("C2", "<- Change me!")
 
 	// A3: Operation Function
-	s.Sheet.SetCell("A3", "Op:")
-	s.Sheet.SetCell("B3", "= (val, scalar) -> val * scalar")
-	s.Sheet.SetCell("C3", "<- Change logic! (e.g. Try: val + scalar)")
+	s.mustSetCell("A3", "Op:")
+	s.mustSetCell("B3", "= (val, scalar) -> val * scalar")
+	s.mustSetCell("C3", "<- Change logic! (e.g. Try: val + scalar)")
 
 	// Header for Source Matrix (Row 5)
-	s.Sheet.SetCell("A5", "Source Matrix (10x10)")
+	s.mustSetCell("A5", "Source Matrix (10x10)")
 
 	// Generate Source Matrix (A6:J15) -> Now 20x20 (A6:T25)
 	// Values 1..400
@@ -280,7 +294,7 @@ func (s *Server) populateMatrix() {
 			val := r*cols + c + 1
 			colName := getColName(startCol + c)
 			cellID := fmt.Sprintf("%s%d", colName, startRow+r)
-			s.Sheet.SetCell(CellID(cellID), fmt.Sprintf("%d", val))
+			s.mustSetCell(CellID(cellID), fmt.Sprintf("%d", val))
 		}
 	}
 
@@ -288,7 +302,7 @@ func (s *Server) populateMatrix() {
 	// Source is cols 1-20 (A-T). Let's leave gap U,V. Start Result at W.
 	resStartCol := 23 // 'W'
 	resHeaderCol := getColName(resStartCol)
-	s.Sheet.SetCell(CellID(resHeaderCol+"5"), "Result Matrix (= Op(Source, Scalar))")
+	s.mustSetCell(CellID(resHeaderCol+"5"), "Result Matrix (= Op(Source, Scalar))")
 
 	// Generate Result Matrix (W6:AP25)
 	// Formula: = B3(SourceCell, B2)
@@ -305,13 +319,13 @@ func (s *Server) populateMatrix() {
 
 			// Formula: = B3(A6, B2)
 			formula := fmt.Sprintf("= B3(%s, B2)", srcCellID)
-			s.Sheet.SetCell(CellID(resCellID), formula)
+			s.mustSetCell(CellID(resCellID), formula)
 		}
 	}
 
 	// Aggregates (Row 27)
 	sumRow := startRow + rows + 1
-	s.Sheet.SetCell(CellID(fmt.Sprintf("A%d", sumRow)), "Col Sums:")
+	s.mustSetCell(CellID(fmt.Sprintf("A%d", sumRow)), "Col Sums:")
 
 	// Sum each Result Column
 	for c := 0; c < cols; c++ {
@@ -328,7 +342,7 @@ func (s *Server) populateMatrix() {
 		}
 
 		sumCellID := fmt.Sprintf("%s%d", resColName, sumRow)
-		s.Sheet.SetCell(CellID(sumCellID), additionChain)
+		s.mustSetCell(CellID(sumCellID), additionChain)
 	}
 
 	// Grand Total
@@ -336,7 +350,7 @@ func (s *Server) populateMatrix() {
 	grandTotalRow := sumRow + 2
 	grandTotalValCell := fmt.Sprintf("B%d", grandTotalRow)
 
-	s.Sheet.SetCell(CellID(fmt.Sprintf("A%d", grandTotalRow)), "Grand Total:")
+	s.mustSetCell(CellID(fmt.Sprintf("A%d", grandTotalRow)), "Grand Total:")
 
 	// Sum of Row 27 (Result Cols W..AP)
 	var grandTotal string
@@ -357,7 +371,7 @@ func (s *Server) populateMatrix() {
 			grandTotal += " + " + sumCellID
 		}
 	}
-	s.Sheet.SetCell(CellID(grandTotalValCell), grandTotal)
+	s.mustSetCell(CellID(grandTotalValCell), grandTotal)
 }
 
 // Helper to convert 1-based index to column name (1->A, 26->Z, 27->AA)
@@ -374,49 +388,49 @@ func getColName(n int) string {
 func (s *Server) populateRanges() {
 	s.Sheet.Clear()
 
-	s.Sheet.SetCell("A1", "🚀 Range Simulation")
-	s.Sheet.SetCell("B1", "(Manual Range Logic)")
+	s.mustSetCell("A1", "🚀 Range Simulation")
+	s.mustSetCell("B1", "(Manual Range Logic)")
 
 	// Create a list of values in col A
-	s.Sheet.SetCell("A3", "Data:")
-	s.Sheet.SetCell("A4", "10")
-	s.Sheet.SetCell("A5", "20")
-	s.Sheet.SetCell("A6", "30")
-	s.Sheet.SetCell("A7", "40")
-	s.Sheet.SetCell("A8", "50")
+	s.mustSetCell("A3", "Data:")
+	s.mustSetCell("A4", "10")
+	s.mustSetCell("A5", "20")
+	s.mustSetCell("A6", "30")
+	s.mustSetCell("A7", "40")
+	s.mustSetCell("A8", "50")
 
 	// Create a 'Range' object manually since we don't have native Range types yet
 	// A range can be represented as a list of values? Or better, we build a list from the cells manually.
 
-	s.Sheet.SetCell("C3", "Range Object (List):")
-	s.Sheet.SetCell("C4", "= A4:A8")
-	s.Sheet.SetCell("D4", "<- Expanded Range!")
+	s.mustSetCell("C3", "Range Object (List):")
+	s.mustSetCell("C4", "= A4:A8")
+	s.mustSetCell("D4", "<- Expanded Range!")
 
 	// Operations on the "Range"
-	s.Sheet.SetCell("C6", "Sum:")
-	s.Sheet.SetCell("C7", "= reduce(C4, (acc, x) -> acc + x, 0)")
+	s.mustSetCell("C6", "Sum:")
+	s.mustSetCell("C7", "= reduce(C4, (acc, x) -> acc + x, 0)")
 
-	s.Sheet.SetCell("C9", "Average:")
-	s.Sheet.SetCell("C10", "= C7 / C4.length")
+	s.mustSetCell("C9", "Average:")
+	s.mustSetCell("C10", "= C7 / C4.length")
 
-	s.Sheet.SetCell("C12", "Identify Max:")
+	s.mustSetCell("C12", "Identify Max:")
 	// Reduce to find max
-	s.Sheet.SetCell("C13", "= reduce(C4, (max, x) -> if x > max { x } else { max }, 0)")
+	s.mustSetCell("C13", "= reduce(C4, (max, x) -> if x > max { x } else { max }, 0)")
 
-	s.Sheet.SetCell("E3", "Dynamic Filter:")
-	s.Sheet.SetCell("E4", "Threshold:")
-	s.Sheet.SetCell("F4", "25")
+	s.mustSetCell("E3", "Dynamic Filter:")
+	s.mustSetCell("E4", "Threshold:")
+	s.mustSetCell("F4", "25")
 
-	s.Sheet.SetCell("E6", "Values > Threshold:")
-	s.Sheet.SetCell("E7", "= filter(C4, (x) -> x > F4)")
-	s.Sheet.SetCell("F7", "<- Updates automatically!")
+	s.mustSetCell("E6", "Values > Threshold:")
+	s.mustSetCell("E7", "= filter(C4, (x) -> x > F4)")
+	s.mustSetCell("F7", "<- Updates automatically!")
 
 	// Map operation: Scale values
-	s.Sheet.SetCell("E9", "Scaled (x2):")
-	s.Sheet.SetCell("E10", "= map(C4, (x) -> x * 2)")
+	s.mustSetCell("E9", "Scaled (x2):")
+	s.mustSetCell("E10", "= map(C4, (x) -> x * 2)")
 
 	// Join string
-	s.Sheet.SetCell("E12", "Joined:")
+	s.mustSetCell("E12", "Joined:")
 	// Use reduce to join strings. Explicit type conversion isn't available yet as 'string()',
 	// but we can rely on string concatenation behaviors if we ensure inputs are strings or handled.
 	// Let's create a list of strings first.
@@ -426,44 +440,44 @@ func (s *Server) populateRanges() {
 	// Op is string + string.
 	// If the interpreter fails, it might be due to type checking on '+' or list element evaluation.
 	// Let's ensure explicit valid list syntax.
-	s.Sheet.SetCell("E13", "= [\"a\", \"b\", \"c\"]") // Double quotes standard
-	s.Sheet.SetCell("E14", "= reduce(E13, (acc, x) -> acc + x, \"\")")
+	s.mustSetCell("E13", "= [\"a\", \"b\", \"c\"]") // Double quotes standard
+	s.mustSetCell("E14", "= reduce(E13, (acc, x) -> acc + x, \"\")")
 	// For numbers, we might need a custom join if 'string(int)' isn't there.
 
 	// Dynamic List Construction
-	s.Sheet.SetCell("A17", "Dynamic List:")
-	s.Sheet.SetCell("B17", "Start:")
-	s.Sheet.SetCell("C17", "1")
-	s.Sheet.SetCell("B18", "Count:")
-	s.Sheet.SetCell("C18", "5")
+	s.mustSetCell("A17", "Dynamic List:")
+	s.mustSetCell("B17", "Start:")
+	s.mustSetCell("C17", "1")
+	s.mustSetCell("B18", "Count:")
+	s.mustSetCell("C18", "5")
 
 	// Since we don't have a `range(start, count)` builtin function, we can't easily generate a list of arbitrary length dynamically *inside* a cell formula without recursion or a dedicated builtin.
 	// BUT, we can simulate it if we had such a function.
 	// For now, let's show how to build a list from a fixed set of cells that change values.
 
-	s.Sheet.SetCell("A20", "Generated:")
+	s.mustSetCell("A20", "Generated:")
 	// Let's make 5 cells that depend on Start
-	s.Sheet.SetCell("B20", "= C17")
-	s.Sheet.SetCell("B21", "= B20 + 1")
-	s.Sheet.SetCell("B22", "= B21 + 1")
-	s.Sheet.SetCell("B23", "= B22 + 1")
-	s.Sheet.SetCell("B24", "= B23 + 1")
+	s.mustSetCell("B20", "= C17")
+	s.mustSetCell("B21", "= B20 + 1")
+	s.mustSetCell("B22", "= B21 + 1")
+	s.mustSetCell("B23", "= B22 + 1")
+	s.mustSetCell("B24", "= B23 + 1")
 
-	s.Sheet.SetCell("C20", "= [B20, B21, B22, B23, B24]")
-	s.Sheet.SetCell("D20", "<- List [Start..Start+4]")
-	s.Sheet.SetCell("E20", "= reduce(C20, (a, b) -> a + b, 0)")
-	s.Sheet.SetCell("F20", "<- Sum of Dynamic List")
+	s.mustSetCell("C20", "= [B20, B21, B22, B23, B24]")
+	s.mustSetCell("D20", "<- List [Start..Start+4]")
+	s.mustSetCell("E20", "= reduce(C20, (a, b) -> a + b, 0)")
+	s.mustSetCell("F20", "<- Sum of Dynamic List")
 
-	s.Sheet.SetCell("A1", "🚀 Range Simulation") // re-set for safety
+	s.mustSetCell("A1", "🚀 Range Simulation") // re-set for safety
 }
 
 func (s *Server) populateFactorial() {
 	s.Sheet.Clear()
 
-	s.Sheet.SetCell("A1", "🚀 Recursive Factorial")
+	s.mustSetCell("A1", "🚀 Recursive Factorial")
 
 	// Define Factorial Function
-	s.Sheet.SetCell("A3", "Factorial Fn:")
+	s.mustSetCell("A3", "Factorial Fn:")
 	// Recursion in anonymous functions requires a way to reference itself.
 	// Karl doesn't support named recursive let bindings easily inside a cell yet (unless we use Y-combinator or global define).
 	// BUT, we can define it and assign it to a cell, then reference the CELL.
@@ -475,31 +489,31 @@ func (s *Server) populateFactorial() {
 	// Y = (f) -> ((x) -> x(x))((x) -> f((y) -> x(x)(y)))
 	// Factorial = Y((fact) -> (n) -> if n <= 1 { 1 } else { n * fact(n - 1) })
 
-	s.Sheet.SetCell("B3", "=(f)->((x)->f((v)->x(x)(v)))((x)->f((v)->x(x)(v)))")
-	s.Sheet.SetCell("C3", "<- Y-Combinator (Z-Comb for strict)")
+	s.mustSetCell("B3", "=(f)->((x)->f((v)->x(x)(v)))((x)->f((v)->x(x)(v)))")
+	s.mustSetCell("C3", "<- Y-Combinator (Z-Comb for strict)")
 
-	s.Sheet.SetCell("A5", "Fact Gen:")
-	s.Sheet.SetCell("B5", "=(fact) -> (n) -> if n <= 1 { 1 } else { n * fact(n - 1) }")
+	s.mustSetCell("A5", "Fact Gen:")
+	s.mustSetCell("B5", "=(fact) -> (n) -> if n <= 1 { 1 } else { n * fact(n - 1) }")
 
-	s.Sheet.SetCell("A7", "Factorial:")
-	s.Sheet.SetCell("B7", "= B3(B5)") // The recursive function
-	s.Sheet.SetCell("C7", "<- Ready to use!")
+	s.mustSetCell("A7", "Factorial:")
+	s.mustSetCell("B7", "= B3(B5)") // The recursive function
+	s.mustSetCell("C7", "<- Ready to use!")
 
 	// Test it
-	s.Sheet.SetCell("A9", "Input:")
-	s.Sheet.SetCell("B9", "5")
+	s.mustSetCell("A9", "Input:")
+	s.mustSetCell("B9", "5")
 
-	s.Sheet.SetCell("A10", "Result:")
-	s.Sheet.SetCell("B10", "= B7(B9)")
+	s.mustSetCell("A10", "Result:")
+	s.mustSetCell("B10", "= B7(B9)")
 
 	// Visual sequence (Now deeper)
-	s.Sheet.SetCell("D1", "Sequence:")
+	s.mustSetCell("D1", "Sequence:")
 	// Show inputs in C and results in D
 	for i := 1; i <= 20; i++ { // Extended to 20
 		row := i + 2
 		// Input
 		inputID := fmt.Sprintf("C%d", row)
-		s.Sheet.SetCell(CellID(inputID), fmt.Sprintf("%d", i))
+		s.mustSetCell(CellID(inputID), fmt.Sprintf("%d", i))
 
 		// Calc logic: Only show if i <= B9 (input value)
 		// We use `if` inside the Karl formula.
@@ -512,7 +526,7 @@ func (s *Server) populateFactorial() {
 		// Let's make the Result cell conditional.
 
 		formula := fmt.Sprintf("= if %s <= B9 { B7(%s) } else { \"\" }", inputID, inputID)
-		s.Sheet.SetCell(CellID(resultID), formula)
+		s.mustSetCell(CellID(resultID), formula)
 	}
 }
 
@@ -537,7 +551,10 @@ func (s *Server) sendInitialState(conn *websocket.Conn) {
 
 	for _, cell := range s.Sheet.Cells {
 		resp := s.createUpdateResponse(cell)
-		conn.WriteJSON(resp)
+		if err := conn.WriteJSON(resp); err != nil {
+			log.Printf("initial state write failed: %v", err)
+			return
+		}
 	}
 }
 
@@ -596,7 +613,11 @@ func (s *Server) broadcastUpdates(affected map[CellID]bool) {
 		resp := s.createUpdateResponse(cell)
 
 		for client := range s.clients {
-			client.WriteJSON(resp)
+			if err := client.WriteJSON(resp); err != nil {
+				log.Printf("update write failed: %v", err)
+				_ = client.Close()
+				delete(s.clients, client)
+			}
 		}
 	}
 }
