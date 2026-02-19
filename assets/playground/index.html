@@ -40,8 +40,8 @@
         .CodeMirror {
             flex: 1;
             height: 100%;
-            font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
-            font-size: 14px;
+            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 13px;
             line-height: 1.5;
         }
 
@@ -51,8 +51,8 @@
             background: #1e1e1e;
             /* VS Code dark output style */
             color: #d4d4d4;
-            font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
-            font-size: 14px;
+            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 13px;
             overflow: auto;
             white-space: pre-wrap;
             border-left: 1px solid #44475a;
@@ -118,27 +118,63 @@
         <span id="status" style="margin-left: 15px;">Loading WASM environment...</span>
     </div>
     <div id="container">
-        <!-- Replaced textarea with a text area that CodeMirror will attach to -->
-        <textarea id="editor" spellcheck="false">// Welcome to Karl Playground
-// Karl is a functional-first language.
+        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">// Karl Playground: language + concurrency demo
 
-// Define a function
-let add = (a, b) -> a + b
+let section = (title) -> {
+    log("")
+    log("=== " + title + " ===")
+}
 
-// Use list operations
-let nums = [1, 2, 3, 4, 5]
-let squares = nums.map((x) -> x * x)
+section("1) Dot-dot ranges + slices")
+let delays = 40..44
+let picked = delays[1..4]
+let banner = "karl-language"
+log("delays          :", delays)
+log("picked          :", picked)
+log("string head/tail:", [banner[..4], banner[5..]])
 
-log("Squares:", squares)
-sleep(2000) // Sleep for 2 seconds (non-blocking in worker)
-log("Sum of squares:", squares.reduce(add, 0))
+section("2) Task chaining with then()")
+let t = & (() -> {
+    sleep(120)
+    20
+})()
+let chained = wait t.then(x -> x + 22)
+log("chained result  :", chained)
 
-// Example of concurrency
-// let c = channel()
-// spawn (ch) -> {
-//     ch.send("Hello from thread!")
-// }(c)
-// log(c.recv())
+section("3) Join: parallel work, ordered output")
+let joined = wait & {
+    (() -> { sleep(picked[2]); { label: "A", ms: picked[2], value: 3, } })(),
+    (() -> { sleep(picked[0]); { label: "B", ms: picked[0], value: 7, } })(),
+    (() -> { sleep(picked[1]); { label: "C", ms: picked[1], value: 11, } })()
+}
+
+for i < joined.length with i = 0 {
+    let row = joined[i]
+    log("task " + row.label + " (" + str(row.ms) + "ms):", row.value)
+    i++
+} then ()
+log("labels order    :", joined.map(x -> x.label))
+
+section("4) for-expression + then block result")
+let stats = for i < joined.length with i = 0, out = [] {
+    let row = joined[i]
+    out += [row.value * 2]
+    i++
+} then {
+    let total = out.reduce((acc, x) -> acc + x, 0)
+    let avg = total / out.length
+    {
+        doubled: out,
+        firstTwo: out[..2],
+        total: total,
+        avg: avg,
+    }
+}
+
+log("doubled         :", stats.doubled)
+log("firstTwo        :", stats.firstTwo)
+log("total / avg     :", [stats.total, stats.avg])
+let done = true
 </textarea>
         <pre id="output"></pre>
     </div>
