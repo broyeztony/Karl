@@ -6,6 +6,9 @@ const go = new Go();
 const decoder = new TextDecoder("utf-8");
 
 self.runKarl = null;
+self.__karl_done = () => {
+    self.postMessage({ type: 'done' });
+};
 
 // Override fs for Worker
 self.fs = {
@@ -61,8 +64,8 @@ self.onmessage = (e) => {
                 if (typeof res === 'string') self.postMessage({ type: 'output', data: "\nResult: " + res });
             } catch (err) {
                 self.postMessage({ type: 'output', data: "\nPanic: " + err });
+                self.postMessage({ type: 'done' });
             }
-            self.postMessage({ type: 'done' });
         } else {
             self.postMessage({ type: 'error', data: "Runtime loading..." });
         }
