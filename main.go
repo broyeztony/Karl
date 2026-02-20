@@ -395,7 +395,13 @@ func printPause(controller *interpreter.DebugController, lines []string) {
 
 type debugSessionState struct {
 	selectedFrame int
-	watches       []string
+	nextWatchID   int
+	watches       []debugWatch
+}
+
+type debugWatch struct {
+	ID   int
+	Expr string
 }
 
 func handleDebugCommand(cmd string, controller *interpreter.DebugController, state *debugSessionState, evalExpr func(string, int) (interpreter.Value, error)) bool {
@@ -594,8 +600,10 @@ func handleDebugCommand(cmd string, controller *interpreter.DebugController, sta
 			fmt.Fprintf(os.Stdout, "usage: watch <expr>\n")
 			return false
 		}
-		state.watches = append(state.watches, expr)
-		fmt.Fprintf(os.Stdout, "watch #%d: %s\n", len(state.watches), expr)
+		state.nextWatchID++
+		watch := debugWatch{ID: state.nextWatchID, Expr: expr}
+		state.watches = append(state.watches, watch)
+		fmt.Fprintf(os.Stdout, "watch #%d: %s\n", watch.ID, watch.Expr)
 		return false
 	case "unwatch":
 		if state == nil {
@@ -607,12 +615,49 @@ func handleDebugCommand(cmd string, controller *interpreter.DebugController, sta
 			return false
 		}
 		id, err := strconv.Atoi(fields[1])
-		if err != nil || id <= 0 || id > len(state.watches) || strings.TrimSpace(state.watches[id-1]) == "" {
+		if err != nil || id <= 0 {
 			fmt.Fprintf(os.Stdout, "invalid watch id: %s\n", fields[1])
 			return false
 		}
-		state.watches[id-1] = ""
+		idx := -1
+		for i, watch := range state.watches {
+			if watch.ID == id {
+				idx = i
+				break
+			}
+		}
+		if idx == -1 {
+			fmt.Fprintf(os.Stdout, "watch #%d not found\n", id)
+			return false
+		}
+		state.watches = append(state.watches[:idx], state.watches[idx+1:]...)
 		fmt.Fprintf(os.Stdout, "removed watch #%d\n", id)
+		return false
+	case "watches":
+		if state == nil {
+			fmt.Fprintf(os.Stdout, "watches unavailable\n")
+			return false
+		}
+		if len(state.watches) == 0 {
+			fmt.Fprintf(os.Stdout, "(no watches)\n")
+			return false
+		}
+		for _, watch := range state.watches {
+			fmt.Fprintf(os.Stdout, "#%d %s\n", watch.ID, watch.Expr)
+		}
+		return false
+	case "clearwatches":
+		if state == nil {
+			fmt.Fprintf(os.Stdout, "clearwatches unavailable\n")
+			return false
+		}
+		if len(state.watches) == 0 {
+			fmt.Fprintf(os.Stdout, "(no watches)\n")
+			return false
+		}
+		count := len(state.watches)
+		state.watches = nil
+		fmt.Fprintf(os.Stdout, "cleared %d watch(es)\n", count)
 		return false
 	default:
 		fmt.Fprintf(os.Stdout, "unknown command: %s\n", fields[0])
@@ -622,7 +667,7 @@ func handleDebugCommand(cmd string, controller *interpreter.DebugController, sta
 }
 
 func printDebugCommands(w io.Writer) {
-	fmt.Fprintf(w, "Commands: break <line|file:line>, delete <id>, clear, breakpoints, continue (c), step (s), next (n), finish (f), stack, frame, locals, print (p), watch, unwatch, help (h), quit (q)\n")
+	fmt.Fprintf(w, "Commands: break <line|file:line>, delete <id>, clear, breakpoints, continue (c), step (s), next (n), finish (f), stack, frame, locals, print (p), watch, unwatch, watches, clearwatches, help (h), quit (q)\n")
 }
 
 func printDebugHelp(w io.Writer) {
@@ -640,6 +685,8 @@ func printDebugHelp(w io.Writer) {
 	fmt.Fprintf(w, "  print | p <expr>         evaluate expression in current frame\n")
 	fmt.Fprintf(w, "  watch <expr>             add expression watch\n")
 	fmt.Fprintf(w, "  unwatch <id>             remove watch by id\n")
+	fmt.Fprintf(w, "  watches                  list active watches\n")
+	fmt.Fprintf(w, "  clearwatches             remove all watches\n")
 	fmt.Fprintf(w, "  help | h                 show debugger commands\n")
 	fmt.Fprintf(w, "  quit | q                 terminate debugging session\n")
 }
@@ -649,8 +696,8 @@ func printWatchValues(controller *interpreter.DebugController, state *debugSessi
 		return
 	}
 	hasWatch := false
-	for _, expr := range state.watches {
-		if strings.TrimSpace(expr) != "" {
+	for _, watch := range state.watches {
+		if strings.TrimSpace(watch.Expr) != "" {
 			hasWatch = true
 			break
 		}
@@ -659,17 +706,17 @@ func printWatchValues(controller *interpreter.DebugController, state *debugSessi
 		return
 	}
 	fmt.Fprintf(os.Stdout, "watch:\n")
-	for i, expr := range state.watches {
-		expr = strings.TrimSpace(expr)
+	for _, watch := range state.watches {
+		expr := strings.TrimSpace(watch.Expr)
 		if expr == "" {
 			continue
 		}
 		val, err := evalExpr(expr, state.selectedFrame)
 		if err != nil {
-			fmt.Fprintf(os.Stdout, "  #%d %s = <error: %s>\n", i+1, expr, err.Error())
+			fmt.Fprintf(os.Stdout, "  #%d %s = <error: %s>\n", watch.ID, expr, err.Error())
 			continue
 		}
-		fmt.Fprintf(os.Stdout, "  #%d %s = %s\n", i+1, expr, val.Inspect())
+		fmt.Fprintf(os.Stdout, "  #%d %s = %s\n", watch.ID, expr, val.Inspect())
 	}
 }
 
