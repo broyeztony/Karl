@@ -10,8 +10,15 @@ func (e *Evaluator) Eval(node ast.Node, env *Environment) (Value, *Signal, error
 		return nil, nil, err
 	}
 
+	if err := e.debugBeforeNode(node, env); err != nil {
+		return nil, nil, err
+	}
+
 	val, sig, err := e.evalNode(node, env)
 	annotateErrorToken(node, err)
+	if debugErr := e.debugAfterNode(node, env, val, sig, err); debugErr != nil && err == nil {
+		err = debugErr
+	}
 	if fatalErr := e.checkRuntimeAfterEval(sig, err); fatalErr != nil {
 		return nil, nil, fatalErr
 	}
