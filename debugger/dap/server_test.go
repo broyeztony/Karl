@@ -53,7 +53,7 @@ func TestBreakpointEvaluateAndNestedVariables(t *testing.T) {
 		"let probe = user",
 		"let x = 41",
 		"let y = x + 1",
-		"log(y)",
+		"y",
 	}, "\n")
 	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
 		t.Fatalf("write program: %v", err)
@@ -195,6 +195,75 @@ func TestBreakpointEvaluateAndNestedVariables(t *testing.T) {
 	if exited := client.waitEvent("exited"); exited == nil {
 		t.Fatalf("expected exited event")
 	}
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
+func TestNextStepsOverFunctionCall(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "step_over.k")
+	source := strings.Join([]string{
+		"let inc = (n) -> n + 1",
+		"let x = 1",
+		"let y = inc(x)",
+		"let z = y + 1",
+		"z",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 3},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	if event := client.waitEvent("stopped"); event == nil {
+		t.Fatalf("expected first stop event")
+	}
+	lineBefore := currentTopFrameLine(client)
+	if lineBefore != 3 {
+		t.Fatalf("expected first stop at line 3, got %d", lineBefore)
+	}
+	if resp := client.request("next", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("next failed: %v", responseMessage(resp))
+	}
+	stepEvent := client.waitEvent("stopped")
+	if stepEvent == nil {
+		t.Fatalf("expected stop after next")
+	}
+	reason, _ := bodyMap(stepEvent)["reason"].(string)
+	if reason != "step" {
+		t.Fatalf("expected step reason after next, got %q", reason)
+	}
+	lineAfter := currentTopFrameLine(client)
+	if lineAfter != 4 {
+		t.Fatalf("expected next to stop at line 4, got %d", lineAfter)
+	}
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("terminated")
+	client.waitEvent("exited")
 	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
 		t.Fatalf("disconnect failed: %v", responseMessage(resp))
 	}
@@ -428,4 +497,16 @@ func findVarByName(vars []map[string]interface{}, name string) map[string]interf
 		}
 	}
 	return nil
+}
+
+func currentTopFrameLine(client *testClient) int {
+	resp := client.request("stackTrace", map[string]interface{}{"threadId": defaultThreadID})
+	if !responseSuccess(resp) {
+		client.t.Fatalf("stackTrace failed: %v", responseMessage(resp))
+	}
+	frames := bodyArrayOfMaps(resp, "stackFrames")
+	if len(frames) == 0 {
+		client.t.Fatalf("expected stack frame")
+	}
+	return intFromAny(frames[0]["line"])
 }

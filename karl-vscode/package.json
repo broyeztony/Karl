@@ -1,7 +1,7 @@
 {
     "name": "karl-lang",
     "displayName": "Karl Language Support",
-    "description": "Syntax highlighting and language support for the Karl programming language",
+    "description": "Syntax highlighting and debugging support for the Karl programming language",
     "version": "0.1.0",
     "publisher": "karl-lang",
     "icon": "images/karl-icon.png",
@@ -12,6 +12,12 @@
     "engines": {
         "vscode": "^1.75.0"
     },
+    "main": "./extension.js",
+    "activationEvents": [
+        "onLanguage:karl",
+        "onDebugInitialConfigurations",
+        "onDebugResolve:karl"
+    ],
     "categories": [
         "Programming Languages"
     ],
@@ -40,6 +46,62 @@
                 "language": "karl",
                 "scopeName": "source.karl",
                 "path": "./syntaxes/karl.tmLanguage.json"
+            }
+        ],
+        "debuggers": [
+            {
+                "type": "karl",
+                "label": "Karl",
+                "languages": [
+                    "karl"
+                ],
+                "configurationAttributes": {
+                    "launch": {
+                        "required": [
+                            "program"
+                        ],
+                        "properties": {
+                            "program": {
+                                "type": "string",
+                                "description": "Karl program file to debug",
+                                "default": "${file}"
+                            },
+                            "args": {
+                                "type": "array",
+                                "description": "Program arguments passed to argv()",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "default": []
+                            },
+                            "stopOnEntry": {
+                                "type": "boolean",
+                                "description": "Pause immediately when starting the program",
+                                "default": false
+                            },
+                            "taskFailurePolicy": {
+                                "type": "string",
+                                "description": "Task failure policy used by the runtime",
+                                "enum": [
+                                    "fail-fast",
+                                    "defer"
+                                ],
+                                "default": "fail-fast"
+                            }
+                        }
+                    }
+                },
+                "initialConfigurations": [
+                    {
+                        "name": "Karl: Debug current file",
+                        "type": "karl",
+                        "request": "launch",
+                        "program": "${file}",
+                        "args": [],
+                        "stopOnEntry": false,
+                        "taskFailurePolicy": "fail-fast"
+                    }
+                ]
             }
         ]
     },

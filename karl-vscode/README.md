@@ -40,6 +40,14 @@ code --install-extension karl-lang-0.1.0.vsix
 
 Open any `.k` file and enjoy beautiful syntax highlighting!
 
+## Debugging (karl trace DAP)
+
+You can debug Karl programs directly in VS Code/Cursor using the built-in DAP bridge (`karl trace dap`).
+
+- Ensure `karl` is available in `PATH`.
+- Press `F5` and pick **Karl: Debug current file**.
+- Optional: set `KARL_BIN=/absolute/path/to/karl` if VS Code should use a specific binary.
+
 ### Example Code
 
 ```karl
