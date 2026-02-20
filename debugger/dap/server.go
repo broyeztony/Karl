@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -26,6 +29,7 @@ type server struct {
 
 	source      string
 	filename    string
+	launchDir   string
 	program     *ast.Program
 	controller  *interpreter.DebugController
 	eval        *interpreter.Evaluator
@@ -38,6 +42,22 @@ type server struct {
 	programArgs       []string
 
 	breakpointsByFile map[string][]int
+
+	nextVarRef int
+	varRefs    map[int]variableRef
+}
+
+type variableRefKind int
+
+const (
+	variableRefFrame variableRefKind = iota + 1
+	variableRefValue
+)
+
+type variableRef struct {
+	kind  variableRefKind
+	frame int
+	value interpreter.Value
 }
 
 type launchArgs struct {
@@ -82,6 +102,7 @@ func Run(stdin io.Reader, stdout io.Writer) error {
 		stopOnEntry:       true,
 		taskFailurePolicy: interpreter.TaskFailurePolicyFailFast,
 		breakpointsByFile: map[string][]int{},
+		varRefs:           map[int]variableRef{},
 	}
 	return s.serve()
 }
@@ -183,44 +204,69 @@ func (s *server) handle(req *request) bool {
 		s.respondOK(req, body)
 		return false
 	case "continue":
-		s.withController(func(c *interpreter.DebugController) {
-			s.lastAction = "continue"
-			c.Continue()
-		})
+		controller, err := s.requireController()
+		if err != nil {
+			s.respondErr(req, err)
+			return false
+		}
+		s.mu.Lock()
+		s.lastAction = "continue"
+		s.mu.Unlock()
+		controller.Continue()
 		s.respondOK(req, map[string]interface{}{"allThreadsContinued": true})
 		return false
 	case "next":
-		s.withController(func(c *interpreter.DebugController) {
-			s.lastAction = "next"
-			c.StepOver()
-		})
+		controller, err := s.requireController()
+		if err != nil {
+			s.respondErr(req, err)
+			return false
+		}
+		s.mu.Lock()
+		s.lastAction = "next"
+		s.mu.Unlock()
+		controller.StepOver()
 		s.respondOK(req, map[string]interface{}{})
 		return false
 	case "stepIn":
-		s.withController(func(c *interpreter.DebugController) {
-			s.lastAction = "stepIn"
-			c.Step()
-		})
+		controller, err := s.requireController()
+		if err != nil {
+			s.respondErr(req, err)
+			return false
+		}
+		s.mu.Lock()
+		s.lastAction = "stepIn"
+		s.mu.Unlock()
+		controller.Step()
 		s.respondOK(req, map[string]interface{}{})
 		return false
 	case "stepOut":
-		s.withController(func(c *interpreter.DebugController) {
-			s.lastAction = "stepOut"
-			c.StepOut()
-		})
+		controller, err := s.requireController()
+		if err != nil {
+			s.respondErr(req, err)
+			return false
+		}
+		s.mu.Lock()
+		s.lastAction = "stepOut"
+		s.mu.Unlock()
+		controller.StepOut()
 		s.respondOK(req, map[string]interface{}{})
 		return false
 	case "pause":
-		s.withController(func(c *interpreter.DebugController) {
-			s.lastAction = "pause"
-			c.Pause()
-		})
+		controller, err := s.requireController()
+		if err != nil {
+			s.respondErr(req, err)
+			return false
+		}
+		s.mu.Lock()
+		s.lastAction = "pause"
+		s.mu.Unlock()
+		controller.Pause()
 		s.respondOK(req, map[string]interface{}{})
 		return false
 	case "disconnect", "terminate":
-		s.withController(func(c *interpreter.DebugController) {
-			c.Quit()
-		})
+		if controller, err := s.requireController(); err == nil {
+			controller.Quit()
+		}
 		s.respondOK(req, map[string]interface{}{})
 		return true
 	default:
@@ -230,14 +276,15 @@ func (s *server) handle(req *request) bool {
 }
 
 func (s *server) prepareLaunch(args launchArgs) error {
-	if strings.TrimSpace(args.Program) == "" {
+	programPath := normalizePath(args.Program, "")
+	if programPath == "" {
 		return fmt.Errorf("launch.program is required")
 	}
-	data, err := os.ReadFile(args.Program)
+	data, err := os.ReadFile(programPath)
 	if err != nil {
 		return fmt.Errorf("read program: %w", err)
 	}
-	program, err := parseProgram(data, args.Program)
+	program, err := parseProgram(data, programPath)
 	if err != nil {
 		return err
 	}
@@ -256,12 +303,18 @@ func (s *server) prepareLaunch(args launchArgs) error {
 
 	s.mu.Lock()
 	s.source = string(data)
-	s.filename = args.Program
+	s.filename = programPath
+	s.launchDir = filepath.Dir(programPath)
 	s.program = program
 	s.stopOnEntry = stopOnEntry
 	s.taskFailurePolicy = policy
 	s.programArgs = append([]string(nil), args.Args...)
 	s.started = false
+	s.controller = nil
+	s.eval = nil
+	s.env = nil
+	s.lastAction = ""
+	s.resetVarRefsLocked()
 	s.mu.Unlock()
 	return nil
 }
@@ -293,6 +346,7 @@ func (s *server) startProgram() error {
 	s.env = interpreter.NewBaseEnvironment()
 	s.started = true
 	s.lastAction = ""
+	s.resetVarRefsLocked()
 	s.applyBreakpointsLocked()
 	eval.SetDebugger(controller)
 	program := s.program
@@ -342,6 +396,9 @@ func (s *server) watchStops() {
 			}
 			s.emit("terminated", map[string]interface{}{})
 			s.emit("exited", map[string]interface{}{"exitCode": exitCode})
+			s.mu.Lock()
+			s.resetVarRefsLocked()
+			s.mu.Unlock()
 			return
 		}
 
@@ -359,6 +416,9 @@ func (s *server) watchStops() {
 			stopReason = "step"
 		}
 		firstStop = false
+		s.mu.Lock()
+		s.resetVarRefsLocked()
+		s.mu.Unlock()
 
 		s.emit("stopped", map[string]interface{}{
 			"reason":            stopReason,
@@ -373,7 +433,10 @@ func (s *server) setBreakpoints(raw json.RawMessage) (map[string]interface{}, er
 	if err := unmarshalArgs(raw, &args); err != nil {
 		return nil, err
 	}
-	file := strings.TrimSpace(args.Source.Path)
+	s.mu.Lock()
+	launchDir := s.launchDir
+	s.mu.Unlock()
+	file := normalizePath(args.Source.Path, launchDir)
 	if file == "" {
 		return nil, fmt.Errorf("setBreakpoints.source.path is required")
 	}
@@ -471,20 +534,21 @@ func (s *server) scopes(raw json.RawMessage) (map[string]interface{}, error) {
 	if args.FrameID <= 0 {
 		return nil, fmt.Errorf("frameId must be > 0")
 	}
-	s.mu.Lock()
-	controller := s.controller
-	s.mu.Unlock()
-	if controller == nil {
-		return nil, fmt.Errorf("debugger not started")
+	controller, err := s.requireController()
+	if err != nil {
+		return nil, err
 	}
 	if _, err := controller.EnvForFrame(args.FrameID - 1); err != nil {
 		return nil, err
 	}
+	s.mu.Lock()
+	ref := s.newFrameRefLocked(args.FrameID)
+	s.mu.Unlock()
 	return map[string]interface{}{
 		"scopes": []map[string]interface{}{
 			{
 				"name":               "Locals",
-				"variablesReference": args.FrameID,
+				"variablesReference": ref,
 				"expensive":          false,
 			},
 		},
@@ -499,35 +563,28 @@ func (s *server) variables(raw json.RawMessage) (map[string]interface{}, error) 
 	if args.VariablesReference <= 0 {
 		return nil, fmt.Errorf("variablesReference must be > 0")
 	}
-	s.mu.Lock()
-	controller := s.controller
-	s.mu.Unlock()
-	if controller == nil {
-		return nil, fmt.Errorf("debugger not started")
-	}
-	env, err := controller.EnvForFrame(args.VariablesReference - 1)
+	controller, err := s.requireController()
 	if err != nil {
 		return nil, err
 	}
-	locals := env.Snapshot()
-	names := make([]string, 0, len(locals))
-	for name, value := range locals {
-		if _, ok := value.(*interpreter.Builtin); ok {
-			continue
-		}
-		names = append(names, name)
+	s.mu.Lock()
+	ref, ok := s.varRefs[args.VariablesReference]
+	s.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("unknown variablesReference: %d", args.VariablesReference)
 	}
-	sort.Strings(names)
-
-	vars := make([]map[string]interface{}, 0, len(names))
-	for _, name := range names {
-		value := locals[name]
-		vars = append(vars, map[string]interface{}{
-			"name":               name,
-			"value":              value.Inspect(),
-			"type":               string(value.Type()),
-			"variablesReference": 0,
-		})
+	var vars []map[string]interface{}
+	switch ref.kind {
+	case variableRefFrame:
+		env, envErr := controller.EnvForFrame(ref.frame - 1)
+		if envErr != nil {
+			return nil, envErr
+		}
+		vars = s.varsFromEnv(env)
+	case variableRefValue:
+		vars = s.varsFromValue(ref.value)
+	default:
+		return nil, fmt.Errorf("unsupported variables reference kind: %d", ref.kind)
 	}
 	return map[string]interface{}{"variables": vars}, nil
 }
@@ -544,11 +601,9 @@ func (s *server) evaluate(raw json.RawMessage) (map[string]interface{}, error) {
 	if frameID <= 0 {
 		frameID = 1
 	}
-	s.mu.Lock()
-	controller := s.controller
-	s.mu.Unlock()
-	if controller == nil {
-		return nil, fmt.Errorf("debugger not started")
+	controller, err := s.requireController()
+	if err != nil {
+		return nil, err
 	}
 	env, err := controller.EnvForFrame(frameID - 1)
 	if err != nil {
@@ -558,19 +613,161 @@ func (s *server) evaluate(raw json.RawMessage) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.mu.Lock()
+	valueRef := s.valueRefLocked(val)
+	s.mu.Unlock()
 	return map[string]interface{}{
 		"result":             val.Inspect(),
 		"type":               string(val.Type()),
-		"variablesReference": 0,
+		"variablesReference": valueRef,
 	}, nil
 }
 
-func (s *server) withController(fn func(c *interpreter.DebugController)) {
+func (s *server) requireController() (*interpreter.DebugController, error) {
 	s.mu.Lock()
 	controller := s.controller
 	s.mu.Unlock()
-	if controller != nil {
-		fn(controller)
+	if controller == nil {
+		return nil, fmt.Errorf("debugger not started; call launch/configurationDone first")
+	}
+	return controller, nil
+}
+
+func (s *server) resetVarRefsLocked() {
+	s.nextVarRef = 0
+	s.varRefs = map[int]variableRef{}
+}
+
+func (s *server) newFrameRefLocked(frameID int) int {
+	s.nextVarRef++
+	ref := s.nextVarRef
+	s.varRefs[ref] = variableRef{
+		kind:  variableRefFrame,
+		frame: frameID,
+	}
+	return ref
+}
+
+func (s *server) valueRefLocked(value interpreter.Value) int {
+	if !isExpandableValue(value) {
+		return 0
+	}
+	s.nextVarRef++
+	ref := s.nextVarRef
+	s.varRefs[ref] = variableRef{
+		kind:  variableRefValue,
+		value: value,
+	}
+	return ref
+}
+
+func (s *server) varsFromEnv(env *interpreter.Environment) []map[string]interface{} {
+	locals := env.Snapshot()
+	names := make([]string, 0, len(locals))
+	for name, value := range locals {
+		if _, ok := value.(*interpreter.Builtin); ok {
+			continue
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	vars := make([]map[string]interface{}, 0, len(names))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, name := range names {
+		vars = append(vars, s.variableEntryLocked(name, locals[name]))
+	}
+	return vars
+}
+
+func (s *server) varsFromValue(value interpreter.Value) []map[string]interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.varsFromValueLocked(value)
+}
+
+func (s *server) varsFromValueLocked(value interpreter.Value) []map[string]interface{} {
+	switch v := value.(type) {
+	case *interpreter.Array:
+		vars := make([]map[string]interface{}, 0, len(v.Elements))
+		for i, el := range v.Elements {
+			vars = append(vars, s.variableEntryLocked(strconv.Itoa(i), el))
+		}
+		return vars
+	case *interpreter.Object:
+		keys := make([]string, 0, len(v.Pairs))
+		for key := range v.Pairs {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		vars := make([]map[string]interface{}, 0, len(keys))
+		for _, key := range keys {
+			vars = append(vars, s.variableEntryLocked(key, v.Pairs[key]))
+		}
+		return vars
+	case *interpreter.ModuleObject:
+		pairs := map[string]interpreter.Value{}
+		if v.Env != nil {
+			pairs = v.Env.Snapshot()
+		}
+		keys := make([]string, 0, len(pairs))
+		for key, child := range pairs {
+			if _, ok := child.(*interpreter.Builtin); ok {
+				continue
+			}
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		vars := make([]map[string]interface{}, 0, len(keys))
+		for _, key := range keys {
+			vars = append(vars, s.variableEntryLocked(key, pairs[key]))
+		}
+		return vars
+	case *interpreter.Map:
+		type pair struct {
+			keyLabel string
+			value    interpreter.Value
+		}
+		pairs := make([]pair, 0, len(v.Pairs))
+		for key, child := range v.Pairs {
+			pairs = append(pairs, pair{keyLabel: mapKeyDisplay(key), value: child})
+		}
+		sort.Slice(pairs, func(i, j int) bool {
+			return pairs[i].keyLabel < pairs[j].keyLabel
+		})
+		vars := make([]map[string]interface{}, 0, len(pairs))
+		for _, pair := range pairs {
+			vars = append(vars, s.variableEntryLocked(pair.keyLabel, pair.value))
+		}
+		return vars
+	case *interpreter.Set:
+		keys := make([]string, 0, len(v.Elements))
+		for key := range v.Elements {
+			keys = append(keys, mapKeyDisplay(key))
+		}
+		sort.Strings(keys)
+		vars := make([]map[string]interface{}, 0, len(keys))
+		for i, key := range keys {
+			vars = append(vars, map[string]interface{}{
+				"name":               strconv.Itoa(i),
+				"value":              key,
+				"type":               "SET_ELEMENT",
+				"variablesReference": 0,
+			})
+		}
+		return vars
+	default:
+		return []map[string]interface{}{}
+	}
+}
+
+func (s *server) variableEntryLocked(name string, value interpreter.Value) map[string]interface{} {
+	return map[string]interface{}{
+		"name":               name,
+		"value":              value.Inspect(),
+		"type":               string(value.Type()),
+		"variablesReference": s.valueRefLocked(value),
 	}
 }
 
@@ -666,4 +863,53 @@ func filepathBase(path string) string {
 		return path
 	}
 	return path[idx+1:]
+}
+
+func normalizePath(path string, baseDir string) string {
+	clean := strings.TrimSpace(path)
+	if clean == "" {
+		return ""
+	}
+	if strings.HasPrefix(clean, "file://") {
+		if parsed, err := url.Parse(clean); err == nil {
+			if parsed.Path != "" {
+				clean = parsed.Path
+			}
+		}
+	}
+	if !filepath.IsAbs(clean) && strings.TrimSpace(baseDir) != "" {
+		clean = filepath.Join(baseDir, clean)
+	}
+	clean = filepath.Clean(clean)
+	if abs, err := filepath.Abs(clean); err == nil {
+		clean = abs
+	}
+	if resolved, err := filepath.EvalSymlinks(clean); err == nil {
+		clean = resolved
+	}
+	return clean
+}
+
+func isExpandableValue(value interpreter.Value) bool {
+	switch value.(type) {
+	case *interpreter.Array, *interpreter.Object, *interpreter.ModuleObject, *interpreter.Map, *interpreter.Set:
+		return true
+	default:
+		return false
+	}
+}
+
+func mapKeyDisplay(key interpreter.MapKey) string {
+	switch key.Type {
+	case interpreter.STRING:
+		return strconv.Quote(key.Value)
+	case interpreter.CHAR:
+		return "'" + key.Value + "'"
+	case interpreter.INTEGER:
+		return key.Value
+	case interpreter.BOOLEAN:
+		return key.Value
+	default:
+		return strconv.Quote(key.Value)
+	}
 }
