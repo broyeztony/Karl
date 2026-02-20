@@ -218,20 +218,20 @@ func (c *DebugController) Quit() {
 
 func (c *DebugController) WaitForStop() DebugStopReason {
 	for {
-		c.mu.Lock()
-		if c.done {
-			c.mu.Unlock()
-			return DebugStopDone
-		}
-		if c.paused {
-			c.mu.Unlock()
-			return DebugStopPaused
-		}
-		c.mu.Unlock()
-
 		select {
 		case <-c.pauseCh:
+			c.mu.Lock()
+			done := c.done
+			paused := c.paused
+			c.mu.Unlock()
+			if done {
+				return DebugStopDone
+			}
+			if paused {
+				return DebugStopPaused
+			}
 		case <-c.doneCh:
+			return DebugStopDone
 		}
 	}
 }
