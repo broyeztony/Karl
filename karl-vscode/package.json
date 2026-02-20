@@ -2,7 +2,7 @@
     "name": "karl-lang",
     "displayName": "Karl Language Support",
     "description": "Syntax highlighting and debugging support for the Karl programming language",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "publisher": "karl-lang",
     "icon": "images/karl-icon.png",
     "repository": {
@@ -46,6 +46,11 @@
                 "language": "karl",
                 "scopeName": "source.karl",
                 "path": "./syntaxes/karl.tmLanguage.json"
+            }
+        ],
+        "breakpoints": [
+            {
+                "language": "karl"
             }
         ],
         "debuggers": [
