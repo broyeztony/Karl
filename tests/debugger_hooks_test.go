@@ -87,6 +87,9 @@ inc(41)
 	if recorder.push[0].Depth != 1 {
 		t.Fatalf("expected pushed frame depth 1, got %d", recorder.push[0].Depth)
 	}
+	if recorder.push[0].Name != "inc" {
+		t.Fatalf("expected frame name inc, got %q", recorder.push[0].Name)
+	}
 
 	seenFrameDepth := false
 	for _, event := range recorder.before {

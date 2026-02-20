@@ -21,7 +21,7 @@ func (e *Evaluator) applyFunction(fn Value, args []Value) (Value, *Signal, error
 				return nil, nil, &RuntimeError{Message: "parameter pattern did not match"}
 			}
 		}
-		e.pushDebugFrame("<lambda>", f.Body, extended)
+		e.pushDebugFrame(functionDebugName(f), f.Body, extended)
 		defer e.popDebugFrame()
 		val, sig, err := e.Eval(f.Body, extended)
 		if err != nil {

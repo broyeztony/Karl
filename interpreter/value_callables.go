@@ -6,6 +6,7 @@ import (
 )
 
 type Function struct {
+	Name   string
 	Params []ast.Pattern
 	Body   ast.Expression
 	Env    *Environment

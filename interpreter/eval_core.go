@@ -36,6 +36,9 @@ func (e *Evaluator) evalNode(node ast.Node, env *Environment) (Value, *Signal, e
 		if err != nil || sig != nil {
 			return val, sig, err
 		}
+		if ident, ok := n.Name.(*ast.Identifier); ok {
+			val = assignFunctionName(val, ident.Value)
+		}
 		if ok, err := bindPattern(n.Name, val, env); !ok || err != nil {
 			if err != nil {
 				return nil, nil, err
