@@ -201,3 +201,10 @@ func TestEvalDebugExpressionRejectsStatement(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestTraceDAPCommandRejectsArgs(t *testing.T) {
+	code := traceDAPCommand([]string{"extra"})
+	if code != 2 {
+		t.Fatalf("expected exit code 2, got %d", code)
+	}
+}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"karl/ast"
+	"karl/debugger/dap"
 	"karl/interpreter"
 	"karl/kernel"
 	"karl/lexer"
@@ -40,7 +41,9 @@ func main() {
 		os.Exit(parseCommand(os.Args[2:]))
 	case "run":
 		os.Exit(runCommand(os.Args[2:]))
-	case "trace", "debug":
+	case "trace":
+		os.Exit(traceCommand(os.Args[2:]))
+	case "debug":
 		os.Exit(debugCommand(os.Args[2:]))
 	case "loom":
 		os.Exit(loomCommand(os.Args[2:]))
@@ -74,6 +77,7 @@ func usage(w io.Writer) {
 	fmt.Fprintf(w, "  parse <file.k>           parse a file and print the AST\n")
 	fmt.Fprintf(w, "  run <file.k>             run a file using the interpreter (program args after --)\n")
 	fmt.Fprintf(w, "  trace <file.k>           run a file with the CLI debugger\n")
+	fmt.Fprintf(w, "  trace dap                run DAP debugger server over stdio\n")
 	fmt.Fprintf(w, "  debug <file.k>           debugger alias (deprecated)\n")
 	fmt.Fprintf(w, "  loom <file.k>            run a file using the Loom runtime\n")
 	fmt.Fprintf(w, "  repl                     start the REPL\n")
@@ -211,6 +215,35 @@ func runCommand(args []string) int {
 	}
 	if _, ok := val.(*interpreter.Unit); !ok {
 		fmt.Println(val.Inspect())
+	}
+	return 0
+}
+
+func traceCommand(args []string) int {
+	if len(args) > 0 && args[0] == "dap" {
+		return traceDAPCommand(args[1:])
+	}
+	return debugCommand(args)
+}
+
+func traceDAPCommand(args []string) int {
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			fmt.Fprintf(os.Stderr, "Usage:\n")
+			fmt.Fprintf(os.Stderr, "  karl trace dap\n")
+			fmt.Fprintf(os.Stderr, "\nStarts a DAP debugger server on stdio (for editor integrations).\n")
+			return 0
+		}
+	}
+	if len(args) > 0 {
+		fmt.Fprintf(os.Stderr, "trace dap takes no arguments\n")
+		fmt.Fprintf(os.Stderr, "Usage:\n")
+		fmt.Fprintf(os.Stderr, "  karl trace dap\n")
+		return 2
+	}
+	if err := dap.Run(os.Stdin, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "dap server error: %v\n", err)
+		return 1
 	}
 	return 0
 }
@@ -723,28 +756,7 @@ func printWatchValues(controller *interpreter.DebugController, state *debugSessi
 }
 
 func evalDebugExpression(input string, env *interpreter.Environment) (interpreter.Value, error) {
-	p := parser.New(lexer.New(input))
-	program := p.ParseProgram()
-	if errs := p.ErrorsDetailed(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s", parser.FormatParseErrors(errs, input, "<debug>"))
-	}
-	if len(program.Statements) != 1 {
-		return nil, fmt.Errorf("print expects a single expression")
-	}
-	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-	if !ok {
-		return nil, fmt.Errorf("print expects an expression, got statement")
-	}
-
-	eval := interpreter.NewEvaluatorWithSourceAndFilename(input, "<debug>")
-	val, sig, err := eval.Eval(stmt.Expression, env)
-	if err != nil {
-		return nil, err
-	}
-	if sig != nil {
-		return nil, fmt.Errorf("print expression cannot produce control flow")
-	}
-	return val, nil
+	return interpreter.EvalDebugExpression(input, env)
 }
 
 func parseBreakpointSpec(spec string) (string, int, error) {

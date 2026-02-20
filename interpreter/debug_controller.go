@@ -57,6 +57,7 @@ type DebugController struct {
 	startPaused bool
 	stepMode    debugStepMode
 	stepDepth   int
+	pauseReq    bool
 	terminate   bool
 	paused      bool
 	done        bool
@@ -198,6 +199,12 @@ func (c *DebugController) StepOut() {
 	c.armSkipCurrentLocationLocked()
 	c.paused = false
 	c.cond.Broadcast()
+	c.mu.Unlock()
+}
+
+func (c *DebugController) Pause() {
+	c.mu.Lock()
+	c.pauseReq = true
 	c.mu.Unlock()
 }
 
@@ -376,6 +383,10 @@ func (c *DebugController) OnFramePop(frame DebugFrame) {
 }
 
 func (c *DebugController) shouldPauseLocked(event DebugEvent) bool {
+	if c.pauseReq {
+		c.pauseReq = false
+		return true
+	}
 	if c.startPaused && event.Line > 0 {
 		c.startPaused = false
 		return true
