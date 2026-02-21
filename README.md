@@ -6,91 +6,21 @@
 [![CI](https://github.com/broyeztony/Karl/actions/workflows/ci.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/ci.yml)
 [![Workflow Tests](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml)
 
-**Try Karl Playground:** [karl-lang.org](https://karl-lang.org) ([fallback](https://broyeztony.github.io/Karl/))
+Karl is a functional-first, expression-based programming language built on top on Go.
+It is co-designed with AI.
 
-![Karl REPL](./assets/repl.png)
+Notably, it features: 
+ - Functions as first-class entities
+ - Encourages composability
+ - Pattern matching with guards
+ - Properties destructuring
+ - Language constructs as expressions: if/match/for-loop contructs returns a value
+ - A recover operator
+ - A concurrency model inspired by Go
 
 Watch the YouTube video: [**Karl Playground, Loom, Sheets & Jupyter Lab integration**](https://www.youtube.com/watch?v=DKqPl7-Rjg8)
 
-#### Tour of Karl
-
-```
-// Compose behavior with first-class functions.
-let run = (value, fns) -> for i < fns.length with i = 0, out = value {
-    out = fns[i](out)
-    i++
-} then out
-let double = x -> x * 2
-let inc = x -> x + 1
-run(10, [double, inc, double]) // 42
-```
-
-```
-// Match + guards (expression-based branching).
-let tempo = 160
-match tempo {
-    case _ if tempo >= 180 -> "sprint"
-    case 120..179 -> "groove"
-    case _ -> "chill"
-}
-```
-
-```
-// Blocks and destructuring are expression-friendly.
-let track = {
-    let title = "Neon Steps"
-    let bpm = 160
-    { title: title, bpm: bpm, }
-}
-let { title, bpm, } = track
-title + " @ " + str(bpm)
-```
-
-```
-// `for` is an expression; `then` is a default when the loop doesn't break.
-let nums = [3, 5, 8, 9]
-for i < nums.length with i = 0 {
-    if nums[i] % 2 == 0 { break nums[i] }
-    i++
-} then "none"
-```
-
-```
-// Optional field access with object indexing + recover.
-let getOr = (obj, key, fallback) -> obj[key] ? fallback
-let req = decodeJson("{\"headers\":{\"User-Agent\":\"Karl\"}}")
-let ua = getOr(req.headers, "User-Agent", "unknown")
-ua
-```
-
-```
-// Recover with either a block or a direct value.
-let raw = "{ \"bpm\": 120 }"
-let parsed = decodeJson(raw) ? { bpm: 90, }
-let trace = parsed["X-Amzn-Trace-Id"] ? "<missing>"
-{ bpm: parsed.bpm, trace: trace, }
-```
-
-```
-// Async task continuation.
-let delayed = () -> {
-    sleep(50)
-    "{ \"ok\": true }"
-}
-let t1 = & delayed()
-let t2 = t1.then(body -> decodeJson(body))
-wait t2
-```
-
-```
-// Channels for task coordination.
-let ch = channel()
-let reader = & ch.recv()
-let writer = & { ch.send("ping"); ch.done() }
-wait writer
-let [msg, done] = wait reader
-msg
-```
+Try Karl today in your browser: [karl-lang.org](https://karl-lang.org)
 
 Explore more examples in the `examples/` folder: [Karl Examples](examples/README.md)
 
