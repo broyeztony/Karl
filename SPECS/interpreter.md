@@ -29,7 +29,7 @@ It also notes the current Go implementation status where it diverges.
 - **Map**: dynamic key/value store; keys must be string, char, int, or bool.
 - **Function**: closure with params + body + captured environment.
 - **Range**: internal helper only; range expressions evaluate to arrays eagerly.
-- **Task**: handle returned by `&` (and `|`) (waitable).
+- **Task**: handle returned by `&` (and `!&`) (waitable).
 - **Rendezvous**: communication primitive with `send`/`recv` methods.
 - **Set**: unordered collection of unique values (string/char/int/bool keys).
 
@@ -399,7 +399,7 @@ JoinTask result: [A, B, C] (preserves input order)
 
 ### Race
 
-- `| { call1(), call2(), ... }` spawns tasks and returns a Task handle.
+- `!& { call1(), call2(), ... }` spawns tasks and returns a Task handle.
 - `wait` on that handle yields the first completed result.
 - Remaining tasks are cancelled automatically (cooperative cancellation).
 
@@ -412,7 +412,7 @@ Implementation details (target behavior):
 Diagram:
 
 ```
-| { A(), B(), C() }
+!& { A(), B(), C() }
   -> spawn TaskA, TaskB, TaskC
   -> spawn RaceTask
 RaceTask returns first result (A or B or C)
@@ -439,7 +439,7 @@ let slow = () -> {
     "slow"
 }
 
-let fastest = wait | { busy(), slow() }
+let fastest = wait !& { busy(), slow() }
 // fastest is "slow"
 // busy() keeps running until it reaches a yield point (it never does),
 // so it continues but its result is ignored.

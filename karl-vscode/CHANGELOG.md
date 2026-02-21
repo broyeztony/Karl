@@ -8,7 +8,7 @@ All notable changes to the "Karl Language Support" extension will be documented 
 - Initial release! 🎉
 - Comprehensive syntax highlighting for Karl language (.k files)
 - Support for all Karl keywords and operators
-- Highlighting for async operators (`&` spawn, `|` race)
+- Highlighting for async operators (`&` spawn, `!&` race)
 - Built-in function highlighting (http, map, set, rendezvous, etc.)
 - String and number literal highlighting
 - Comment support (line comments with `//`)
@@ -18,7 +18,7 @@ All notable changes to the "Karl Language Support" extension will be documented 
 
 ### Highlighted Features
 - **Keywords:** let, if, else, for, match, wait, break, continue, etc.
-- **Operators:** ->, &, |, ?, .., ==, !=, &&, ||, etc.
+- **Operators:** ->, &, !&, ?, .., ==, !=, &&, ||, etc.
 - **Built-ins:** http, decodeJson, map, rendezvous, send, recv, filter, etc.
 - **Constants:** true, false, numbers, strings
 

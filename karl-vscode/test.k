@@ -38,7 +38,7 @@ let task = & http({
 
 let fast = () -> "fast"
 let slow = () -> { sleep(1000); "slow" }
-let winner = wait | { fast(), slow() }
+let winner = wait !& { fast(), slow() }
 
 // ═══════════════════════════════════════════════════════════
 // FUNCTIONS & ARROWS

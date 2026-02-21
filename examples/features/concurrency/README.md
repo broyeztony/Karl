@@ -6,7 +6,7 @@ You **observe** a task with `wait`.
 Core operators:
 - `& call()` spawns a task and returns a task handle.
 - `& { call1(), call2(), ... }` spawns multiple tasks and returns a *single* task handle; `wait` yields results in input order.
-- `| { call1(), call2(), ... }` races multiple tasks and returns a *single* task handle; `wait` yields the first completion.
+- `!& { call1(), call2(), ... }` races multiple tasks and returns a *single* task handle; `wait` yields the first completion.
 - `task.then(fn)` attaches a continuation and returns a new task handle.
 
 Errors:
@@ -18,7 +18,7 @@ Errors:
 
 Cancellation:
 - `task.cancel()` requests cancellation for a task (and its children).
-- `| { ... }` cancels losers automatically.
+- `!& { ... }` cancels losers automatically.
 - `& { ... }` cancels remaining work on first error (fail-fast).
 - Cancellation is cooperative; it takes effect while waiting/blocked (e.g. `wait`, `sleep`, `send`, `recv`, `http`).
 

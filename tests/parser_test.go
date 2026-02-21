@@ -62,7 +62,7 @@ func TestForExpression(t *testing.T) {
 
 func TestSpawnAndRace(t *testing.T) {
 	input := `let tasks = & { taskA(), taskB() }
-let fastest = | { taskA(), taskB() }`
+let fastest = !& { taskA(), taskB() }`
 	p := parser.New(lexer.New(input))
 	program := p.ParseProgram()
 	checkParserErrors(t, p)

@@ -25,7 +25,7 @@ Each example demonstrates one specific capability.
 - `examples/features/error_handling.k` - recoverable errors with `? {}` and `fail()`
 - `examples/features/truthy_falsy.k` - truthy/falsy basics
 - `examples/features/truthy_falsy_comprehensive.k` - truthy/falsy across values and operators
-- `examples/features/concurrency/basic.k` - `&`, `|`, `then`, `wait`
+- `examples/features/concurrency/basic.k` - `&`, `!&`, `then`, `wait`
 - `examples/features/concurrency/advanced.k` - rendezvous/channel send/recv
 - `examples/features/concurrency/buffered_channels.k` - buffered channel basics
 - `examples/features/concurrency/` - deeper dive: join/race semantics, cancellation, and failure recovery

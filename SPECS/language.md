@@ -470,7 +470,7 @@ let tasks = & {
 let results = wait tasks
 
 // Race expression - first to complete wins
-let fastest = wait | {
+let fastest = wait !& {
     fetchFromServer1(),
     fetchFromServer2()
 }
@@ -483,9 +483,10 @@ let fastest = wait | {
 // - & call spawns a task and returns a Task handle.
 // - & { call1(), call2(), ... } spawns all calls concurrently and returns a Task handle of results in order.
 // - wait task waits for completion and yields the task result.
-// - | { call1(), call2(), ... } returns a Task handle for the first completed result.
+// - !& { call1(), call2(), ... } returns a Task handle for the first completed result.
 // - wait on that handle yields the first result; losing tasks are cancelled automatically
 //   (cooperative cancellation).
+// - `|` is reserved for future stream piping syntax.
 // - task.cancel() requests cancellation for a task.
 // - Tasks communicate by returning values, shared immutable data, or rendezvous channels.
 // - If you need to know which task completed, return a tagged value from each task.
@@ -671,7 +672,7 @@ object          = "{" [ object_entry { "," object_entry } [ "," ] ] "}" ;
 object_entry    = IDENT [ ":" expr ] | "..." expr ;
 array           = "[" [ expr { "," expr } [ "," ] ] "]" ;
 
-race_expr       = "|" "{" [ call_expr { "," call_expr } ] "}" ;
+race_expr       = "!&" "{" [ call_expr { "," call_expr } ] "}" ;
 
 struct_init     = IDENT object ;
 

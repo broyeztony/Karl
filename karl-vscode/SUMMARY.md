@@ -34,7 +34,7 @@ karl-vscode/
 - Async: `wait`
 
 ✅ **Operators** (with special highlighting!)
-- Async: `&` (spawn), `|` (race) ← **Highlighted prominently!**
+- Async: `&` (spawn), `!&` (race) ← **Highlighted prominently!**
 - Arrow: `->`
 - Comparison: `==`, `!=`, `<`, `>`, `<=`, `>=`
 - Logical: `&&`, `||`
@@ -106,7 +106,7 @@ You should see:
 - Comments in **gray/italic**
 - Operators in **red/yellow**
 - Built-in functions **highlighted**
-- `&` and `|` operators **standing out**
+- `&` and `!&` operators **standing out**
 
 ---
 
@@ -202,7 +202,7 @@ let worker = (id, ch) -> {           // 'let', '->' highlighted
     ch.send(wait result)             // 'wait' as keyword
 }
 
-let winner = wait | { fast(), slow() } // '|' race operator!
+let winner = wait !& { fast(), slow() } // '!&' race operator!
 ```
 
 **Every part has meaning and color!** 🌈
@@ -259,7 +259,7 @@ Edit `syntaxes/karl.tmLanguage.json` and reload!
 
 Take before/after screenshots:
 - Open `concurrent_pipeline.k`
-- See the `&` and `|` operators pop!
+- See the `&` and `!&` operators pop!
 - Watch keywords shine
 - Enjoy color-coded built-ins
 

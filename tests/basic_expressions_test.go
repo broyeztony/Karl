@@ -579,7 +579,7 @@ func TestExpressionKinds(t *testing.T) {
 		},
 		{
 			name:  "race_expression",
-			input: "| { taskA(), taskB() }",
+			input: "!& { taskA(), taskB() }",
 			assert: func(t *testing.T, expr ast.Expression) {
 				re, ok := expr.(*ast.RaceExpression)
 				if !ok {

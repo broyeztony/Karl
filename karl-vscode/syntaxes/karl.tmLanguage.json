@@ -56,7 +56,7 @@
                 },
                 {
                     "name": "keyword.operator.race.karl",
-                    "match": "\\|(?!\\|)"
+                    "match": "!&"
                 }
             ]
         },

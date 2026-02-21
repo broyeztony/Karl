@@ -19,7 +19,7 @@ arr[1..]
 obj.field
 decodeJson("{}") ? { foo: "bar", }
 & taskA()
-| { taskA(), taskB() }
+!& { taskA(), taskB() }
 `
 
 	tests := []struct {
@@ -96,7 +96,7 @@ decodeJson("{}") ? { foo: "bar", }
 		{token.LPAREN, "("},
 		{token.RPAREN, ")"},
 
-		{token.PIPE, "|"},
+		{token.RACE, "!&"},
 		{token.LBRACE, "{"},
 		{token.IDENT, "taskA"},
 		{token.LPAREN, "("},

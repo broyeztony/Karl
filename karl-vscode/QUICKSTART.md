@@ -61,7 +61,7 @@
 
 ### Syntax Highlighting for:
 - ✅ Keywords (`let`, `if`, `for`, `match`, `wait`)
-- ✅ Async operators (`&` spawn, `|` race)
+- ✅ Async operators (`&` spawn, `!&` race)
 - ✅ Arrow functions (`->`)
 - ✅ Built-in functions (`http`, `map`, `rendezvous`)
 - ✅ Strings and numbers
