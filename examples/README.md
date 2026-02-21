@@ -15,6 +15,8 @@ Each example demonstrates one specific capability.
 - `examples/features/maps_basic.k` - map set/get/has/delete/keys/values
 - `examples/features/sets_basic.k` - set add/has/delete/values/size
 - `examples/features/strings_basic.k` - string helpers
+- `examples/features/runtime_args_env.k` - argv/programPath/environ/env
+- `examples/features/stdin_readline.k` - readLine with EOF flow
 - `examples/features/objects_basic.k` - object literals + spread
 - `examples/features/object_indexing.k` - bracket access for non-identifier keys
 - `examples/features/object_disambiguation.k` - object vs block disambiguation

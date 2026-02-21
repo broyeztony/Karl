@@ -1,5 +1,7 @@
 package interpreter
 
+import "io"
+
 type Evaluator struct {
 	source      string
 	filename    string
@@ -46,6 +48,41 @@ func (e *Evaluator) SetTaskFailurePolicy(policy string) error {
 		e.runtime = newRuntimeState()
 	}
 	return e.runtime.setTaskFailurePolicy(policy)
+}
+
+func (e *Evaluator) SetProgramArgs(args []string) {
+	if e.runtime == nil {
+		e.runtime = newRuntimeState()
+	}
+	e.runtime.setProgramArgs(args)
+}
+
+func (e *Evaluator) SetProgramPath(path string) {
+	if e.runtime == nil {
+		e.runtime = newRuntimeState()
+	}
+	e.runtime.setProgramPath(path)
+}
+
+func (e *Evaluator) ClearProgramPath() {
+	if e.runtime == nil {
+		e.runtime = newRuntimeState()
+	}
+	e.runtime.clearProgramPath()
+}
+
+func (e *Evaluator) SetEnvironSnapshot(environ []string) {
+	if e.runtime == nil {
+		e.runtime = newRuntimeState()
+	}
+	e.runtime.setEnviron(environ)
+}
+
+func (e *Evaluator) SetInput(input io.Reader) {
+	if e.runtime == nil {
+		e.runtime = newRuntimeState()
+	}
+	e.runtime.setInput(input)
 }
 
 func (e *Evaluator) cloneForTask(task *Task) *Evaluator {

@@ -12,8 +12,7 @@
 - runbook blocker: complete I/O primitives (env, argv/stdin scan, fs, process exec, http client/server)
 - runbook blocker: secrets/config boundary with redaction-safe error/log behavior
 - runbook blocker: observability API (structured logs, step events, metrics, correlation IDs)
-- handle ENV vars
-- read from command-line (input / scanner)
+- phase-1 runtime I/O primitives (`argv`, `programPath`, `environ`, `env`, `readLine`) ✅
 - add a httpServer built-in
 - build a debugger (breakpoints, step in/over/out, stack/locals inspection; CLI first, DAP later)
 - build a notebook system for Karl like Jupyter using the repl server

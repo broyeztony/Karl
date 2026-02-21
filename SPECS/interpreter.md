@@ -201,6 +201,30 @@ Ordering requires comparable keys; otherwise runtime error.
 
 - Terminates the entire program immediately.
 
+### System primitives (Phase 1)
+
+- `argv() -> [string]`
+  - Program arguments passed after `--` in `karl run`.
+  - `karl run app.k -- a b` gives `["a", "b"]`.
+  - In non-`run` contexts (REPL/notebook/kernel), default is `[]`.
+- `programPath() -> string | null`
+  - `karl run app.k ...` => `"app.k"`.
+  - `karl run - ...` => `"<stdin>"`.
+  - REPL/notebook/kernel => `null`.
+- `environ() -> [string]`
+  - Snapshot of process environment as `"KEY=value"` entries.
+- `env(name) -> string | null`
+  - Returns value when present (including empty string).
+  - Returns `null` when missing.
+- `readLine() -> string | null`
+  - Reads one line from stdin and strips trailing newline.
+  - Returns `null` on EOF.
+  - I/O read failures are recoverable (`kind = "readLine"`).
+
+Snapshot semantics:
+- Runtime context (`argv`, `programPath`, environment snapshot) is captured at evaluator startup.
+- Spawned tasks and imported modules share the same runtime snapshot.
+
 ### Recoverable errors (`? ...`)
 
 - `?` may be applied to any expression.
