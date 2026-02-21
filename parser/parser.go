@@ -89,7 +89,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.WAIT, p.parseWaitExpression)
 	p.registerPrefix(token.IMPORT, p.parseImportExpression)
 	p.registerPrefix(token.AMPERSAND, p.parseSpawnExpression)
-	p.registerPrefix(token.PIPE, p.parseRaceExpression)
+	p.registerPrefix(token.RACE, p.parseRaceExpression)
+	p.registerPrefix(token.PIPE, p.parseReservedPipeExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedOrLambda)
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.MATCH, p.parseMatchExpression)
@@ -354,6 +355,11 @@ func (p *Parser) parseRaceExpression() ast.Expression {
 	}
 	expr.Tasks = p.parseRaceOrSpawnGroup()
 	return expr
+}
+
+func (p *Parser) parseReservedPipeExpression() ast.Expression {
+	p.addError(p.curToken, "operator '|' is reserved for stream piping; use '!& { ... }' for race")
+	return nil
 }
 
 func (p *Parser) parseRaceOrSpawnGroup() []ast.Expression {

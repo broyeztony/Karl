@@ -437,7 +437,7 @@ Most languages make concurrency hard. Karl makes it **beautiful**:
 
 - **Go-style channels** for coordination
 - **Task-based async** with `&`
-- **Race conditions** with `|`
+- **Race conditions** with `!&`
 - **Functional composition** with `.then()`
 - **Zero boilerplate**
 

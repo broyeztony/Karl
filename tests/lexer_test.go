@@ -19,7 +19,7 @@ arr[1..]
 obj.field
 decodeJson("{}") ? { foo: "bar", }
 & taskA()
-| { taskA(), taskB() }
+!& { taskA(), taskB() }
 `
 
 	tests := []struct {
@@ -96,7 +96,7 @@ decodeJson("{}") ? { foo: "bar", }
 		{token.LPAREN, "("},
 		{token.RPAREN, ")"},
 
-		{token.PIPE, "|"},
+		{token.RACE, "!&"},
 		{token.LBRACE, "{"},
 		{token.IDENT, "taskA"},
 		{token.LPAREN, "("},
@@ -112,6 +112,50 @@ decodeJson("{}") ? { foo: "bar", }
 
 	l := lexer.New(input)
 
+	for i, tt := range tests {
+		tok := l.NextToken()
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q", i, tt.expectedType, tok.Type)
+		}
+		if tok.Literal != tt.expectedLiteral {
+			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
+		}
+	}
+}
+
+func TestBangNotEqAndRaceTokens(t *testing.T) {
+	input := `
+!flag
+a != b
+!& { taskA(), taskB() }
+`
+
+	tests := []struct {
+		expectedType    token.TokenType
+		expectedLiteral string
+	}{
+		{token.BANG, "!"},
+		{token.IDENT, "flag"},
+
+		{token.IDENT, "a"},
+		{token.NOT_EQ, "!="},
+		{token.IDENT, "b"},
+
+		{token.RACE, "!&"},
+		{token.LBRACE, "{"},
+		{token.IDENT, "taskA"},
+		{token.LPAREN, "("},
+		{token.RPAREN, ")"},
+		{token.COMMA, ","},
+		{token.IDENT, "taskB"},
+		{token.LPAREN, "("},
+		{token.RPAREN, ")"},
+		{token.RBRACE, "}"},
+
+		{token.EOF, ""},
+	}
+
+	l := lexer.New(input)
 	for i, tt := range tests {
 		tok := l.NextToken()
 		if tok.Type != tt.expectedType {

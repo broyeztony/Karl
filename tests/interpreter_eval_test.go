@@ -552,7 +552,7 @@ func TestEvalRaceExpression(t *testing.T) {
 	input := `
 let slow = () -> { sleep(10); 1 }
 let fast = () -> 2
-wait | { slow(), fast() }
+wait !& { slow(), fast() }
 `
 	val := mustEval(t, input)
 	assertInteger(t, val, 2)
@@ -563,7 +563,7 @@ func TestEvalRaceCancelsLosers(t *testing.T) {
 let state = { hits: 0 }
 let slow = () -> { sleep(50); state.hits = state.hits + 1; 1 }
 let fast = () -> 2
-let first = wait | { slow(), fast() }
+let first = wait !& { slow(), fast() }
 sleep(100);
 [first, state.hits]
 `

@@ -4,6 +4,9 @@ importScripts("wasm_exec.js");
 
 const go = new Go();
 const decoder = new TextDecoder("utf-8");
+const workerURL = new URL(self.location.href);
+const cacheBust = workerURL.searchParams.get("v");
+const wasmURL = cacheBust ? `karl.wasm?v=${encodeURIComponent(cacheBust)}` : "karl.wasm";
 
 self.runKarl = null;
 self.__karl_done = () => {
@@ -41,9 +44,9 @@ self.fs = {
     try {
         let result;
         if (WebAssembly.instantiateStreaming) {
-            result = await WebAssembly.instantiateStreaming(fetch("karl.wasm"), go.importObject);
+            result = await WebAssembly.instantiateStreaming(fetch(wasmURL, { cache: "no-store" }), go.importObject);
         } else {
-            const resp = await fetch("karl.wasm");
+            const resp = await fetch(wasmURL, { cache: "no-store" });
             const buf = await resp.arrayBuffer();
             result = await WebAssembly.instantiate(buf, go.importObject);
         }

@@ -37,8 +37,9 @@ const (
 	NOT_EQ = "!="
 	EQV    = "EQV"
 
-	AND = "&&"
-	OR  = "||"
+	AND  = "&&"
+	OR   = "||"
+	RACE = "!&"
 
 	PLUS_ASSIGN     = "+="
 	MINUS_ASSIGN    = "-="

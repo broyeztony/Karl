@@ -34,7 +34,7 @@ code karl-vscode/test.k
 
 **You should see:**
 - ✨ Keywords highlighted (let, if, for, wait)
-- ✨ `&` and `|` operators standing out
+- ✨ `&` and `!&` operators standing out
 - ✨ Strings in color
 - ✨ Comments grayed out
 - ✨ Built-in functions highlighted
@@ -70,7 +70,7 @@ karl-vscode/
 
 ### Async Operators (RED - Stand Out!)
 - `&` - Spawn task
-- `|` - Race tasks
+- `!&` - Race tasks
 
 ### Arrow Functions (Yellow)
 `->`
@@ -237,7 +237,7 @@ ext install karl-lang.karl-lang
 **This extension highlights:**
 - ✅ Every keyword
 - ✅ Every operator type
-- ✅ Special async operators (`&`, `|`)
+- ✅ Special async operators (`&`, `!&`)
 - ✅ All built-in functions
 - ✅ Multiple string types
 - ✅ Numeric literals
@@ -254,7 +254,7 @@ ext install karl-lang.karl-lang
 1. **Reload VS Code** (5 seconds)
 2. **Open `concurrent_pipeline.k`** (5 seconds)
 3. **Scroll through and admire** (30 seconds)
-4. **Notice how `&` and `|` stand out** (10 seconds)
+4. **Notice how `&` and `!&` stand out** (10 seconds)
 5. **See the pipeline flow visually** (10 seconds)
 
 **Your mind = BLOWN** 🤯

@@ -6,7 +6,7 @@
 let withTimeout = (ms, fn) -> {
     let work = & fn()
 
-    let first = wait | {
+    let first = wait !& {
         (() -> {
             let value = wait work
             let out = { kind: "ok", value: value, }

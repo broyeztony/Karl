@@ -256,61 +256,49 @@ spawn((ch) -> {
 log(c.recv()) // ["Hello from thread!", false] => [value, is_closed]`,
             language_concurrency: `// Karl Playground: language + concurrency demo
 
-let section = (title) -> {
-    log("")
-    log("=== " + title + " ===")
-}
+let new_line 	= () -> log("\n----------------------\n")
+let delays 		= 40..50
+let picked 		= delays[1..4]
+let banner 		= "karl-language"
+log("delays:", delays)
+log("picked:", picked)
+log("split:", banner.split("-"))
 
-section("1) Dot-dot ranges + slices")
-let delays = 40..44
-let picked = delays[1..4]
-let banner = "karl-language"
-log("delays          :", delays)
-log("picked          :", picked)
-log("string head/tail:", [banner[..4], banner[5..]])
-
-section("2) Task chaining with then()")
+// & ...() returns <task>, i.e. a Task handle
+// task handles are first-class objects. They can be passed as argument
+// task handles are waitable, chainable and cancelable
 let t = & (() -> {
     sleep(120)
     20
 })()
-let chained = wait t.then(x -> x + 22)
-log("chained result  :", chained)
+let chained = t.then(x -> x + 22)
+log("chained:", chained)
+let result = wait chained
+log("result:", result)
 
-section("3) Join: parallel work, ordered output")
-let joined = wait & {
-    (() -> { sleep(picked[2]); { label: "A", ms: picked[2], value: 3, } })(),
-    (() -> { sleep(picked[0]); { label: "B", ms: picked[0], value: 7, } })(),
-    (() -> { sleep(picked[1]); { label: "C", ms: picked[1], value: 11, } })()
+new_line()
+
+// wait for a group of tasks to complete
+let grouped = & {
+    (() -> { sleep(200); { label: "A", value: 3, } })(),
+    (() -> { sleep(400); { label: "B", value: 7, } })(),
+    (() -> { sleep(100); { label: "C", value: 2, } })()
 }
+log("grouped:", grouped)
 
-for i < joined.length with i = 0 {
-    let row = joined[i]
-    log("task " + row.label + " (" + str(row.ms) + "ms):", row.value)
-    i++
-} then ()
-log("labels order    :", joined.map(x -> x.label))
+// passing the <task> as argument
+let resolve = th -> wait th
+log("resolved:", resolve(grouped))
 
-section("4) for-expression + then block result")
-let stats = for i < joined.length with i = 0, out = [] {
-    let row = joined[i]
-    out += [row.value * 2]
-    i++
-} then {
-    let total = out.reduce((acc, x) -> acc + x, 0)
-    let avg = total / out.length
-    {
-        doubled: out,
-        firstTwo: out[..2],
-        total: total,
-        avg: avg,
-    }
+new_line()
+ 
+// !& is the race operator
+let fastest = !& {
+    (() -> { sleep(200); { label: "A", value: 3, } })(),
+    (() -> { sleep(400); { label: "B", value: 7, } })(),
+    (() -> { sleep(100); { label: "C", value: 2, } })()
 }
-
-log("doubled         :", stats.doubled)
-log("firstTwo        :", stats.firstTwo)
-log("total / avg     :", [stats.total, stats.avg])
-let done = true`,
+log("fastest", wait fastest)`,
             functions_lists: `// Functions + list built-ins
 let add = (a, b) -> a + b
 let nums = 1..10
@@ -460,7 +448,7 @@ stream`
                     { regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number" },
                     // Built-ins
                     { regex: /\b(?:log|http|decodeJson|rendezvous|send|recv|done|sleep|fail|map|filter|reduce|sum|find|sort|length|trim|toLower|toUpper|split)\b/, token: "builtin" },
-                    { regex: /->|&|\|/, token: "operator" },
+                    { regex: /->|!&|&&|\|\||&|\|/, token: "operator" },
                     // Variables (basic heuristic)
                     { regex: /[a-z$][\w$]*/, token: "variable" },
                 ],
