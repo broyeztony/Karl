@@ -1,4 +1,3 @@
-
 <img src="assets/karl.png">
 
 ### The Karl programming language
@@ -6,109 +5,72 @@
 [![CI](https://github.com/broyeztony/Karl/actions/workflows/ci.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/ci.yml)
 [![Workflow Tests](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml)
 
-Karl is a functional-first, expression-based programming language built on top on Go.
+Karl is a functional-first, expression-based programming language built on top of Go.
 It is co-designed with AI.
 
-Notably, it features: 
- - Functions as first-class entities
- - Encourages composability
- - Pattern matching with guards
- - Properties destructuring
- - Language constructs as expressions: if/match/for-loop contructs returns a value
- - A recover operator
- - A concurrency model inspired by Go
+Notably, it features:
+- Functions as first-class entities
+- Composable expression-first style
+- Pattern matching with guards
+- Property destructuring
+- Expression-based control flow (`if`/`match`/`for` all return values)
+- Recover operator (`?`)
+- Concurrency model inspired by Go
 
 Watch the YouTube video: [**Karl Playground, Loom, Sheets & Jupyter Lab integration**](https://www.youtube.com/watch?v=DKqPl7-Rjg8)
 
 Try Karl today in your browser: [karl-lang.org](https://karl-lang.org)
 
-Explore more examples in the `examples/` folder: [Karl Examples](examples/README.md)
+## Start Here
 
-#### Workflow examples (contrib by [Nico](https://github.com/hellonico))
+### `bench` (Karl Playground)
+`bench` is Karl's browser-first playground experience: run Karl instantly at [karl-lang.org](https://karl-lang.org), no install needed.  
+Run it locally with `karl playground` (default `http://localhost:8081`). See [playground/README.md](playground/README.md).
 
-The `examples/contrib/workflow/` folder is a small workflow engine and a set of demos built on top of it:
-
-- `engine.k` — core workflow runner (sequential, parallel, DAG)
-- `quickstart.k` — smallest end‑to‑end example
-- `examples.k` — multiple workflow variants in one file
-- `dag_pipeline.k` — large, multi‑stage data pipeline
-- `subdag_demo.k` — composing workflows with sub‑DAGs
-- `csv_pipeline.k` — data pipeline with validation + stats
-- `file_watcher.k` — event‑driven workflow on file changes
-- `timer_tasks.k` — scheduled/recurring task demos
-- `test_simple_dag.k` — minimal DAG sanity check
-
-**Running Workflow Tests:**
-
+### `loom` (Karl REPL)
+`loom` is the interactive Karl REPL/runtime entrypoint for fast experimentation.  
+Start it with:
 ```bash
-cd examples/contrib/workflow
-./run_all_tests.sh
-```
-
-This runs all 13 tests including unit tests, integration tests, demos, and pipeline examples.
-
-### Get Karl
-
-Grab a prebuilt binary from GitHub Releases:
-[Releases](https://github.com/broyeztony/Karl/releases)
-
-Make it executable (`chmod +x <binary>`), then add it to your `PATH` or drop it in your `~/go/bin` directory.
-
-Or build from source:
-
-```
-go build -o karl .
-```
-
-### Karl Playground
-
-Use Karl directly in the browser at [karl-lang.org](https://karl-lang.org).
-You can also run it locally with `karl playground` (default `http://localhost:8081`).
-More details: [playground/README.md](playground/README.md).
-
-### Karl Sheets
-
-Karl includes a reactive spreadsheet runtime where cell formulas are Karl expressions.
-Start it with `karl spreadsheet` (default `http://localhost:8080`).
-The web app lives in `assets/spreadsheet/`.
-
-### Karl Notebook and Jupyter Kernel
-
-Use Karl notebooks from the CLI:
-```
-karl notebook notebook/examples/01-quickstart.knb
-karl notebook convert in.ipynb out.knb
-```
-
-To run Karl inside Jupyter Notebook/Lab, install the kernel with:
-```
-./kernel/install.sh
-```
-Then select **Karl** as the notebook kernel in Jupyter. More details: [kernel/README.md](kernel/README.md) and [notebook/README.md](notebook/README.md).
-
-### CLI
-
-```
-karl parse <file.k> [--format=pretty|json]
-karl run <file.k> [--task-failure-policy=fail-fast|defer] [-- <program args...>]
 karl loom
-cat <file.k> | karl run -
+```
+See [repl/README.md](repl/README.md) for local/remote modes.
+
+### VS Code Plugin
+Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.  
+Setup and usage: [karl-vscode/README.md](karl-vscode/README.md).
+
+## Install Karl CLI (Latest Release)
+
+macOS/Linux (`amd64` + `arm64`) one-liner:
+```bash
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"; arch="$(uname -m)"; case "$arch" in x86_64) arch=amd64 ;; arm64|aarch64) arch=arm64 ;; *) echo "unsupported arch: $arch" && exit 1 ;; esac; base="karl-${os}-${arch}"; curl -fsSL "https://github.com/broyeztony/Karl/releases/latest/download/${base}.tar.gz" | tar -xz && mv "$base" karl && chmod +x karl
 ```
 
-**REPL**: Start an interactive session with `karl loom`. See [repl/README.md](repl/README.md) for details.
+Then move `karl` into your `PATH` (for example `/usr/local/bin`).
+All releases: [GitHub Releases](https://github.com/broyeztony/Karl/releases).
 
-### VS Code
-
-Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.
-See setup and usage details in [karl-vscode/README.md](karl-vscode/README.md).
-
-### Tests
-
-```
-go test ./...
+Minimal CLI usage:
+```bash
+karl run file.k
+karl parse file.k
+karl loom
 ```
 
-### Specs
+## Project Map
+
+- `examples/`  
+  Feature-focused Karl programs, from basics to concurrency and workflow demos. Start with [examples/README.md](examples/README.md).
+
+- Notebook + Jupyter integration (`karl notebook`, `kernel/`)  
+  Run `.knb` notebooks from CLI and use Karl inside Jupyter Lab/Notebook via the Karl kernel. See [notebook/README.md](notebook/README.md) and [kernel/README.md](kernel/README.md).
+
+- Karl Sheets (`karl spreadsheet`)  
+  Reactive spreadsheet runtime where cells evaluate Karl expressions, served at `http://localhost:8080` by default.
+
+- `Makefile`  
+  Common developer workflow commands: `make build`, `make build-wasm`, `make build-all`, `make test`, `make examples`, `make workflow`, `make ci`.
+
+## Specs
 
 - `SPECS/language.md` — syntax + semantics
 - `SPECS/interpreter.md` — runtime model and evaluator notes
