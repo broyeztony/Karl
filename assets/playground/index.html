@@ -8,6 +8,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
     <style>
+        *,
+        *::before,
+        *::after {
+            font-weight: lighter !important;
+        }
+
         body {
             margin: 0;
             display: flex;
@@ -85,7 +91,6 @@
             color: #282a36;
             border: none;
             border-radius: 4px;
-            font-weight: 600;
             font-size: 14px;
             transition: background 0.2s;
         }
@@ -108,22 +113,41 @@
         }
 
         .title {
-            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-size: 18px;
             color: #f8f8f2;
             margin-right: 10px;
+        }
+
+        .title img {
+            width: 18px;
+            height: 18px;
+            display: block;
         }
 
         label {
             color: #f8f8f2;
         }
 
+        #autoRun {
+            accent-color: #bd93f9;
+        }
+
         #exampleSelect {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
             background: #44475a;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23f8f8f2' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 10px 6px;
             color: #f8f8f2;
             border: 1px solid #6272a4;
             border-radius: 4px;
-            padding: 7px 10px;
+            padding: 7px 34px 7px 10px;
             font-size: 13px;
             min-width: 250px;
             outline: none;
@@ -147,7 +171,7 @@
 
 <body>
     <div id="toolbar">
-        <div class="title">Karl Playground [Experimental]</div>
+        <div class="title"><img src="logo-32x32.png" alt="Karl">bench</div>
         <button id="runBtn" disabled>Run ▶</button>
         <label style="font-size: 13px; user-select: none;">
             <select id="exampleSelect" title="Load a feature example">
@@ -164,7 +188,7 @@
                 <option value="channels_stream">Channels Stream</option>
             </select>
         </label>
-        <label style="margin-left: 10px; font-size: 14px; user-select: none;">
+        <label style="font-size: 14px; user-select: none;">
             <input type="checkbox" id="autoRun"> Auto Run
         </label>
         <span id="status" style="margin-left: 15px;">Loading WASM environment...</span>
