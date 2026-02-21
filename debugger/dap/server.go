@@ -482,9 +482,10 @@ func (s *server) stackTrace(raw json.RawMessage) (map[string]interface{}, error)
 	}
 
 	stack := controller.Stack()
+	currentEvent, paused := controller.CurrentEvent()
 	frames := make([]map[string]interface{}, 0, len(stack)+1)
 	if len(stack) == 0 {
-		ev, _ := controller.CurrentEvent()
+		ev := currentEvent
 		frames = append(frames, map[string]interface{}{
 			"id":     1,
 			"name":   "<top-level>",
@@ -499,12 +500,22 @@ func (s *server) stackTrace(raw json.RawMessage) (map[string]interface{}, error)
 			if strings.TrimSpace(name) == "" {
 				name = "<lambda>"
 			}
+			line := frame.Line
+			column := frame.Column
+			sourcePath := frame.Filename
+			if i == 0 && paused && currentEvent.Line > 0 {
+				line = currentEvent.Line
+				column = currentEvent.Column
+				if strings.TrimSpace(currentEvent.Filename) != "" {
+					sourcePath = currentEvent.Filename
+				}
+			}
 			frames = append(frames, map[string]interface{}{
 				"id":     i + 1,
 				"name":   name,
-				"line":   clampLine(frame.Line),
-				"column": clampColumn(frame.Column),
-				"source": map[string]interface{}{"path": frame.Filename, "name": filepathBase(frame.Filename)},
+				"line":   clampLine(line),
+				"column": clampColumn(column),
+				"source": map[string]interface{}{"path": sourcePath, "name": filepathBase(sourcePath)},
 			})
 		}
 	}
@@ -662,7 +673,7 @@ func (s *server) valueRefLocked(value interpreter.Value) int {
 }
 
 func (s *server) varsFromEnv(env *interpreter.Environment) []map[string]interface{} {
-	locals := env.Snapshot()
+	locals := env.SnapshotAll()
 	names := make([]string, 0, len(locals))
 	for name, value := range locals {
 		if _, ok := value.(*interpreter.Builtin); ok {

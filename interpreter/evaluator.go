@@ -116,6 +116,7 @@ func (e *Evaluator) cloneForTask(task *Task) *Evaluator {
 		modules:     e.modules,
 		runtime:     e.runtime,
 		currentTask: task,
+		debugger:    e.debugger,
 	}
 }
 
@@ -124,6 +125,7 @@ func (e *Evaluator) newTask(parent *Task, internal bool) *Task {
 		e.runtime = newRuntimeState()
 	}
 	t := newTask()
+	t.debugID = e.runtime.nextDebugTaskID()
 	t.internal = internal
 	t.parent = parent
 	t.source = e.source

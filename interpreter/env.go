@@ -67,3 +67,20 @@ func (e *Environment) Snapshot() map[string]Value {
 	}
 	return out
 }
+
+// SnapshotAll returns a merged snapshot of the current scope and all outers.
+// Inner scope bindings shadow outer ones.
+func (e *Environment) SnapshotAll() map[string]Value {
+	if e == nil {
+		return map[string]Value{}
+	}
+	local := e.Snapshot()
+	if e.outer == nil {
+		return local
+	}
+	out := e.outer.SnapshotAll()
+	for k, v := range local {
+		out[k] = v
+	}
+	return out
+}

@@ -262,8 +262,497 @@ func TestNextStepsOverFunctionCall(t *testing.T) {
 	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
 		t.Fatalf("continue failed: %v", responseMessage(resp))
 	}
-	client.waitEvent("terminated")
+	for i := 0; i < 3; i++ {
+		name, _ := client.waitAnyEvent("stopped", "terminated")
+		if name == "terminated" {
+			break
+		}
+		if line := currentTopFrameLine(client); line != 3 {
+			t.Fatalf("unexpected extra stop at line %d", line)
+		}
+		if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+			t.Fatalf("continue failed: %v", responseMessage(resp))
+		}
+		if i == 2 {
+			t.Fatalf("expected terminated event after continuing")
+		}
+	}
 	client.waitEvent("exited")
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
+func TestBreakpointsHitInsideSpawnedTask(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "spawn_breakpoint.k")
+	source := strings.Join([]string{
+		"let ch = buffered(1)",
+		"let producer = (ch) -> {",
+		"    ch.send(\"a\")",
+		"    ch.done()",
+		"}",
+		"let t = & producer(ch)",
+		"let out = ch.recv()",
+		"wait t",
+		"out",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 1},
+			{"line": 3},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	firstStop := client.waitEvent("stopped")
+	if firstStop == nil {
+		t.Fatalf("expected first stop")
+	}
+	if line := currentTopFrameLine(client); line != 1 {
+		t.Fatalf("expected first breakpoint at line 1, got %d", line)
+	}
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	secondStop := client.waitEvent("stopped")
+	if secondStop == nil {
+		t.Fatalf("expected second stop")
+	}
+	if line := currentTopFrameLine(client); line != 3 {
+		t.Fatalf("expected spawned-task breakpoint at line 3, got %d", line)
+	}
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	for i := 0; i < 3; i++ {
+		name, _ := client.waitAnyEvent("stopped", "terminated")
+		if name == "terminated" {
+			break
+		}
+		if line := currentTopFrameLine(client); line != 3 {
+			t.Fatalf("unexpected extra stop at line %d", line)
+		}
+		if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+			t.Fatalf("continue failed: %v", responseMessage(resp))
+		}
+		if i == 2 {
+			t.Fatalf("expected terminated event after continuing")
+		}
+	}
+	client.waitEvent("exited")
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
+func TestBreakpointsHitInJoinChildTask(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "join_breakpoint.k")
+	source := strings.Join([]string{
+		"// Rendezvous send/recv coordinates tasks (channel() is an alias).",
+		"",
+		"let ch = channel()",
+		"",
+		"let producer = (ch) -> {",
+		"    ch.send(\"a\")",
+		"    ch.send(\"b\")",
+		"    ch.done()",
+		"}",
+		"",
+		"let consumer = (ch) -> {",
+		"    for true with res = ch.recv(), acc = [] {",
+		"        let [msg, done] = res",
+		"        if done { break acc }",
+		"        acc += [msg]",
+		"        res = ch.recv()",
+		"    } then acc",
+		"}",
+		"",
+		"let results = wait & { producer(ch), consumer(ch) }",
+		"results[1]",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 3},
+			{"line": 6},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	if event := client.waitEvent("stopped"); event == nil {
+		t.Fatalf("expected first stop")
+	}
+	if line := currentTopFrameLine(client); line != 3 {
+		t.Fatalf("expected first breakpoint at line 3, got %d", line)
+	}
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	if event := client.waitEvent("stopped"); event == nil {
+		t.Fatalf("expected second stop")
+	}
+	if line := currentTopFrameLine(client); line != 6 {
+		t.Fatalf("expected second breakpoint at line 6, got %d", line)
+	}
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	for i := 0; i < 3; i++ {
+		name, _ := client.waitAnyEvent("stopped", "terminated")
+		if name == "terminated" {
+			break
+		}
+		if line := currentTopFrameLine(client); line != 3 {
+			t.Fatalf("unexpected extra stop at line %d", line)
+		}
+		if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+			t.Fatalf("continue failed: %v", responseMessage(resp))
+		}
+		if i == 2 {
+			t.Fatalf("expected terminated event after continuing")
+		}
+	}
+	client.waitEvent("exited")
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
+func TestStepSkipsOtherTaskBreakpoints(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "step_skip_other_tasks.k")
+	source := strings.Join([]string{
+		"let ch = buffered(1)",
+		"",
+		"let producer = (ch) -> {",
+		"    ch.send(\"a\")",
+		"    ch.done()",
+		"}",
+		"",
+		"let consumer = (ch) -> {",
+		"    let [msg, done] = ch.recv()",
+		"    if done { \"done\" } else { msg }",
+		"}",
+		"",
+		"let results = wait & { producer(ch), consumer(ch) }",
+		"let marker = 1",
+		"marker",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 4},  // child task
+			{"line": 13}, // join line
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	if event := client.waitEvent("stopped"); event == nil {
+		t.Fatalf("expected first stop")
+	}
+	if line := currentTopFrameLine(client); line != 13 {
+		t.Fatalf("expected first stop at line 13, got %d", line)
+	}
+	if resp := client.request("next", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("next failed: %v", responseMessage(resp))
+	}
+	if event := client.waitEvent("stopped"); event == nil {
+		t.Fatalf("expected stop after next")
+	}
+	if line := currentTopFrameLine(client); line != 14 {
+		t.Fatalf("expected next to stop at line 14, got %d", line)
+	}
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	for i := 0; i < 3; i++ {
+		name, _ := client.waitAnyEvent("stopped", "terminated")
+		if name == "terminated" {
+			break
+		}
+		if line := currentTopFrameLine(client); line != 3 {
+			t.Fatalf("unexpected extra stop at line %d", line)
+		}
+		if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+			t.Fatalf("continue failed: %v", responseMessage(resp))
+		}
+		if i == 2 {
+			t.Fatalf("expected terminated event after continuing")
+		}
+	}
+	client.waitEvent("exited")
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
+func TestStepIntoJoinBlockStopsAtChildExpression(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "step_into_join_block.k")
+	source := strings.Join([]string{
+		"let ch = channel()",
+		"let producer = (ch) -> {",
+		"    ch.send(\"a\")",
+		"    ch.done()",
+		"}",
+		"",
+		"let result = wait & {",
+		"    producer(ch)",
+		"}",
+		"result",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 7},
+			{"line": 3},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if line := currentTopFrameLine(client); line != 7 {
+		t.Fatalf("expected first stop at line 7, got %d", line)
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 3},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints update failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("stepIn", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("stepIn failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if line := currentTopFrameLine(client); line != 8 {
+		t.Fatalf("expected stepIn stop at line 8, got %d", line)
+	}
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if line := currentTopFrameLine(client); line != 3 {
+		t.Fatalf("expected child breakpoint at line 3, got %d", line)
+	}
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
+func TestStepIntoJoinBlockPrefersFirstChildInSourceOrder(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "step_source_order_join.k")
+	source := strings.Join([]string{
+		"let ch = buffered(1)",
+		"let producer = (ch) -> {",
+		"    ch.send(\"a\")",
+		"    ch.done()",
+		"}",
+		"let consumer = (ch) -> {",
+		"    ch.recv()",
+		"}",
+		"let results = wait & {",
+		"    producer(ch),",
+		"    consumer(ch)",
+		"}",
+		"results",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 9},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if line := currentTopFrameLine(client); line != 9 {
+		t.Fatalf("expected first stop at line 9, got %d", line)
+	}
+	if resp := client.request("stepIn", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("stepIn failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if line := currentTopFrameLine(client); line != 10 {
+		t.Fatalf("expected stepIn to prefer first child at line 10, got %d", line)
+	}
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
+func TestLocalsIncludeNestedAndOuterBindings(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "locals_nested.k")
+	source := strings.Join([]string{
+		"let ch = buffered(2)",
+		"let consumer = (ch) -> {",
+		"    for true with res = ch.recv(), acc = [] {",
+		"        let [msg, done] = res",
+		"        if done { break acc }",
+		"        acc += [msg]",
+		"        res = ch.recv()",
+		"    } then acc",
+		"}",
+		"ch.send(\"a\")",
+		"ch.done()",
+		"let t = & consumer(ch)",
+		"wait t",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 6},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if line := currentTopFrameLine(client); line != 6 {
+		t.Fatalf("expected stop at line 6, got %d", line)
+	}
+
+	stackResp := client.request("stackTrace", map[string]interface{}{"threadId": defaultThreadID})
+	if !responseSuccess(stackResp) {
+		t.Fatalf("stackTrace failed: %v", responseMessage(stackResp))
+	}
+	frameID := intFromAny(bodyArrayOfMaps(stackResp, "stackFrames")[0]["id"])
+
+	scopesResp := client.request("scopes", map[string]interface{}{"frameId": frameID})
+	if !responseSuccess(scopesResp) {
+		t.Fatalf("scopes failed: %v", responseMessage(scopesResp))
+	}
+	localsRef := intFromAny(bodyArrayOfMaps(scopesResp, "scopes")[0]["variablesReference"])
+
+	varsResp := client.request("variables", map[string]interface{}{"variablesReference": localsRef})
+	if !responseSuccess(varsResp) {
+		t.Fatalf("variables failed: %v", responseMessage(varsResp))
+	}
+	locals := bodyArrayOfMaps(varsResp, "variables")
+	for _, name := range []string{"msg", "done", "res", "acc", "ch"} {
+		if findVarByName(locals, name) == nil {
+			t.Fatalf("expected %q in locals, got %#v", name, locals)
+		}
+	}
 	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
 		t.Fatalf("disconnect failed: %v", responseMessage(resp))
 	}
@@ -378,6 +867,34 @@ func (c *testClient) waitEvent(name string) map[string]interface{} {
 		eventName, _ := msg["event"].(string)
 		if eventName == name {
 			return msg
+		}
+		c.pending = append(c.pending, msg)
+	}
+}
+
+func (c *testClient) waitAnyEvent(names ...string) (string, map[string]interface{}) {
+	c.t.Helper()
+	allowed := map[string]struct{}{}
+	for _, name := range names {
+		allowed[name] = struct{}{}
+	}
+	for i := 0; i < len(c.pending); i++ {
+		event := c.pending[i]
+		eventName, _ := event["event"].(string)
+		if _, ok := allowed[eventName]; ok {
+			c.pending = append(c.pending[:i], c.pending[i+1:]...)
+			return eventName, event
+		}
+	}
+	for {
+		msg := c.nextMessage()
+		msgType, _ := msg["type"].(string)
+		if msgType != "event" {
+			c.t.Fatalf("expected event, got non-event message: %#v", msg)
+		}
+		eventName, _ := msg["event"].(string)
+		if _, ok := allowed[eventName]; ok {
+			return eventName, msg
 		}
 		c.pending = append(c.pending, msg)
 	}

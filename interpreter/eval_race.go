@@ -11,6 +11,9 @@ func (e *Evaluator) evalRaceExpression(node *ast.RaceExpression, env *Environmen
 		if err != nil {
 			return nil, nil, err
 		}
+		if len(children) == 0 {
+			e.bindPendingStepInTask(child)
+		}
 		children = append(children, child)
 	}
 

@@ -57,15 +57,19 @@ type DebugController struct {
 	startPaused bool
 	stepMode    debugStepMode
 	stepDepth   int
+	stepTask    int
 	pauseReq    bool
 	terminate   bool
 	paused      bool
 	done        bool
 	skipFile    string
 	skipLine    int
+	skipTask    int
+	pausedTask  int
 
-	current DebugEvent
-	stack   []DebugFrame
+	current     DebugEvent
+	stopped     DebugEvent
+	stackByTask map[int][]DebugFrame
 
 	result Value
 	err    error
@@ -83,9 +87,17 @@ func NewDebugController(defaultFile string) *DebugController {
 		startPaused:   true,
 		pauseCh:       make(chan struct{}, 1),
 		doneCh:        make(chan struct{}),
+		stackByTask:   make(map[int][]DebugFrame),
 	}
 	c.cond = sync.NewCond(&c.mu)
 	return c
+}
+
+func normalizeTaskID(taskID int) int {
+	if taskID <= 0 {
+		return 1
+	}
+	return taskID
 }
 
 func (c *DebugController) SetStartPaused(paused bool) {
@@ -166,8 +178,10 @@ func (c *DebugController) Continue() {
 	c.mu.Lock()
 	c.stepMode = debugStepNone
 	c.stepDepth = 0
+	c.stepTask = 0
 	c.armSkipCurrentLocationLocked()
 	c.paused = false
+	c.pausedTask = 0
 	c.cond.Broadcast()
 	c.mu.Unlock()
 }
@@ -175,19 +189,37 @@ func (c *DebugController) Continue() {
 func (c *DebugController) Step() {
 	c.mu.Lock()
 	c.stepMode = debugStepIn
-	c.stepDepth = c.current.FrameDepth
+	c.stepDepth = c.stopped.FrameDepth
+	// Step-in may cross into newly spawned task boundaries.
+	c.stepTask = 0
 	c.armSkipCurrentLocationLocked()
 	c.paused = false
+	c.pausedTask = 0
 	c.cond.Broadcast()
+	c.mu.Unlock()
+}
+
+// BindPendingStepInTask locks a pending step-in to a specific task. This is
+// used for deterministic stepping into spawned expressions.
+func (c *DebugController) BindPendingStepInTask(taskID int) {
+	if taskID <= 0 {
+		return
+	}
+	c.mu.Lock()
+	if c.stepMode == debugStepIn && c.stepTask == 0 {
+		c.stepTask = taskID
+	}
 	c.mu.Unlock()
 }
 
 func (c *DebugController) StepOver() {
 	c.mu.Lock()
 	c.stepMode = debugStepOver
-	c.stepDepth = c.current.FrameDepth
+	c.stepDepth = c.stopped.FrameDepth
+	c.stepTask = normalizeTaskID(c.stopped.TaskID)
 	c.armSkipCurrentLocationLocked()
 	c.paused = false
+	c.pausedTask = 0
 	c.cond.Broadcast()
 	c.mu.Unlock()
 }
@@ -195,9 +227,11 @@ func (c *DebugController) StepOver() {
 func (c *DebugController) StepOut() {
 	c.mu.Lock()
 	c.stepMode = debugStepOut
-	c.stepDepth = c.current.FrameDepth
+	c.stepDepth = c.stopped.FrameDepth
+	c.stepTask = normalizeTaskID(c.stopped.TaskID)
 	c.armSkipCurrentLocationLocked()
 	c.paused = false
+	c.pausedTask = 0
 	c.cond.Broadcast()
 	c.mu.Unlock()
 }
@@ -212,6 +246,7 @@ func (c *DebugController) Quit() {
 	c.mu.Lock()
 	c.terminate = true
 	c.paused = false
+	c.pausedTask = 0
 	c.cond.Broadcast()
 	c.mu.Unlock()
 }
@@ -245,28 +280,27 @@ func (c *DebugController) IsPaused() bool {
 
 func (c *DebugController) CurrentEvent() (DebugEvent, bool) {
 	c.mu.Lock()
-	event := c.current
 	paused := c.paused
+	event := c.current
+	if paused {
+		event = c.stopped
+	}
 	c.mu.Unlock()
 	return event, paused
 }
 
 func (c *DebugController) Stack() []DebugFrame {
 	c.mu.Lock()
-	out := make([]DebugFrame, len(c.stack))
-	copy(out, c.stack)
+	stack := c.activeStackLocked()
+	out := make([]DebugFrame, len(stack))
+	copy(out, stack)
 	c.mu.Unlock()
 	return out
 }
 
 func (c *DebugController) Locals() map[string]Value {
 	c.mu.Lock()
-	var env *Environment
-	if len(c.stack) > 0 {
-		env = c.stack[len(c.stack)-1].Env
-	} else {
-		env = c.current.Env
-	}
+	env := c.activeEnvLocked()
 	c.mu.Unlock()
 	if env == nil {
 		return map[string]Value{}
@@ -276,12 +310,7 @@ func (c *DebugController) Locals() map[string]Value {
 
 func (c *DebugController) CurrentEnv() *Environment {
 	c.mu.Lock()
-	var env *Environment
-	if len(c.stack) > 0 {
-		env = c.stack[len(c.stack)-1].Env
-	} else {
-		env = c.current.Env
-	}
+	env := c.activeEnvLocked()
 	c.mu.Unlock()
 	return env
 }
@@ -292,20 +321,29 @@ func (c *DebugController) EnvForFrame(displayIndex int) (*Environment, error) {
 	if displayIndex < 0 {
 		return nil, fmt.Errorf("frame index must be >= 0")
 	}
-	if len(c.stack) == 0 {
+	// For selected top frame, expose current lexical environment to include
+	// block-local bindings within the frame.
+	if displayIndex == 0 {
+		if env := c.activeEventLocked().Env; env != nil {
+			return env, nil
+		}
+	}
+	stack := c.activeStackLocked()
+	if len(stack) == 0 {
 		if displayIndex != 0 {
 			return nil, fmt.Errorf("frame #%d out of range", displayIndex)
 		}
-		if c.current.Env == nil {
+		env := c.activeEventLocked().Env
+		if env == nil {
 			return nil, fmt.Errorf("no debug environment available")
 		}
-		return c.current.Env, nil
+		return env, nil
 	}
-	if displayIndex >= len(c.stack) {
+	if displayIndex >= len(stack) {
 		return nil, fmt.Errorf("frame #%d out of range", displayIndex)
 	}
-	idx := len(c.stack) - 1 - displayIndex
-	env := c.stack[idx].Env
+	idx := len(stack) - 1 - displayIndex
+	env := stack[idx].Env
 	if env == nil {
 		return nil, fmt.Errorf("frame #%d has no environment", displayIndex)
 	}
@@ -327,6 +365,7 @@ func (c *DebugController) Finish(result Value, err error) {
 	c.err = err
 	c.done = true
 	c.paused = false
+	c.pausedTask = 0
 	c.cond.Broadcast()
 	c.mu.Unlock()
 
@@ -337,21 +376,37 @@ func (c *DebugController) Finish(result Value, err error) {
 
 func (c *DebugController) BeforeNode(event DebugEvent) error {
 	c.mu.Lock()
-	c.current = event
+	event.TaskID = normalizeTaskID(event.TaskID)
 
 	if c.terminate {
 		c.mu.Unlock()
 		return &DebugTerminatedError{}
 	}
 
+	for c.paused && c.pausedTask != event.TaskID && !c.done && !c.terminate {
+		c.cond.Wait()
+	}
+	if c.terminate {
+		c.mu.Unlock()
+		return &DebugTerminatedError{}
+	}
+	if c.done {
+		c.mu.Unlock()
+		return nil
+	}
+
+	c.current = event
+
 	if c.shouldPauseLocked(event) {
 		c.paused = true
+		c.pausedTask = event.TaskID
+		c.stopped = event
 		select {
 		case c.pauseCh <- struct{}{}:
 		default:
 		}
 
-		for c.paused && !c.done {
+		for c.paused && !c.done && !c.terminate {
 			c.cond.Wait()
 		}
 		if c.terminate {
@@ -370,16 +425,52 @@ func (c *DebugController) AfterNode(_ DebugEvent, _ Value, _ *Signal, _ error) e
 
 func (c *DebugController) OnFramePush(frame DebugFrame) {
 	c.mu.Lock()
-	c.stack = append(c.stack, frame)
+	taskID := normalizeTaskID(frame.TaskID)
+	frame.TaskID = taskID
+	c.stackByTask[taskID] = append(c.stackByTask[taskID], frame)
 	c.mu.Unlock()
 }
 
 func (c *DebugController) OnFramePop(frame DebugFrame) {
 	c.mu.Lock()
-	if n := len(c.stack); n > 0 {
-		c.stack = c.stack[:n-1]
+	taskID := normalizeTaskID(frame.TaskID)
+	stack := c.stackByTask[taskID]
+	if n := len(stack); n > 0 {
+		c.stackByTask[taskID] = stack[:n-1]
+		if len(c.stackByTask[taskID]) == 0 {
+			delete(c.stackByTask, taskID)
+		}
 	}
 	c.mu.Unlock()
+}
+
+func (c *DebugController) activeEventLocked() DebugEvent {
+	if c.paused {
+		return c.stopped
+	}
+	return c.current
+}
+
+func (c *DebugController) activeStackLocked() []DebugFrame {
+	event := c.activeEventLocked()
+	taskID := normalizeTaskID(event.TaskID)
+	if c.paused && c.pausedTask > 0 {
+		taskID = c.pausedTask
+	}
+	return c.stackByTask[taskID]
+}
+
+func (c *DebugController) activeEnvLocked() *Environment {
+	// Prefer the current lexical scope (event env) so locals from nested blocks
+	// (for/if/match bodies) are visible while stepping.
+	if env := c.activeEventLocked().Env; env != nil {
+		return env
+	}
+	stack := c.activeStackLocked()
+	if len(stack) > 0 {
+		return stack[len(stack)-1].Env
+	}
+	return nil
 }
 
 func (c *DebugController) shouldPauseLocked(event DebugEvent) bool {
@@ -395,14 +486,24 @@ func (c *DebugController) shouldPauseLocked(event DebugEvent) bool {
 		return false
 	}
 	if c.skipLine > 0 {
-		if event.Filename == c.skipFile && event.Line == c.skipLine {
-			return false
+		taskID := normalizeTaskID(event.TaskID)
+		if c.skipTask == 0 || taskID == c.skipTask {
+			if event.Filename == c.skipFile && event.Line == c.skipLine {
+				return false
+			}
+			// We left the skipped location on the same task, re-enable breakpoint checks.
+			c.skipFile = ""
+			c.skipLine = 0
+			c.skipTask = 0
 		}
-		c.skipFile = ""
-		c.skipLine = 0
 	}
 	if c.shouldPauseForStepLocked(event) {
 		return true
+	}
+	if c.stepMode != debugStepNone && c.stepTask > 0 && normalizeTaskID(event.TaskID) != c.stepTask {
+		// While a step operation is in progress, only pause the stepped task.
+		// This avoids unrelated concurrent tasks stealing the next stop.
+		return false
 	}
 	if lines := c.breakpoints[event.Filename]; lines != nil {
 		_, ok := lines[event.Line]
@@ -412,17 +513,22 @@ func (c *DebugController) shouldPauseLocked(event DebugEvent) bool {
 }
 
 func (c *DebugController) shouldPauseForStepLocked(event DebugEvent) bool {
+	if c.stepTask > 0 && normalizeTaskID(event.TaskID) != c.stepTask {
+		return false
+	}
 	switch c.stepMode {
 	case debugStepNone:
 		return false
 	case debugStepIn:
 		c.stepMode = debugStepNone
 		c.stepDepth = 0
+		c.stepTask = 0
 		return true
 	case debugStepOver:
 		if event.FrameDepth <= c.stepDepth {
 			c.stepMode = debugStepNone
 			c.stepDepth = 0
+			c.stepTask = 0
 			return true
 		}
 		return false
@@ -430,11 +536,13 @@ func (c *DebugController) shouldPauseForStepLocked(event DebugEvent) bool {
 		if c.stepDepth <= 0 {
 			c.stepMode = debugStepNone
 			c.stepDepth = 0
+			c.stepTask = 0
 			return false
 		}
 		if event.FrameDepth < c.stepDepth {
 			c.stepMode = debugStepNone
 			c.stepDepth = 0
+			c.stepTask = 0
 			return true
 		}
 		return false
@@ -444,8 +552,10 @@ func (c *DebugController) shouldPauseForStepLocked(event DebugEvent) bool {
 }
 
 func (c *DebugController) armSkipCurrentLocationLocked() {
-	if c.paused && c.current.Line > 0 {
-		c.skipFile = c.current.Filename
-		c.skipLine = c.current.Line
+	ev := c.activeEventLocked()
+	if c.paused && ev.Line > 0 {
+		c.skipFile = ev.Filename
+		c.skipLine = ev.Line
+		c.skipTask = normalizeTaskID(ev.TaskID)
 	}
 }

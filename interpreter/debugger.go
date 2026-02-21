@@ -12,6 +12,7 @@ type DebugEvent struct {
 	Column     int
 	NodeType   string
 	FrameDepth int
+	TaskID     int
 	Env        *Environment
 }
 
@@ -23,6 +24,7 @@ type DebugFrame struct {
 	Line     int
 	Column   int
 	Depth    int
+	TaskID   int
 	Env      *Environment
 }
 
@@ -57,6 +59,7 @@ func (e *Evaluator) debugEvent(node ast.Node, env *Environment) DebugEvent {
 		Filename:   e.filename,
 		NodeType:   fmt.Sprintf("%T", node),
 		FrameDepth: len(e.debugFrames),
+		TaskID:     e.debugTaskID(),
 		Env:        env,
 	}
 	if tok := tokenFromNode(node); tok != nil {
@@ -75,6 +78,7 @@ func (e *Evaluator) pushDebugFrame(name string, node ast.Node, env *Environment)
 		Name:     name,
 		Filename: e.filename,
 		Depth:    len(e.debugFrames) + 1,
+		TaskID:   e.debugTaskID(),
 		Env:      env,
 	}
 	e.debugFrameSeq++
@@ -86,6 +90,13 @@ func (e *Evaluator) pushDebugFrame(name string, node ast.Node, env *Environment)
 	if d, ok := e.debugger.(FrameAwareDebugger); ok {
 		d.OnFramePush(frame)
 	}
+}
+
+func (e *Evaluator) debugTaskID() int {
+	if e.currentTask != nil && e.currentTask.debugID > 0 {
+		return e.currentTask.debugID
+	}
+	return 1
 }
 
 func (e *Evaluator) popDebugFrame() {

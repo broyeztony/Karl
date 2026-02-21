@@ -13,6 +13,7 @@ import (
 type runtimeState struct {
 	mu                sync.Mutex
 	tasks             map[*Task]struct{}
+	nextTaskDebugID   int
 	taskFailurePolicy string
 	fatalTaskFailure  error
 	fatalOnce         sync.Once
@@ -31,6 +32,7 @@ func newRuntimeState() *runtimeState {
 	envSnapshot := os.Environ()
 	return &runtimeState{
 		tasks:             make(map[*Task]struct{}),
+		nextTaskDebugID:   1,
 		taskFailurePolicy: TaskFailurePolicyFailFast,
 		fatalCh:           make(chan struct{}),
 		argv:              []string{},
@@ -48,6 +50,17 @@ func (r *runtimeState) registerTask(t *Task) {
 	r.mu.Lock()
 	r.tasks[t] = struct{}{}
 	r.mu.Unlock()
+}
+
+func (r *runtimeState) nextDebugTaskID() int {
+	if r == nil {
+		return 1
+	}
+	r.mu.Lock()
+	r.nextTaskDebugID++
+	id := r.nextTaskDebugID
+	r.mu.Unlock()
+	return id
 }
 
 func (r *runtimeState) snapshotTasks() []*Task {
