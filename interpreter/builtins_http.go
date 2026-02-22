@@ -10,6 +10,8 @@ import (
 
 func registerHTTPBuiltins() {
 	builtins["http"] = &Builtin{Name: "http", Fn: builtinHTTP}
+	builtins["httpServe"] = &Builtin{Name: "httpServe", Fn: builtinHTTPServe}
+	builtins["httpServerStop"] = &Builtin{Name: "httpServerStop", Fn: builtinHTTPServerStop}
 }
 
 func builtinHTTP(e *Evaluator, args []Value) (Value, error) {

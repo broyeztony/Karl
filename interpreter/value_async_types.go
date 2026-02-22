@@ -34,6 +34,7 @@ type Channel struct {
 	Ch        chan Value
 	Closed    bool
 	closeOnce sync.Once
+	onClose   func()
 }
 
 func (c *Channel) Type() ValueType { return CHANNEL }
@@ -41,6 +42,9 @@ func (c *Channel) Inspect() string { return "<channel>" }
 func (c *Channel) Close() {
 	c.closeOnce.Do(func() {
 		c.Closed = true
+		if c.onClose != nil {
+			c.onClose()
+		}
 		close(c.Ch)
 	})
 }

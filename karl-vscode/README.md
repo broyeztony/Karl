@@ -10,7 +10,7 @@ Beautiful syntax highlighting for the Karl programming language!
 - Keywords: `let`, `if`, `else`, `for`, `match`, `wait`, etc.
 - Async operators: `&` (spawn), `!&` (race)
 - Arrow functions: `->`
-- Built-in functions: `http`, `decodeJson`, `map`, `set`, `rendezvous`
+- Built-in functions across runtime, SQL, HTTP server, UUID/time/hash, collections, and concurrency
 - String and number literals
 - Comments
 
@@ -96,8 +96,9 @@ results
 - **Increment:** `++`, `--`
 
 ### Built-in Functions
-- **I/O:** `log`, `http`, `decodeJson`, `encodeJson`
-- **Concurrency:** `rendezvous`, `send`, `recv`, `done`, `then`, `wait`, `sleep`
+- **I/O + Runtime:** `log`, `http`, `httpServe`, `httpServerStop`, `jsonDecode`, `jsonEncode`, `sqlOpen`, `sqlClose`, `sqlExec`, `sqlQuery`, `sqlQueryOne`, `sqlBegin`, `sqlCommit`, `sqlRollback`
+- **Concurrency:** `rendezvous`, `send`, `recv`, `done`, `then`, `wait`, `sleep`, `signalWatch`
+- **IDs + Time + Hash:** `uuidNew`, `uuidValid`, `uuidParse`, `now`, `timeParseRFC3339`, `timeFormatRFC3339`, `timeAdd`, `timeDiff`, `sha256`
 - **Collections:** `map`, `set`, `filter`, `reduce`, `sum`, `find`, `sort`, `length`
 - **Strings:** `trim`, `toLower`, `toUpper`, `split`, `chars`, `contains`, `startsWith`, `endsWith`, `replace`
 - **Error:** `fail`

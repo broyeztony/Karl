@@ -17,7 +17,7 @@ x += 1
 x++
 arr[1..]
 obj.field
-decodeJson("{}") ? { foo: "bar", }
+jsonDecode("{}") ? { foo: "bar", }
 & taskA()
 !& { taskA(), taskB() }
 `
@@ -79,7 +79,7 @@ decodeJson("{}") ? { foo: "bar", }
 		{token.DOT, "."},
 		{token.IDENT, "field"},
 
-		{token.IDENT, "decodeJson"},
+		{token.IDENT, "jsonDecode"},
 		{token.LPAREN, "("},
 		{token.STRING, "{}"},
 		{token.RPAREN, ")"},

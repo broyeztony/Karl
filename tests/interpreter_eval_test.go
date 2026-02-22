@@ -259,7 +259,7 @@ func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
 }
 
 func TestEvalEncodeDecodeJSON(t *testing.T) {
-	val := mustEval(t, `decodeJson(encodeJson({ a: 1, b: [true, null, "x"] }))`)
+	val := mustEval(t, `jsonDecode(jsonEncode({ a: 1, b: [true, null, "x"] }))`)
 	expected := &Object{Pairs: map[string]Value{
 		"a": &Integer{Value: 1},
 		"b": &Array{Elements: []Value{
@@ -373,7 +373,7 @@ func TestTruthyFalsyMatchGuard(t *testing.T) {
 }
 
 func TestEvalObjectStringIndexRead(t *testing.T) {
-	val := mustEval(t, `let obj = decodeJson("{\"a-field\": 42}"); obj["a-field"]`)
+	val := mustEval(t, `let obj = jsonDecode("{\"a-field\": 42}"); obj["a-field"]`)
 	assertInteger(t, val, 42)
 }
 
@@ -418,14 +418,14 @@ func TestEvalArrayIndexStillRequiresInteger(t *testing.T) {
 }
 
 func TestEvalDecodeJSONOverflow(t *testing.T) {
-	_, err := evalInput(t, `decodeJson("999999999999999999999")`)
+	_, err := evalInput(t, `jsonDecode("999999999999999999999")`)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestEvalRecoverDecodeJSON(t *testing.T) {
-	val := mustEval(t, `decodeJson("{\"foo\": }") ? { foo: "bar", }`)
+	val := mustEval(t, `jsonDecode("{\"foo\": }") ? { foo: "bar", }`)
 	expected := &Object{Pairs: map[string]Value{
 		"foo": &String{Value: "bar"},
 	}}

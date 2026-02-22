@@ -26,6 +26,6 @@ let grouped = for i < withTotal.length with i = 0, acc = map() {
 
 // Convert map values to array and encode as JSON
 let reportArray = grouped.values()
-let report = encodeJson(reportArray)
+let report = jsonEncode(reportArray)
 
 report

@@ -20,13 +20,13 @@ func decodeJSONValue(value interface{}) (Value, error) {
 		if strings.ContainsAny(raw, ".eE") {
 			f, err := strconv.ParseFloat(raw, 64)
 			if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
-				return nil, recoverableError("decodeJson", "decodeJson invalid float: "+raw)
+				return nil, recoverableError("jsonDecode", "jsonDecode invalid float: "+raw)
 			}
 			return &Float{Value: f}, nil
 		}
 		i, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
-			return nil, recoverableError("decodeJson", "decodeJson integer overflow: "+raw)
+			return nil, recoverableError("jsonDecode", "jsonDecode integer overflow: "+raw)
 		}
 		return &Integer{Value: i}, nil
 	case []interface{}:
@@ -50,6 +50,6 @@ func decodeJSONValue(value interface{}) (Value, error) {
 		}
 		return &Object{Pairs: out}, nil
 	default:
-		return nil, recoverableError("decodeJson", "decodeJson unsupported value")
+		return nil, recoverableError("jsonDecode", "jsonDecode unsupported value")
 	}
 }

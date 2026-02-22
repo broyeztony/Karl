@@ -21,6 +21,9 @@ const (
 	TASK    ValueType = "TASK"
 	CHANNEL ValueType = "CHANNEL"
 	PARTIAL ValueType = "PARTIAL"
+	DB      ValueType = "DB"
+	TX      ValueType = "TX"
+	SERVER  ValueType = "SERVER"
 )
 
 type Value interface {
