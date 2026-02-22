@@ -9,11 +9,12 @@
 - runbook blocker: safer optional access ergonomics (avoid missing-property footguns in workflows)
 - runbook blocker: durable state/checkpoint API for crash-safe resume
 - runbook blocker: scheduler/trigger runtime (cron, interval, event/webhook)
-- runbook blocker: complete I/O primitives (env, argv/stdin scan, fs, process exec, http client/server)
+- runbook blocker: process execution primitive (I/O now covers env/argv/stdin scan, fs, and http client/server)
 - runbook blocker: secrets/config boundary with redaction-safe error/log behavior
 - runbook blocker: observability API (structured logs, step events, metrics, correlation IDs)
 - phase-1 runtime I/O primitives (`argv`, `programPath`, `environ`, `env`, `readLine`) ✅
-- add a httpServer built-in
+- add a httpServer built-in ✅
+- add runtime foundations for Vigil port (sql*, signalWatch, uuid/time helpers, sha256) ✅
 - build a debugger (breakpoints, step in/over/out, stack/locals inspection; CLI first, DAP later)
 - build a notebook system for Karl like Jupyter using the repl server
 - add binary data support
@@ -22,7 +23,7 @@
 - Parser: consider treating newlines as statement boundaries to reduce adjacency ambiguity.
 - Extend test coverage when new syntax is added (parser + interpreter + examples).
 - Brainstorm objects versus maps versus mutability versus shapes
-- Recover block that run for any situation where the runtime throws an expection? ✅
+- recover block that runs for runtime throw situations (`expr ? { ... }`) ✅
 - string interpolation
 - make a <task> cancelable ✅
 
