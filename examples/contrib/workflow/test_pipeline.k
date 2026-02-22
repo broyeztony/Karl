@@ -267,7 +267,9 @@ let duration3 = now() - startTime3
 
 if result3.success {
     log("\n✅ TEST 3 PASSED: Processed", largeItems.length, "items in", duration3, "ms")
-    let throughput = largeItems.length * 1000 / duration3
+    // Duration can be 0 ms on very fast runners; avoid divide-by-zero in throughput display.
+    let safeDuration = if duration3 < 1 { 1 } else { duration3 }
+    let throughput = largeItems.length * 1000 / safeDuration
     log("Throughput:", throughput, "items/second")
 } else {
     log("\n❌ TEST 3 FAILED")
