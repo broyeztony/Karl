@@ -63,6 +63,9 @@ karl loom
 - `examples/`  
   Feature-focused Karl programs, from basics to concurrency and workflow demos. Start with [examples/README.md](examples/README.md).
 
+- `vigil_in_karl`  
+  Full migration of the Vigil app to Karl (mock provider API, discovery worker, dedupe + PostgreSQL, Docker runbook): [broyeztony/vigil_in_karl](https://github.com/broyeztony/vigil_in_karl).
+
 - Notebook + Jupyter integration (`karl notebook`, `kernel/`)  
   Run `.knb` notebooks from CLI and use Karl inside Jupyter Lab/Notebook via the Karl kernel. See [notebook/README.md](notebook/README.md) and [kernel/README.md](kernel/README.md).
 
