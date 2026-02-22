@@ -85,6 +85,13 @@ func (e *Evaluator) SetInput(input io.Reader) {
 	e.runtime.setInput(input)
 }
 
+func (e *Evaluator) SetSQLDriver(driver string) {
+	if e.runtime == nil {
+		e.runtime = newRuntimeState()
+	}
+	e.runtime.setSQLDriver(driver)
+}
+
 func (e *Evaluator) cloneForTask(task *Task) *Evaluator {
 	return &Evaluator{
 		source:      e.source,

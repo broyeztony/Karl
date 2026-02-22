@@ -78,7 +78,7 @@ let getStateFilePath = (workflowId, config) -> {
 // Save workflow state to disk
 let saveState = (workflowId, state, config) -> {
     let serialized = serializeWorkflowState(workflowId, state)
-    let json = encodeJson(serialized)
+    let json = jsonEncode(serialized)
     let filePath = getStateFilePath(workflowId, config)
     
     log("[STORAGE] Saving state for workflow:", workflowId)
@@ -110,7 +110,7 @@ let loadState = (workflowId, config) -> {
         log("[STORAGE] No saved state found for:", workflowId)
         { success: false, error: "No saved state" }
     } else {
-        let parseResult = decodeJson(readResult.data) ? {
+        let parseResult = jsonDecode(readResult.data) ? {
             { success: false, error: "Failed to parse state JSON" }
         }
         

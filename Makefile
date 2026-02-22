@@ -4,9 +4,14 @@ GO ?= go
 GOCACHE_DIR ?= /tmp/karl-go-cache
 KARL_BIN ?= ./karl
 WASM_OUT ?= assets/playground/karl.wasm
+VSCODE_EXT_DIR ?= karl-vscode
+VSCODE_CLI ?= code
+CURSOR_CLI ?= cursor
 GO_CMD = GOCACHE=$(GOCACHE_DIR) $(GO)
+LATEST_VSIX = $$(ls -t $(VSCODE_EXT_DIR)/*.vsix 2>/dev/null | head -1)
 
-.PHONY: help build build-karl build-wasm build-all test test-nocache lint examples workflow ci clean
+.PHONY: help build build-karl build-wasm build-all test test-nocache lint examples workflow ci clean \
+	vscode-package vscode-install vscode-install-cursor vscode-reinstall
 
 help:
 	@echo "Karl dev commands:"
@@ -19,6 +24,10 @@ help:
 	@echo "  make examples      # run examples runtime suite"
 	@echo "  make workflow      # run workflow contrib suite"
 	@echo "  make ci            # local CI sequence"
+	@echo "  make vscode-package        # package VS Code extension (.vsix)"
+	@echo "  make vscode-install        # reinstall extension in VS Code"
+	@echo "  make vscode-install-cursor # reinstall extension in Cursor"
+	@echo "  make vscode-reinstall      # reinstall extension in VS Code + Cursor"
 
 build: build-karl
 
@@ -51,3 +60,18 @@ ci: test-nocache lint examples workflow
 clean:
 	rm -f karl
 	$(GO_CMD) clean -testcache
+
+vscode-package:
+	cd $(VSCODE_EXT_DIR) && npm install && npm run package
+
+vscode-install: vscode-package
+	@VSIX="$(LATEST_VSIX)"; \
+	if [ -z "$$VSIX" ]; then echo "No .vsix found in $(VSCODE_EXT_DIR)"; exit 1; fi; \
+	$(VSCODE_CLI) --install-extension "$$VSIX" --force
+
+vscode-install-cursor: vscode-package
+	@VSIX="$(LATEST_VSIX)"; \
+	if [ -z "$$VSIX" ]; then echo "No .vsix found in $(VSCODE_EXT_DIR)"; exit 1; fi; \
+	$(CURSOR_CLI) --install-extension "$$VSIX" --force
+
+vscode-reinstall: vscode-install vscode-install-cursor

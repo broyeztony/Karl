@@ -22,7 +22,7 @@ let check_endpoint = (endpoint, worker_id, ch) -> {
     
     // Handle the response with error recovery
     let result = task.then(response -> {
-        let body_parsed = decodeJson(response.body) ? { error: "parse failed", }
+        let body_parsed = jsonDecode(response.body) ? { error: "parse failed", }
         
         {
             worker_id: worker_id,

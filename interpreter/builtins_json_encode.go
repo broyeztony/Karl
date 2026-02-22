@@ -12,7 +12,7 @@ func encodeJSONValue(value Value) (interface{}, error) {
 		return v.Value, nil
 	case *Float:
 		if math.IsNaN(v.Value) || math.IsInf(v.Value, 0) {
-			return nil, &RuntimeError{Message: "encodeJson cannot encode NaN or Inf"}
+			return nil, &RuntimeError{Message: "jsonEncode cannot encode NaN or Inf"}
 		}
 		return v.Value, nil
 	case *String:
@@ -56,7 +56,7 @@ func encodeJSONValue(value Value) (interface{}, error) {
 		out := make(map[string]interface{}, len(v.Pairs))
 		for k, val := range v.Pairs {
 			if k.Type != STRING && k.Type != CHAR {
-				return nil, &RuntimeError{Message: "encodeJson only supports map with string keys"}
+				return nil, &RuntimeError{Message: "jsonEncode only supports map with string keys"}
 			}
 			enc, err := encodeJSONValue(val)
 			if err != nil {
@@ -66,6 +66,6 @@ func encodeJSONValue(value Value) (interface{}, error) {
 		}
 		return out, nil
 	default:
-		return nil, &RuntimeError{Message: "encodeJson does not support " + string(value.Type())}
+		return nil, &RuntimeError{Message: "jsonEncode does not support " + string(value.Type())}
 	}
 }

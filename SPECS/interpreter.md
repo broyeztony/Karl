@@ -238,7 +238,7 @@ Snapshot semantics:
   the fallback block runs and its value is returned.
 - Inside the fallback block, `error` is bound to `{ kind: String, message: String }`.
   - Runtime errors use `kind = "runtime"`.
-  - Builtin recoverable errors keep their specific `kind` (for example `decodeJson`, `http`, `fail`).
+  - Builtin recoverable errors keep their specific `kind` (for example `jsonDecode`, `http`, `fail`).
 
 Errors not catchable by `?`:
 - `exit(...)` (explicit hard stop)
@@ -248,7 +248,7 @@ Errors not catchable by `?`:
 Example:
 
 ```
-let parsed = decodeJson(raw) ? {
+let parsed = jsonDecode(raw) ? {
     log("bad json:", error.message)
     { foo: "default" }
 }
@@ -490,13 +490,21 @@ Implementation details (current runtime):
 - `channel()` -> Rendezvous (alias)
 - `sleep(ms)` -> Unit (yields)
 - `now()` -> Int (epoch ms)
+- `timeParseRFC3339(text)` -> Int (epoch ms)
+- `timeFormatRFC3339(ms)` -> String
+- `timeAdd(ms, deltaMs)` -> Int
+- `timeDiff(aMs, bMs)` -> Int
 - `exit(message)` -> no return (terminates)
 - `fail(message)` -> no return (recoverable error)
 - `log(...values)` -> Unit
 - `str(value)` -> String
 - `parseInt(string)` -> Int
-- `encodeJson(value)` -> String
-- `decodeJson(text)` -> Value
+- `sha256(text)` -> String (hex digest)
+- `uuidNew()` -> String
+- `uuidValid(text)` -> Bool
+- `uuidParse(text)` -> String (canonical)
+- `jsonEncode(value)` -> String
+- `jsonDecode(text)` -> Value
 - `readFile(path)` -> String
 - `writeFile(path, data)` -> Unit
 - `appendFile(path, data)` -> Unit
@@ -504,6 +512,17 @@ Implementation details (current runtime):
 - `exists(path)` -> Bool
 - `listDir(path)` -> Array<String>
 - `http({ method, url, headers, body, })` -> { status, headers, body, }
+- `httpServe({ addr, routes, })` -> Server
+- `httpServerStop(server)` -> Unit
+- `signalWatch([\"SIGINT\", \"SIGTERM\", ...])` -> Channel<String>
+- `sqlOpen(dsn)` -> Db
+- `sqlClose(db)` -> Unit
+- `sqlExec(connOrTx, query, params)` -> { rowsAffected, }
+- `sqlQuery(connOrTx, query, params)` -> Array<Object>
+- `sqlQueryOne(connOrTx, query, params)` -> Object|null
+- `sqlBegin(db)` -> Tx
+- `sqlCommit(tx)` -> Unit
+- `sqlRollback(tx)` -> Unit
 - `done(rendezvous)` -> Unit (closes rendezvous)
 - `map()` -> Map
 - `set()` -> Set

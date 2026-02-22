@@ -157,11 +157,13 @@ let found = for true with msg = null {
 // - Non-recoverable errors still call exit(), even if wrapped in `? {}`.
 
 // Builtins that can produce recoverable errors:
-// decodeJson, readFile, writeFile, appendFile, deleteFile, exists, listDir, http, fail, readLine
+// jsonDecode, readFile, writeFile, appendFile, deleteFile, exists, listDir, http,
+// sqlOpen, sqlClose, sqlExec, sqlQuery, sqlQueryOne, sqlBegin, sqlCommit, sqlRollback,
+// uuidParse, timeParseRFC3339, fail, readLine
 
 // Example: recover from bad JSON
 let raw = "{\"foo\":\"bar\"}"
-let parsed = decodeJson(raw) ? {
+let parsed = jsonDecode(raw) ? {
     log("bad json:", error.message)
     { foo: "default" }
 }
@@ -174,9 +176,9 @@ let divide = (a, b) -> {
 let quotient = divide(10, 0) ? { 0 }
 
 // Example: nested recoverable errors
-let config = decodeJson(readFile("config.json")) ? {
+let config = jsonDecode(readFile("config.json")) ? {
     log("config error:", error.message)
-    decodeJson("{\"mode\":\"safe\"}") ? { mode: "safe", }
+    jsonDecode("{\"mode\":\"safe\"}") ? { mode: "safe", }
 }
 
 // Explicit checks before calling fallible operations

@@ -289,7 +289,7 @@ Real concurrent I/O - not simulated, actual HTTP requests to live servers:
 - Producer-consumer pattern
 - **Real I/O operations** (not toy examples!)
 - Error handling with `?` operator
-- JSON parsing with `decodeJson()`
+- JSON parsing with `jsonDecode()`
 - Object destructuring
 - Closures capturing endpoint data
 
@@ -489,7 +489,7 @@ Most languages make concurrency hard. Karl makes it **beautiful**:
 
 ### I/O Operations (Showcases)
 - HTTP requests (`http()`)
-- JSON parsing/encoding (`decodeJson()`, `encodeJson()`)
+- JSON parsing/encoding (`jsonDecode()`, `jsonEncode()`)
 - Real network I/O
 - Error handling for I/O operations
 

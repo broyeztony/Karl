@@ -150,7 +150,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.karl",
-                    "match": "\\b(log|sleep|fail|http|decodeJson|encodeJson|map|set|rendezvous)\\b"
+                    "match": "\\b(log|sleep|fail|http|httpServe|httpServerStop|jsonDecode|jsonEncode|sqlOpen|sqlClose|sqlExec|sqlQuery|sqlQueryOne|sqlBegin|sqlCommit|sqlRollback|sha256|uuidNew|uuidValid|uuidParse|now|timeParseRFC3339|timeFormatRFC3339|timeAdd|timeDiff|signalWatch|map|set|rendezvous)\\b"
                 },
                 {
                     "name": "support.function.string.karl",

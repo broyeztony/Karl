@@ -19,7 +19,7 @@ All notable changes to the "Karl Language Support" extension will be documented 
 ### Highlighted Features
 - **Keywords:** let, if, else, for, match, wait, break, continue, etc.
 - **Operators:** ->, &, !&, ?, .., ==, !=, &&, ||, etc.
-- **Built-ins:** http, decodeJson, map, rendezvous, send, recv, filter, etc.
+- **Built-ins:** http, jsonDecode, map, rendezvous, send, recv, filter, etc.
 - **Constants:** true, false, numbers, strings
 
 ---

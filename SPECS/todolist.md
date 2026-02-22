@@ -17,7 +17,7 @@
 - build a debugger (breakpoints, step in/over/out, stack/locals inspection; CLI first, DAP later)
 - build a notebook system for Karl like Jupyter using the repl server
 - add binary data support
-- change divide-by-zero semantics: raise runtime error instead of returning Inf/NaN
+- change divide-by-zero semantics: raise runtime error instead of returning Inf/NaN ✅
 - Keep tests green as syntax/runtime changes land (`gotest`).
 - Parser: consider treating newlines as statement boundaries to reduce adjacency ambiguity.
 - Extend test coverage when new syntax is added (parser + interpreter + examples).

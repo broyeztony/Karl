@@ -10,4 +10,4 @@ let head = word[0..4]
 let tail = word[5..]
 let output = { nums, odds, letters, slice, dropLast, }
 
-encodeJson(output)
+jsonEncode(output)

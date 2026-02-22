@@ -333,7 +333,7 @@ func TestExpressionKinds(t *testing.T) {
 		},
 		{
 			name:  "recover_expression",
-			input: `decodeJson("{}") ? { foo: "bar", }`,
+			input: `jsonDecode("{}") ? { foo: "bar", }`,
 			assert: func(t *testing.T, expr ast.Expression) {
 				re, ok := expr.(*ast.RecoverExpression)
 				if !ok {

@@ -45,8 +45,9 @@ karl-vscode/
 - Increment: `++`, `--`
 
 ✅ **Built-in Functions**
-- I/O: `log`, `http`, `decodeJson`, `encodeJson`
-- Concurrency: `rendezvous`, `send`, `recv`, `done`, `then`, `sleep`
+- I/O + Runtime: `log`, `http`, `httpServe`, `httpServerStop`, `jsonDecode`, `jsonEncode`, `sqlOpen`, `sqlClose`, `sqlExec`, `sqlQuery`, `sqlQueryOne`, `sqlBegin`, `sqlCommit`, `sqlRollback`
+- Concurrency: `rendezvous`, `send`, `recv`, `done`, `then`, `sleep`, `signalWatch`
+- IDs + Time + Hash: `uuidNew`, `uuidValid`, `uuidParse`, `now`, `timeParseRFC3339`, `timeFormatRFC3339`, `timeAdd`, `timeDiff`, `sha256`
 - Collections: `map`, `set`, `filter`, `reduce`, `sum`, `find`, `sort`
 - Strings: `trim`, `toLower`, `split`, `contains`, etc.
 

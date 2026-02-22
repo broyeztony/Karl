@@ -24,6 +24,7 @@ type runtimeState struct {
 	input             io.Reader
 	inputReader       *bufio.Reader
 	inputMu           sync.Mutex
+	sqlDriver         string
 }
 
 func newRuntimeState() *runtimeState {
@@ -36,6 +37,7 @@ func newRuntimeState() *runtimeState {
 		environ:           cloneStrings(envSnapshot),
 		envMap:            makeEnvMap(envSnapshot),
 		input:             os.Stdin,
+		sqlDriver:         "pgx",
 	}
 }
 
@@ -176,6 +178,28 @@ func (r *runtimeState) readLine() (string, bool, error) {
 	default:
 		return "", false, err
 	}
+}
+
+func (r *runtimeState) setSQLDriver(driver string) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.sqlDriver = driver
+	r.mu.Unlock()
+}
+
+func (r *runtimeState) getSQLDriver() string {
+	if r == nil {
+		return "pgx"
+	}
+	r.mu.Lock()
+	driver := r.sqlDriver
+	r.mu.Unlock()
+	if driver == "" {
+		return "pgx"
+	}
+	return driver
 }
 
 func (r *runtimeState) inputBufReader() (*bufio.Reader, error) {
