@@ -424,6 +424,51 @@ func TestEvalDecodeJSONOverflow(t *testing.T) {
 	}
 }
 
+func TestEvalDivisionByZeroInteger(t *testing.T) {
+	_, err := evalInput(t, `1 / 0`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "division by zero") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalDivisionByZeroFloat(t *testing.T) {
+	_, err := evalInput(t, `1.0 / 0`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "division by zero") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalModuloByZero(t *testing.T) {
+	_, err := evalInput(t, `1 % 0`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "modulo by zero") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalDivisionByZeroCompoundAssign(t *testing.T) {
+	_, err := evalInput(t, `let x = 1; x /= 0; x`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "division by zero") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalRecoverDivisionByZero(t *testing.T) {
+	val := mustEval(t, `(1 / 0) ? { 42 }`)
+	assertInteger(t, val, 42)
+}
+
 func TestEvalRecoverDecodeJSON(t *testing.T) {
 	val := mustEval(t, `jsonDecode("{\"foo\": }") ? { foo: "bar", }`)
 	expected := &Object{Pairs: map[string]Value{

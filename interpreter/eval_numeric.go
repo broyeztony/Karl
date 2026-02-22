@@ -31,9 +31,15 @@ func evalNumericInfix(op string, left, right float64, intResult bool) (Value, *S
 	case "*":
 		return numberValue(left*right, intResult), nil, nil
 	case "/":
+		if right == 0 {
+			return nil, nil, &RuntimeError{Message: "division by zero"}
+		}
 		return &Float{Value: left / right}, nil, nil
 	case "%":
 		if intResult {
+			if right == 0 {
+				return nil, nil, &RuntimeError{Message: "modulo by zero"}
+			}
 			return &Integer{Value: int64(left) % int64(right)}, nil, nil
 		}
 		return nil, nil, &RuntimeError{Message: "modulo requires integers"}
