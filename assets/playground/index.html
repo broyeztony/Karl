@@ -213,6 +213,20 @@ log("squares:", nums.map(x -> x * x))
 
 hr()
 
+// Channels communication
+let c = channel()
+// Use spawn or & to start background computations
+spawn (chan -> {
+	chan.send("Hello from thread!")
+    chan.done()
+})(c)
+
+// recv() blocks until a message is ready to read
+log("received:", c.recv())
+log("received: ", c.recv())
+
+hr()
+
 // & runs a group concurrently and returns <task>
 let grouped = & {
     (() -> { sleep(120); "A done" })(),
@@ -241,6 +255,20 @@ let hr = () -> log("\\n----------------------\\n")
 log("hello:", "Karl")
 let nums = 1..6
 log("squares:", nums.map(x -> x * x))
+
+hr()
+
+// Channels communication
+let c = channel()
+// Use spawn or & to start background computations
+spawn (chan -> {
+	chan.send("Hello from thread!")
+    chan.done()
+})(c)
+
+// recv() blocks until a message is ready to read
+log("received:", c.recv())
+log("received: ", c.recv())
 
 hr()
 
