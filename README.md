@@ -21,6 +21,11 @@ Try Karl today in your browser: [karl-lang.org](https://karl-lang.org)
 
 Watch the YouTube video: [**Karl Playground, Loom, Sheets & Jupyter Lab integration**](https://www.youtube.com/watch?v=DKqPl7-Rjg8)
 
+## Real-World Validation
+
+Karl is already used to rebuild a production-style app end-to-end:  
+[`vigil_in_karl`](https://github.com/broyeztony/vigil_in_karl) (mock provider API, discovery worker, dedupe, PostgreSQL, Docker runbook).
+
 ## Start Here in 2 Commands
 
 Install Karl from the latest release binaries:  
