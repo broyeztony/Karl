@@ -176,6 +176,18 @@
 
     <script>
         const EXAMPLES = [
+            `// Fibonacci (expression-based loop)
+let fib = n -> {
+    if n <= 1 { n } else {
+        for i < n with i = 1, a = 0, b = 1 {
+            let next = a + b
+            a = b
+            b = next
+            i++
+        } then b
+    }
+}
+log((0..10).map(fib))`,
             `// Concurrency + race
 let group = & {
     (() -> { sleep(120); "A done" })(),
@@ -223,18 +235,6 @@ let rank = match score {
     case _ -> "D"
 }
 log("rank:", rank)`,
-            `// Fibonacci (expression-based loop)
-let fib = n -> {
-    if n <= 1 { n } else {
-        for i < n with i = 1, a = 0, b = 1 {
-            let next = a + b
-            a = b
-            b = next
-            i++
-        } then b
-    }
-}
-log((0..10).map(fib))`,
             `// File I/O
 let path = "notes.txt"
 writeFile(path, "hello\\n")
