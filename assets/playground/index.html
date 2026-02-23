@@ -84,7 +84,15 @@
             align-items: center;
         }
 
-        .cta-links a {
+        .github-link {
+            position: absolute;
+            bottom: 14px;
+            left: 18px;
+            z-index: 6;
+        }
+
+        .cta-links a,
+        .github-link {
             text-decoration: none;
             color: var(--ink);
             font-size: 12px;
@@ -94,7 +102,9 @@
         }
 
         .cta-links a:hover,
-        .cta-links a:focus-visible {
+        .cta-links a:focus-visible,
+        .github-link:hover,
+        .github-link:focus-visible {
             color: var(--accent-a);
             opacity: 1;
             outline: none;
@@ -174,6 +184,11 @@
                 right: 12px;
             }
 
+            .github-link {
+                bottom: 10px;
+                left: 12px;
+            }
+
             .progress {
                 left: auto;
                 right: 8px;
@@ -198,6 +213,7 @@
             </a>
         </section>
         <section class="right" aria-label="Karl feature examples">
+            <a class="github-link" href="https://github.com/broyeztony/Karl">Github</a>
             <nav class="cta-links" aria-label="Karl quick links">
                 <a href="/bench/">Try in your browser</a>
                 <a href="/sheets/">Open Karl Sheets</a>
