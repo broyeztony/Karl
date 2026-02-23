@@ -185,6 +185,43 @@ spawn (ch -> {
 
 log(c.recv()) // ["Hello from thread", false]
 log(c.recv()) // [null, true]`,
+            `// Strings: indexing + slicing
+let text = "karl-language"
+let chars = text.split("")
+let first = chars[0]
+let dash = chars[4]
+let left = text[..4]
+let right = text[5..]
+let last = chars[chars.length - 1]
+
+log({
+    first: first,
+    dash: dash,
+    left: left,
+    right: right,
+    last: last,
+})`,
+            `// Match + guards
+let score = 87
+let rank = match score {
+    case _ if score >= 90 -> "A"
+    case _ if score >= 80 -> "B"
+    case _ if score >= 70 -> "C"
+    case _ -> "D"
+}
+log("rank:", rank)`,
+            `// Fibonacci (expression-based loop)
+let fib = n -> {
+    if n <= 1 { n } else {
+        for i < n with i = 1, a = 0, b = 1 {
+            let next = a + b
+            a = b
+            b = next
+            i++
+        } then b
+    }
+}
+log((0..10).map(fib))`,
             `// File I/O
 let path = "notes.txt"
 writeFile(path, "hello\\n")
@@ -251,7 +288,7 @@ match cfg.mode {
         ];
 
         const KEYWORDS = new Set([
-            "let", "if", "else", "match", "for", "with", "then",
+            "let", "if", "else", "match", "case", "for", "with", "then",
             "true", "false", "null", "wait", "spawn"
         ]);
 
