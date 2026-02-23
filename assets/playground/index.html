@@ -252,15 +252,55 @@ let fastest = !& {
     (() -> { sleep(30); "fast" })()
 }
 log(wait fastest)`,
-            `// Channels
-let c = channel()
-spawn (ch -> {
-    ch.send("Hello from thread")
-    ch.done()
-})(c)
+            `// Tasks + then()
+let base = & (() -> {
+    sleep(100)
+    20
+})()
 
-log(c.recv()) // ["Hello from thread", false]
-log(c.recv()) // [null, true]`,
+let out = wait base.then(v -> v + 1).then(v -> v * 2)
+log(out)`,
+            `// Channels stream
+let ch = channel()
+
+let producer = & (() -> {
+    ch.send("alpha")
+    ch.send("beta")
+    ch.send("gamma")
+    ch.done()
+})()
+
+let stream = for true with res = ch.recv(), acc = [] {
+    let [v, done] = res
+    if done { break acc }
+    acc += [v]
+    res = ch.recv()
+} then acc
+
+wait producer
+log(stream)`,
+            `// fail() + recover
+let divide = (a, b) -> {
+    if b == 0 { fail("division by zero") }
+    a / b
+}
+
+let result = divide(10, 0) ? {
+    log("recovered:", error.message)
+    0
+}
+log(result)`,
+            `// Destructuring
+let user = { id: "u_1", email: "ana@karl.dev", role: "admin", }
+let { id, email, role, } = user
+
+let nums = [10, 20, 30, 40]
+let [head, second, ...tail, ] = nums
+
+let pair = [7, 9]
+let (a, b) = pair
+
+log({ id, email, role, head, second, tail, a, b, })`,
             `// Strings: indexing + slicing
 let text = "karl-language"
 let chars = text.split("")
@@ -353,7 +393,7 @@ match cfg.mode {
 
         const KEYWORDS = new Set([
             "let", "if", "else", "match", "case", "for", "with", "then",
-            "true", "false", "null", "wait", "spawn"
+            "true", "false", "null", "wait", "spawn", "break"
         ]);
 
         const tokenRe = /\/\/.*$|"(?:\\.|[^"\\])*"|\b[a-zA-Z_][a-zA-Z0-9_]*(?=\()|\b[a-zA-Z_][a-zA-Z0-9_]*\b|\b\d+(?:\.\d+)?\b|->|!&|&&|\|\||==|!=|<=|>=|[=+\-*/%<>]/gm;
