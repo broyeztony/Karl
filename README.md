@@ -17,7 +17,7 @@ Notably, it features:
 - Recover operator (`?`)
 - Concurrency model inspired by Go
 
-Try Karl today in your browser: [karl-lang.org](https://karl-lang.org)
+Try Karl today in your browser: [karl-lang.org/bench](https://karl-lang.org/bench)
 
 Watch the YouTube video: [**Karl Playground, Loom, Sheets & Jupyter Lab integration**](https://www.youtube.com/watch?v=DKqPl7-Rjg8)
 
@@ -34,8 +34,8 @@ karl loom
 ## Next Steps
 
 ### `bench` (Karl Playground)
-`bench` is Karl's browser-first playground experience: run Karl instantly at [karl-lang.org](https://karl-lang.org), no install needed.  
-Run it locally with `karl playground` (default `http://localhost:8081`). See [playground/README.md](playground/README.md).
+`bench` is Karl's browser-first playground experience: run Karl instantly at [karl-lang.org/bench](https://karl-lang.org/bench), no install needed.  
+Run it locally with `karl playground` (default `http://localhost:8081/bench`). See [playground/README.md](playground/README.md).
 
 ### VS Code Plugin
 Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.  

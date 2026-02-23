@@ -23,7 +23,7 @@ karl playground
 go run main.go playground
 ```
 
-This will start a local web server at `http://localhost:8081`. Open this URL in your browser to start coding!
+This will start a local web server at `http://localhost:8081`. Open `http://localhost:8081/bench` in your browser to start coding.
 
 ## How it Works
 
