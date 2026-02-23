@@ -37,14 +37,6 @@ karl loom
 `bench` is Karl's browser-first playground experience: run Karl instantly at [karl-lang.org](https://karl-lang.org), no install needed.  
 Run it locally with `karl playground` (default `http://localhost:8081`). See [playground/README.md](playground/README.md).
 
-### `loom` (Karl REPL)
-`loom` is the interactive Karl REPL/runtime entrypoint for fast experimentation.  
-Start it with:
-```bash
-karl loom
-```
-See [repl/README.md](repl/README.md) for local/remote modes.
-
 ### VS Code Plugin
 Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.  
 Setup and usage: [karl-vscode/README.md](karl-vscode/README.md).
