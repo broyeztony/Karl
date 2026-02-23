@@ -4,6 +4,7 @@ GO ?= go
 GOCACHE_DIR ?= /tmp/karl-go-cache
 KARL_BIN ?= ./karl
 WASM_OUT ?= assets/playground/karl.wasm
+SHEETS_WASM_OUT ?= assets/playground/sheets/karl-sheets.wasm
 VSCODE_EXT_DIR ?= karl-vscode
 VSCODE_CLI ?= code
 CURSOR_CLI ?= cursor
@@ -16,7 +17,7 @@ LATEST_VSIX = $$(ls -t $(VSCODE_EXT_DIR)/*.vsix 2>/dev/null | head -1)
 help:
 	@echo "Karl dev commands:"
 	@echo "  make build         # build karl binary (./karl)"
-	@echo "  make build-wasm    # rebuild playground wasm ($(WASM_OUT))"
+	@echo "  make build-wasm    # rebuild playground + sheets wasm ($(WASM_OUT), $(SHEETS_WASM_OUT))"
 	@echo "  make build-all     # build binary + wasm"
 	@echo "  make test          # run go tests"
 	@echo "  make test-nocache  # run go tests with cache disabled"
@@ -35,7 +36,9 @@ build-karl:
 	$(GO_CMD) build -o karl .
 
 build-wasm:
+	@mkdir -p "$$(dirname $(WASM_OUT))" "$$(dirname $(SHEETS_WASM_OUT))"
 	GOCACHE=$(GOCACHE_DIR) GOOS=js GOARCH=wasm $(GO) build -o $(WASM_OUT) ./wasm
+	GOCACHE=$(GOCACHE_DIR) GOOS=js GOARCH=wasm $(GO) build -o $(SHEETS_WASM_OUT) ./wasm/sheets
 
 build-all: build-karl build-wasm
 

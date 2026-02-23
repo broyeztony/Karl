@@ -47,6 +47,7 @@ See [notebook/README.md](notebook/README.md) and [kernel/README.md](kernel/READM
 
 ### Karl Sheets App
 Use `karl spreadsheet` to run the reactive spreadsheet app where cells evaluate Karl expressions.  
+Try it in your browser at [karl-lang.org/sheets](https://karl-lang.org/sheets).  
 By default it serves on `http://localhost:8080`.
 
 ## CLI Commands
