@@ -1,619 +1,505 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
-    <title>Karl Playground</title>
-    <!-- CodeMirror & Theme -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Karl</title>
     <style>
+        :root {
+            --ink: #1e1e1e;
+            --accent-a: #bd93f9;
+            --accent-b: #ff79c6;
+            --line: #e6e6e6;
+        }
+
         *,
         *::before,
         *::after {
-            font-weight: lighter !important;
+            box-sizing: border-box;
+            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-weight: lighter;
         }
 
+        html,
         body {
             margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #282a36;
-            /* Dracula background */
-            color: #f8f8f2;
-        }
-
-        #toolbar {
-            padding: 10px;
-            background: #21222c;
-            /* Dracula selection/darker */
-            border-bottom: 1px solid #44475a;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        #toolbarCenter {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-left: auto;
-        }
-
-        #container {
-            flex: 1;
-            display: flex;
-            overflow: hidden;
-            /* Ensure CodeMirror scrolls internally */
-        }
-
-        /* CodeMirror Customization */
-        .CodeMirror {
-            flex: 1;
+            width: 100%;
             height: 100%;
-            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: 13px;
-            line-height: 1.5;
+            background: #ffffff;
+            color: var(--ink);
         }
 
-        /* Hide the middle (editor-side) scrollbar while keeping wheel/keyboard scrolling. */
-        .CodeMirror-vscrollbar {
-            display: none !important;
+        .page {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            overflow: hidden;
         }
 
-        .CodeMirror-scroll {
-            margin-right: 0 !important;
-            scrollbar-width: none !important;
-            -ms-overflow-style: none !important;
-        }
-
-        .CodeMirror-scroll::-webkit-scrollbar {
-            width: 0 !important;
-            height: 0 !important;
-            display: none !important;
-        }
-
-        #output {
-            flex: 1;
-            padding: 15px;
-            background: #1e1e1e;
-            /* VS Code dark output style */
-            color: #d4d4d4;
-            font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: 13px;
-            overflow: auto;
-            white-space: pre-wrap;
-            border-left: 1px solid #44475a;
-            margin: 0;
-            line-height: 1.5;
-        }
-
-        button {
-            padding: 8px 16px;
-            cursor: pointer;
-            background: #bd93f9;
-            /* Dracula Purple */
-            color: #282a36;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            transition: background 0.2s;
-        }
-
-        button:hover {
-            background: #ff79c6;
-            /* Dracula Pink */
-        }
-
-        button:disabled {
-            background: #6272a4;
-            /* Dracula Comment */
-            cursor: not-allowed;
-            color: #f8f8f2;
-        }
-
-        #status {
-            font-size: 0.9em;
-            color: #bd93f9;
-        }
-
-        .title {
+        .left {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 18px;
-            color: #f8f8f2;
-            margin-left: 10px;
+            justify-content: center;
+            min-width: 0;
+            min-height: 0;
         }
 
-        .title img {
-            width: 18px;
-            height: 18px;
+        .left a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            text-decoration: none;
+        }
+
+        .left img {
+            width: min(44%, 320px);
+            height: auto;
             display: block;
+            user-select: none;
+            -webkit-user-drag: none;
         }
 
-        label {
-            color: #f8f8f2;
+        .right {
+            border-left: 1px solid var(--line);
+            min-width: 0;
+            min-height: 0;
+            padding: 34px 40px;
+            display: flex;
+            align-items: stretch;
+            justify-content: stretch;
+            position: relative;
         }
 
-        #autoRun {
-            accent-color: #bd93f9;
+        .cta-links {
+            position: absolute;
+            bottom: 14px;
+            right: 18px;
+            z-index: 6;
+            display: inline-flex;
+            gap: 14px;
+            align-items: center;
         }
 
-        #exampleSelect {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background: #44475a;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23f8f8f2' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 10px 6px;
-            color: #f8f8f2;
-            border: 1px solid #6272a4;
-            border-radius: 4px;
-            padding: 7px 34px 7px 10px;
-            font-size: 13px;
-            min-width: 250px;
+        .cta-links a {
+            text-decoration: none;
+            color: var(--ink);
+            font-size: 12px;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 140ms ease, color 140ms ease;
+        }
+
+        .cta-links a:hover,
+        .cta-links a:focus-visible {
+            color: var(--accent-a);
+            opacity: 1;
             outline: none;
         }
 
-        #exampleSelect:hover {
-            border-color: #bd93f9;
+        #example {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            white-space: pre;
+            color: var(--ink);
+            font-size: clamp(14px, 1.45vw, 24px);
+            line-height: 1.55;
+            opacity: 1;
+            transition: opacity 360ms ease;
         }
 
-        #exampleSelect:focus {
-            border-color: #ff79c6;
-            box-shadow: 0 0 0 2px rgba(255, 121, 198, 0.25);
+        #example.fade {
+            opacity: 0;
+        }
+
+        .progress {
+            position: fixed;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 100vh;
+            background: #efefef;
+            overflow: hidden;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .progress__bar {
+            width: 100%;
+            height: 100%;
+            background: var(--accent-a);
+            transform: scaleY(0);
+            transform-origin: center bottom;
+        }
+
+        .tok-keyword,
+        .tok-operator {
+            color: var(--accent-a);
+        }
+
+        .tok-string,
+        .tok-number,
+        .tok-call {
+            color: var(--accent-b);
+        }
+
+        .tok-comment {
+            color: var(--ink);
+            opacity: 0.58;
+        }
+
+        @media (max-width: 980px) {
+            .page {
+                grid-template-columns: 1fr;
+            }
+
+            .left {
+                display: none;
+            }
+
+            .right {
+                border-left: none;
+                padding: 18px 16px;
+            }
+
+            .cta-links {
+                bottom: 10px;
+                right: 12px;
+            }
+
+            .progress {
+                left: auto;
+                right: 8px;
+                top: 0;
+                bottom: 0;
+                transform: none;
+                height: 100vh;
+            }
+
+            #example {
+                font-size: 14px;
+            }
         }
     </style>
-    <script src="wasm_exec.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/simple.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
 </head>
 
 <body>
-    <div id="toolbar">
-        <div class="title"><img src="logo-32x32.png" alt="Karl">bench</div>
-        <div id="toolbarCenter">
-            <button id="runBtn" disabled>Run ▶</button>
-            <span id="status">Loading WASM environment...</span>
-            <label style="font-size: 13px; user-select: none;">
-                <select id="exampleSelect" title="Load a feature example">
-                    <option value="quickstart" selected>Quickstart</option>
-                    <option value="language_concurrency">Language + Concurrency</option>
-                    <option value="functions_lists">Functions + List Ops</option>
-                    <option value="ranges_slices">Ranges + Slices</option>
-                    <option value="for_then">For Expression + Then Block</option>
-                    <option value="match_guards">Match with Guards</option>
-                    <option value="maps_sets_objects">Maps, Sets, Objects</option>
-                    <option value="recover_operator">Recover Operator (?)</option>
-                    <option value="tasks_then">Tasks + then()</option>
-                    <option value="join_group">Join Group (&amp; { ... })</option>
-                    <option value="channels_stream">Channels Stream</option>
-                </select>
-            </label>
-            <label style="font-size: 14px; user-select: none;">
-                <input type="checkbox" id="autoRun"> Auto Run
-            </label>
-        </div>
-    </div>
-    <div id="container">
-        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">// Karl Playground: 30-second tour
+    <main class="page" aria-label="Karl landing page">
+        <section class="left" aria-label="Karl logo">
+            <a href="/bench/" aria-label="Open Karl bench playground">
+                <img src="karl.png" alt="Karl logo">
+            </a>
+        </section>
+        <section class="right" aria-label="Karl feature examples">
+            <nav class="cta-links" aria-label="Karl quick links">
+                <a href="/bench/">Try in your browser</a>
+                <a href="/sheets/">Open Karl Sheets</a>
+            </nav>
+            <pre id="example"></pre>
+            <div class="progress" aria-hidden="true">
+                <div id="progressBar" class="progress__bar"></div>
+            </div>
+        </section>
+    </main>
 
-let hr = () -> log("\n----------------------\n")
-
-log("hello:", "Karl")
-let nums = 1..6
-log("squares:", nums.map(x -> x * x))
-
-hr()
-
-// Channels communication
-let c = channel()
-// Use spawn or & to start background computations
-spawn (chan -> {
-	chan.send("Hello from thread!")
-    chan.done()
-})(c)
-
-// recv() blocks until a message is ready to read
-log("received:", c.recv())
-log("received: ", c.recv())
-
-hr()
-
-// & runs a group concurrently and returns <task>
-let grouped = & {
-    (() -> { sleep(120); "A done" })(),
-    (() -> { sleep(80); "B done" })(),
-    (() -> { sleep(40); "C done" })()
-}
-log("grouped:", wait grouped)
-
-hr()
-
-// !& races tasks and resolves with the first result
-let fastest = !& {
-    (() -> { sleep(200); { label: "slow", } })(),
-    (() -> { sleep(60); { label: "fast", } })()
-}
-log("race:", wait fastest)
-</textarea>
-        <pre id="output"></pre>
-    </div>
     <script>
-        const EXAMPLES = {
-            quickstart: `// Karl Playground: 30-second tour
-
-let hr = () -> log("\\n----------------------\\n")
-
-log("hello:", "Karl")
-let nums = 1..6
-log("squares:", nums.map(x -> x * x))
-
-hr()
-
-// Channels communication
-let c = channel()
-// Use spawn or & to start background computations
-spawn (chan -> {
-	chan.send("Hello from thread!")
-    chan.done()
-})(c)
-
-// recv() blocks until a message is ready to read
-log("received:", c.recv())
-log("received: ", c.recv())
-
-hr()
-
-// & runs a group concurrently and returns <task>
-let grouped = & {
-    (() -> { sleep(120); "A done" })(),
-    (() -> { sleep(80); "B done" })(),
-    (() -> { sleep(40); "C done" })()
-}
-log("grouped:", wait grouped)
-
-hr()
-
-// !& races tasks and resolves with the first result
-let fastest = !& {
-    (() -> { sleep(200); { label: "slow", } })(),
-    (() -> { sleep(60); { label: "fast", } })()
-}
-log("race:", wait fastest)`,
-            language_concurrency: `// Karl Playground: language + concurrency demo
-
-let new_line 	= () -> log("\n----------------------\n")
-let delays 		= 40..50
-let picked 		= delays[1..4]
-let banner 		= "karl-language"
-log("delays:", delays)
-log("picked:", picked)
-log("split:", banner.split("-"))
-
-// & ...() returns <task>, i.e. a Task handle
-// task handles are first-class objects. They can be passed as argument
-// task handles are waitable, chainable and cancelable
-let t = & (() -> {
-    sleep(120)
-    20
-})()
-let chained = t.then(x -> x + 22)
-log("chained:", chained)
-let result = wait chained
-log("result:", result)
-
-new_line()
-
-// wait for a group of tasks to complete
-let grouped = & {
-    (() -> { sleep(200); { label: "A", value: 3, } })(),
-    (() -> { sleep(400); { label: "B", value: 7, } })(),
-    (() -> { sleep(100); { label: "C", value: 2, } })()
-}
-log("grouped:", grouped)
-
-// passing the <task> as argument
-let resolve = th -> wait th
-log("resolved:", resolve(grouped))
-
-new_line()
- 
-// !& is the race operator
-let fastest = !& {
-    (() -> { sleep(200); { label: "A", value: 3, } })(),
-    (() -> { sleep(400); { label: "B", value: 7, } })(),
-    (() -> { sleep(100); { label: "C", value: 2, } })()
-}
-log("fastest", wait fastest)`,
-            functions_lists: `// Functions + list built-ins
-let add = (a, b) -> a + b
-let nums = 1..10
-let evens = nums.filter(x -> x % 2 == 0)
-let doubled = evens.map(x -> x * 2)
-let total = doubled.reduce(add, 0)
-{
-    nums: nums,
-    evens: evens,
-    doubled: doubled,
-    total: total,
-}`,
-            ranges_slices: `// Dot-dot ranges + array/string slices
-let xs = 0..12
-let mid = xs[3..9]
-let word = "karl-language"
-let head = word[..4]
-let tail = word[-8..]
-{
-    all: xs,
-    mid: mid,
-    head: head,
-    tail: tail,
-}`,
-            for_then: `// for-expression returns a value
-let report = for i < 6 with i = 0, out = [] {
-    out += [i * i]
-    i++
-} then {
-    let total = out.reduce((acc, x) -> acc + x, 0)
-    {
-        squares: out,
-        firstThree: out[..3],
-        total: total,
-        avg: total / out.length,
+        const EXAMPLES = [
+            `// Fibonacci (expression-based loop)
+let fib = n -> {
+    if n <= 1 { n } else {
+        for i < n with i = 1, a = 0, b = 1 {
+            let next = a + b
+            a = b
+            b = next
+            i++
+        } then b
     }
 }
-report`,
-            match_guards: `// match expression with guards
-let classify = x -> match x {
-    case n if n < 0 -> "negative"
-    case 0 -> "zero"
-    case n if n % 2 == 0 -> "even"
-    case _ -> "odd"
+log((0..10).map(fib))`,
+            `// Concurrency + race
+let group = & {
+    (() -> { sleep(120); "A done" })(),
+    (() -> { sleep(80); "B done" })(),
+    (() -> { sleep(40); "C done" })()
 }
+log(wait group)
 
-let values = [-3, -2, -1, 0, 1, 2, 3, 4]
-values.map(v -> {
-    value: v,
-    kind: classify(v),
-})`,
-            maps_sets_objects: `// Maps, sets, objects
-let m = map()
-m.set("name", "Karl")
-m.set("version", "0.6.0")
-let s = set([1, 2, 2, 3, 3, 4])
-let o = { team: "runtime", feature: "playground", }
-{
-    mapKeys: m.keys(),
-    mapValues: m.values(),
-    has3: s.has(3),
-    setSize: len(s),
-    objectKeys: keys(o),
-}`,
-            recover_operator: `// Recover operator (?) on runtime/recoverable errors
-let cfg = { retries: 3, }
-
-let retries = cfg.retryCount ? {
-    log("recover member access:", error.message)
-    0
+let fastest = !& {
+    (() -> { sleep(200); "slow" })(),
+    (() -> { sleep(30); "fast" })()
 }
-
-let parsed = parseInt("not-an-int") ? {
-    log("recover parseInt:", error.message);
-    -1
-}
-
-{ retries: retries, parsed: parsed }`,
-            tasks_then: `// Task + then chaining
-let base = & (() -> {
-    sleep(100)
-    20
-})()
-
-let out = wait base.then(v -> v + 1).then(v -> v * 2)
-
-out`,
-            join_group: `// Join group runs calls concurrently, output keeps input order
-let work = (label, ms, value) -> {
-    sleep(ms)
-    { label: label, value: value, }
-}
-
-let joined = wait & {
-    work("A", 120, 1),
-    work("B", 40, 2),
-    work("C", 80, 3)
-}
-
-{
-    labels: joined.map(x -> x.label),
-    sum: joined.map(x -> x.value).reduce((a, b) -> a + b, 0),
-}`,
-            channels_stream: `// Channel producer/consumer stream
-let ch = channel()
-
-let producer = & (() -> {
-    ch.send("alpha")
-    ch.send("beta")
-    ch.send("gamma")
+log(wait fastest)`,
+            `// Channels
+let c = channel()
+spawn (ch -> {
+    ch.send("Hello from thread")
     ch.done()
-})()
+})(c)
 
-let stream = for true with res = ch.recv(), acc = [] {
-    let [v, done] = res
-    if done { break acc }
-    acc += [v]
-    res = ch.recv()
-} then acc
+log(c.recv()) // ["Hello from thread", false]
+log(c.recv()) // [null, true]`,
+            `// Strings: indexing + slicing
+let text = "karl-language"
+let chars = text.split("")
+let first = chars[0]
+let dash = chars[4]
+let left = text[..4]
+let right = text[5..]
+let last = chars[chars.length - 1]
 
-wait producer
-stream`
-        };
+log({
+    first: first,
+    dash: dash,
+    left: left,
+    right: right,
+    last: last,
+})`,
+            `// Match + guards
+let score = 87
+let rank = match score {
+    case _ if score >= 90 -> "A"
+    case _ if score >= 80 -> "B"
+    case _ if score >= 70 -> "C"
+    case _ -> "D"
+}
+log("rank:", rank)`,
+            `// File I/O
+let path = "notes.txt"
+writeFile(path, "hello\\n")
+appendFile(path, "from karl\\n")
 
-        const runBtn = document.getElementById('runBtn');
-        const editorArea = document.getElementById('editor');
-        const exampleSelect = document.getElementById('exampleSelect');
-        const autoRunCheckbox = document.getElementById('autoRun');
-        const status = document.getElementById('status');
-        const output = document.getElementById('output');
-        let cm;
-        let worker;
-        let debounceTimer;
+log(readFile(path))
+log("exists:", exists(path))
+deleteFile(path)`,
+            `// System runtime APIs
+let args = argv()
+let exe = programPath()
+let home = env("HOME")
+let all = environ()
 
-        // Initialize CodeMirror if loaded
-        if (typeof CodeMirror !== 'undefined') {
-            // Define Karl Syntax Mode
-            CodeMirror.defineSimpleMode("karl", {
-                start: [
-                    { regex: /"(?:[^\\]|\\.)*?(?:"|$)/, token: "string" },
-                    { regex: /'(?:[^\\]|\\.)*?(?:'|$)/, token: "string" },
-                    // Keywords
-                    { regex: /(?:let|if|else|for|match|wait|break|continue|return|then|with|shape|fn)\b/, token: "keyword" },
-                    { regex: /\/\/.*/, token: "comment" },
-                    // Atoms/Booleans
-                    { regex: /\b(?:true|false|nil|null)\b/, token: "atom" },
-                    { regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number" },
-                    // Built-ins
-                    { regex: /\b(?:log|http|httpServe|httpServerStop|jsonDecode|jsonEncode|sqlOpen|sqlClose|sqlExec|sqlQuery|sqlQueryOne|sqlBegin|sqlCommit|sqlRollback|sha256|uuidNew|uuidValid|uuidParse|now|timeParseRFC3339|timeFormatRFC3339|timeAdd|timeDiff|signalWatch|rendezvous|send|recv|done|sleep|fail|map|filter|reduce|sum|find|sort|length|trim|toLower|toUpper|split)\b/, token: "builtin" },
-                    { regex: /->|!&|&&|\|\||&|\|/, token: "operator" },
-                    // Variables (basic heuristic)
-                    { regex: /[a-z$][\w$]*/, token: "variable" },
-                ],
-                meta: {
-                    dontIndentStates: ["comment"],
-                    lineComment: "//"
-                }
-            });
+log({
+    args: args,
+    exe: exe,
+    home: home,
+    env_count: all.length,
+})`,
+            `// Signal handling
+let sigs = signalWatch(["SIGINT", "SIGTERM"])
+log("waiting for shutdown...")
 
-            // Initialize CodeMirror instance
-            cm = CodeMirror.fromTextArea(editorArea, {
-                mode: "karl",
-                theme: "dracula",
-                lineNumbers: true,
-                indentUnit: 4,
-                matchBrackets: true,
-                autoCloseBrackets: true,
-                tabSize: 4,
-                extraKeys: {
-                    "Cmd-Enter": function (cm) { runCode(); },
-                    "Ctrl-Enter": function (cm) { runCode(); }
-                }
-            });
-
-            // Auto-run listener
-            cm.on("change", () => {
-                if (autoRunCheckbox.checked) {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => {
-                        runCode();
-                    }, 800);
-                }
-            });
-
-        } else {
-            console.error("CodeMirror failed to load.");
-            output.textContent = "Error: CodeMirror library could not be loaded.";
-        }
-
-        function setEditorValue(code) {
-            if (cm) {
-                cm.setValue(code);
-            } else {
-                editorArea.value = code;
+let [sig, closed] = sigs.recv()
+if !closed {
+    log("shutdown:", sig)
+}`,
+            `// HTTP server
+let srv = httpServe({
+    addr: ":8080",
+    routes: [
+        {
+            method: "GET",
+            path: "/health",
+            handler: req -> {
+                status: 200,
+                headers: { "Content-Type": "application/json", },
+                body: jsonEncode({ status: "ok", now: now(), }),
             }
         }
+    ],
+})`,
+            `// SQL + UUID + hash
+let db = sqlOpen("postgres://vigil:vigil@localhost:5432/vigil?sslmode=disable")
+let id = uuidNew()
+let email = "hello@karl-lang.org"
+let fp = sha256(email)
 
-        function loadExample(exampleId) {
-            const code = EXAMPLES[exampleId];
-            if (!code) {
+sqlExec(db,
+  "INSERT INTO users (id, email, fingerprint) VALUES ($1, $2, $3)",
+  [id, email, fp]
+)
+log(sqlQueryOne(db, "SELECT id, email FROM users WHERE id = $1", [id]))`,
+            `// Recover operator + match
+let cfg = jsonDecode(readFile("config.json")) ? {
+    { mode: "safe", retries: 3, }
+}
+
+match cfg.mode {
+    "safe" -> log("safe mode")
+    _ -> log("custom mode")
+}`
+        ];
+
+        const KEYWORDS = new Set([
+            "let", "if", "else", "match", "case", "for", "with", "then",
+            "true", "false", "null", "wait", "spawn"
+        ]);
+
+        const tokenRe = /\/\/.*$|"(?:\\.|[^"\\])*"|\b[a-zA-Z_][a-zA-Z0-9_]*(?=\()|\b[a-zA-Z_][a-zA-Z0-9_]*\b|\b\d+(?:\.\d+)?\b|->|!&|&&|\|\||==|!=|<=|>=|[=+\-*/%<>]/gm;
+
+        const el = document.getElementById("example");
+        const progressBar = document.getElementById("progressBar");
+        const CYCLE_MS = 10000;
+        const FADE_MS = 360;
+        let index = 0;
+        let timerId = null;
+        let cycleStartAt = 0;
+        let remainingMs = CYCLE_MS;
+        let isPaused = false;
+        let isTransitioning = false;
+
+        const escapeHTML = (s) => s
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        function highlight(code) {
+            tokenRe.lastIndex = 0;
+            let out = "";
+            let last = 0;
+
+            for (const m of code.matchAll(tokenRe)) {
+                const tok = m[0];
+                const i = m.index || 0;
+
+                out += escapeHTML(code.slice(last, i));
+
+                let cls = null;
+                if (tok.startsWith("//")) {
+                    cls = "tok-comment";
+                } else if (tok.startsWith("\"")) {
+                    cls = "tok-string";
+                } else if (/^\d/.test(tok)) {
+                    cls = "tok-number";
+                } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tok) && KEYWORDS.has(tok)) {
+                    cls = "tok-keyword";
+                } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tok)) {
+                    const rest = code.slice(i + tok.length);
+                    if (/^\s*\(/.test(rest)) {
+                        cls = "tok-call";
+                    }
+                } else if (/^(->|!&|&&|\|\||==|!=|<=|>=|[=+\-*/%<>])$/.test(tok)) {
+                    cls = "tok-operator";
+                }
+
+                if (cls) {
+                    out += `<span class="${cls}">${escapeHTML(tok)}</span>`;
+                } else {
+                    out += escapeHTML(tok);
+                }
+
+                last = i + tok.length;
+            }
+
+            out += escapeHTML(code.slice(last));
+            return out;
+        }
+
+        function render(i) {
+            el.innerHTML = highlight(EXAMPLES[i]);
+            el.scrollTop = 0;
+        }
+
+        function setProgressStatic(ratio) {
+            progressBar.style.transition = "none";
+            progressBar.style.transform = `scaleY(${ratio})`;
+        }
+
+        function animateProgress(fromRatio, durationMs) {
+            progressBar.style.transition = "none";
+            progressBar.style.transform = `scaleY(${fromRatio})`;
+            void progressBar.offsetWidth;
+            progressBar.style.transition = `transform ${durationMs}ms linear`;
+            progressBar.style.transform = "scaleY(1)";
+        }
+
+        function scheduleNext(delayMs) {
+            if (timerId) {
+                clearTimeout(timerId);
+                timerId = null;
+            }
+            cycleStartAt = performance.now();
+            remainingMs = delayMs;
+            const fromRatio = 1 - (delayMs / CYCLE_MS);
+            animateProgress(fromRatio, delayMs);
+            timerId = setTimeout(() => {
+                timerId = null;
+                rotateBy(1);
+            }, delayMs);
+        }
+
+        function rotateBy(step) {
+            if (isTransitioning) return;
+            isTransitioning = true;
+            if (timerId) {
+                clearTimeout(timerId);
+                timerId = null;
+            }
+            el.classList.add("fade");
+            setTimeout(() => {
+                index = (index + step + EXAMPLES.length) % EXAMPLES.length;
+                render(index);
+                el.classList.remove("fade");
+                isTransitioning = false;
+                if (isPaused) {
+                    remainingMs = CYCLE_MS;
+                    setProgressStatic(0);
+                } else {
+                    scheduleNext(CYCLE_MS);
+                }
+            }, FADE_MS);
+        }
+
+        function pauseLoop() {
+            if (isPaused) return;
+            isPaused = true;
+            if (timerId) {
+                clearTimeout(timerId);
+                timerId = null;
+            }
+            const elapsed = Math.max(0, Math.min(CYCLE_MS, performance.now() - cycleStartAt));
+            remainingMs = Math.max(0, CYCLE_MS - elapsed);
+            setProgressStatic(elapsed / CYCLE_MS);
+        }
+
+        function resumeLoop() {
+            if (!isPaused) return;
+            isPaused = false;
+            scheduleNext(remainingMs > 0 ? remainingMs : CYCLE_MS);
+        }
+
+        window.addEventListener("keydown", (event) => {
+            if (event.metaKey || event.ctrlKey || event.altKey) return;
+            const tag = event.target && event.target.tagName ? event.target.tagName : "";
+            if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+            if (event.code === "ArrowRight") {
+                event.preventDefault();
+                rotateBy(1);
                 return;
             }
-            setEditorValue(code);
-            output.textContent = "";
-            status.textContent = "Example loaded";
-            status.style.color = "#bd93f9";
-            if (autoRunCheckbox.checked && runBtn.disabled === false) {
-                runCode();
+            if (event.code === "ArrowLeft") {
+                event.preventDefault();
+                rotateBy(-1);
+                return;
             }
-        }
-
-        exampleSelect.addEventListener('change', () => {
-            loadExample(exampleSelect.value);
+            if (event.code === "Space") {
+                event.preventDefault();
+                if (isPaused) {
+                    resumeLoop();
+                } else {
+                    pauseLoop();
+                }
+            }
         });
 
-        // Ensure default content is in sync with selected sample.
-        loadExample(exampleSelect.value);
-
-        function initWorker() {
-            if (worker) worker.terminate();
-
-            worker = new Worker("worker.js?v=" + Date.now());
-
-            worker.onmessage = (e) => {
-                const msg = e.data;
-                if (msg.type === 'ready') {
-                    runBtn.disabled = false;
-                    status.textContent = "Ready";
-                    status.style.color = "#bd93f9"; // Reset color
-                } else if (msg.type === 'output') {
-                    output.textContent += msg.data;
-                    output.scrollTop = output.scrollHeight;
-                } else if (msg.type === 'error') {
-                    console.error("Worker error:", msg.data);
-                    status.textContent = "Error: " + msg.data;
-                    status.style.color = "#ff5555"; // Dracula Red
-                } else if (msg.type === 'done') {
-                    status.textContent = "Ready";
-                    status.style.color = "#bd93f9"; // Reset color
-                    runBtn.disabled = false;
-                }
-            };
-
-            // Send init message
-            worker.postMessage({ type: 'init' });
-        }
-
-        initWorker();
-
-        // Run function
-        const runCode = () => {
-            output.textContent = "";
-
-            if (worker) {
-                status.textContent = "Running...";
-                runBtn.disabled = true; // Prevent double click
-                const code = cm ? cm.getValue() : document.getElementById("editor").value;
-                worker.postMessage({ type: 'run', source: code });
-            } else {
-                output.textContent = "Error: Worker not initialized";
-            }
-        };
-
-        runBtn.addEventListener('click', runCode);
-
-        // Fallback listener in case CodeMirror fails and textarea is used
-        if (!cm) {
-            editorArea.addEventListener('keydown', (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    runCode();
-                }
-            });
-            editorArea.addEventListener('input', () => {
-                if (autoRunCheckbox.checked) {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => {
-                        runCode();
-                    }, 800);
-                }
-            });
-        }
+        render(index);
+        scheduleNext(CYCLE_MS);
     </script>
 </body>
 
