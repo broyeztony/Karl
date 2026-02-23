@@ -31,7 +31,7 @@ karl version
 karl loom
 ```
 
-## Start Here
+## Next Steps
 
 ### `bench` (Karl Playground)
 `bench` is Karl's browser-first playground experience: run Karl instantly at [karl-lang.org](https://karl-lang.org), no install needed.  
@@ -49,16 +49,7 @@ See [repl/README.md](repl/README.md) for local/remote modes.
 Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.  
 Setup and usage: [karl-vscode/README.md](karl-vscode/README.md).
 
-## Install Karl CLI (Latest Release)
-
-Grab the latest release binaries here:
-[https://github.com/broyeztony/Karl/releases/latest](https://github.com/broyeztony/Karl/releases/latest)
-
-Download the archive for your OS/architecture, extract the binary, make it executable, and move it to your `PATH`.
-Then run:
-```bash
-karl version
-```
+## CLI Commands
 
 Minimal CLI usage:
 ```bash
