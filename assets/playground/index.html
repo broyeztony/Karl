@@ -203,57 +203,63 @@
         </div>
     </div>
     <div id="container">
-        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">// Welcome to Karl Playground
-// Karl is a functional-first, expression-based language.
+        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">// Karl Playground: 30-second tour
 
-// Define a function
-let add = (a, b) -> a + b
+let hr = () -> log("\n----------------------\n")
 
-// Use list operations
-let nums = [1, 2, 3, 4, 5]
-let squares = nums.map(x -> x * x)
+log("hello:", "Karl")
+let nums = 1..6
+log("squares:", nums.map(x -> x * x))
 
-log("Squares:", squares)
-sleep(1500) // Blocks this task for 1.5s (UI stays responsive in playground)
-log("Sum of squares:", squares.reduce(add, 0))
+hr()
 
-// 'spawn' starts a single background task.
-// '&' is the spawn operator:
-// - single task: & add(1, 2)
-// - task group:  & { add(1, 2), subtract(4, 1) }
-let c = channel()
-spawn((ch) -> {
-    ch.send("Hello from thread!")
-})(c)
-log(c.recv()) // ["Hello from thread!", false] => [value, is_closed]
+// & runs a group concurrently and returns <task>
+let grouped = & {
+    (() -> { sleep(120); "A done" })(),
+    (() -> { sleep(80); "B done" })(),
+    (() -> { sleep(40); "C done" })()
+}
+log("grouped:", wait grouped)
+
+hr()
+
+// !& races tasks and resolves with the first result
+let fastest = !& {
+    (() -> { sleep(200); { label: "slow", } })(),
+    (() -> { sleep(60); { label: "fast", } })()
+}
+log("race:", wait fastest)
 </textarea>
         <pre id="output"></pre>
     </div>
     <script>
         const EXAMPLES = {
-            quickstart: `// Welcome to Karl Playground
-// Karl is a functional-first, expression-based language.
+            quickstart: `// Karl Playground: 30-second tour
 
-// Define a function
-let add = (a, b) -> a + b
+let hr = () -> log("\\n----------------------\\n")
 
-// Use list operations
-let nums = [1, 2, 3, 4, 5]
-let squares = nums.map(x -> x * x)
+log("hello:", "Karl")
+let nums = 1..6
+log("squares:", nums.map(x -> x * x))
 
-log("Squares:", squares)
-sleep(1500) // Blocks this task for 1.5s (UI stays responsive in playground)
-log("Sum of squares:", squares.reduce(add, 0))
+hr()
 
-// 'spawn' starts a single background task.
-// '&' is the spawn operator:
-// - single task: & add(1, 2)
-// - task group:  & { add(1, 2), subtract(4, 1) }
-let c = channel()
-spawn((ch) -> {
-    ch.send("Hello from thread!")
-})(c)
-log(c.recv()) // ["Hello from thread!", false] => [value, is_closed]`,
+// & runs a group concurrently and returns <task>
+let grouped = & {
+    (() -> { sleep(120); "A done" })(),
+    (() -> { sleep(80); "B done" })(),
+    (() -> { sleep(40); "C done" })()
+}
+log("grouped:", wait grouped)
+
+hr()
+
+// !& races tasks and resolves with the first result
+let fastest = !& {
+    (() -> { sleep(200); { label: "slow", } })(),
+    (() -> { sleep(60); { label: "fast", } })()
+}
+log("race:", wait fastest)`,
             language_concurrency: `// Karl Playground: language + concurrency demo
 
 let new_line 	= () -> log("\n----------------------\n")
