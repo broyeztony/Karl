@@ -299,6 +299,11 @@ match cfg.mode {
         const CYCLE_MS = 10000;
         const FADE_MS = 360;
         let index = 0;
+        let timerId = null;
+        let cycleStartAt = 0;
+        let remainingMs = CYCLE_MS;
+        let isPaused = false;
+        let isTransitioning = false;
 
         const escapeHTML = (s) => s
             .replace(/&/g, "&amp;")
@@ -352,32 +357,101 @@ match cfg.mode {
             el.scrollTop = 0;
         }
 
-        function restartProgressBar() {
+        function setProgressStatic(ratio) {
             progressBar.style.transition = "none";
-            progressBar.style.transform = "scaleX(0)";
-            // Force style flush so transition reliably restarts.
+            progressBar.style.transform = `scaleX(${ratio})`;
+        }
+
+        function animateProgress(fromRatio, durationMs) {
+            progressBar.style.transition = "none";
+            progressBar.style.transform = `scaleX(${fromRatio})`;
             void progressBar.offsetWidth;
-            progressBar.style.transition = `transform ${CYCLE_MS}ms linear`;
+            progressBar.style.transition = `transform ${durationMs}ms linear`;
             progressBar.style.transform = "scaleX(1)";
         }
 
-        function nextExample() {
+        function scheduleNext(delayMs) {
+            if (timerId) {
+                clearTimeout(timerId);
+                timerId = null;
+            }
+            cycleStartAt = performance.now();
+            remainingMs = delayMs;
+            const fromRatio = 1 - (delayMs / CYCLE_MS);
+            animateProgress(fromRatio, delayMs);
+            timerId = setTimeout(() => {
+                timerId = null;
+                rotateBy(1);
+            }, delayMs);
+        }
+
+        function rotateBy(step) {
+            if (isTransitioning) return;
+            isTransitioning = true;
+            if (timerId) {
+                clearTimeout(timerId);
+                timerId = null;
+            }
             el.classList.add("fade");
             setTimeout(() => {
-                index = (index + 1) % EXAMPLES.length;
+                index = (index + step + EXAMPLES.length) % EXAMPLES.length;
                 render(index);
                 el.classList.remove("fade");
-                runLoop();
+                isTransitioning = false;
+                if (isPaused) {
+                    remainingMs = CYCLE_MS;
+                    setProgressStatic(0);
+                } else {
+                    scheduleNext(CYCLE_MS);
+                }
             }, FADE_MS);
         }
 
-        function runLoop() {
-            restartProgressBar();
-            setTimeout(nextExample, CYCLE_MS);
+        function pauseLoop() {
+            if (isPaused) return;
+            isPaused = true;
+            if (timerId) {
+                clearTimeout(timerId);
+                timerId = null;
+            }
+            const elapsed = Math.max(0, Math.min(CYCLE_MS, performance.now() - cycleStartAt));
+            remainingMs = Math.max(0, CYCLE_MS - elapsed);
+            setProgressStatic(elapsed / CYCLE_MS);
         }
 
+        function resumeLoop() {
+            if (!isPaused) return;
+            isPaused = false;
+            scheduleNext(remainingMs > 0 ? remainingMs : CYCLE_MS);
+        }
+
+        window.addEventListener("keydown", (event) => {
+            if (event.metaKey || event.ctrlKey || event.altKey) return;
+            const tag = event.target && event.target.tagName ? event.target.tagName : "";
+            if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+            if (event.code === "ArrowRight") {
+                event.preventDefault();
+                rotateBy(1);
+                return;
+            }
+            if (event.code === "ArrowLeft") {
+                event.preventDefault();
+                rotateBy(-1);
+                return;
+            }
+            if (event.code === "Space") {
+                event.preventDefault();
+                if (isPaused) {
+                    resumeLoop();
+                } else {
+                    pauseLoop();
+                }
+            }
+        });
+
         render(index);
-        runLoop();
+        scheduleNext(CYCLE_MS);
     </script>
 </body>
 
