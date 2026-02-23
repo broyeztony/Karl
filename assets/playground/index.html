@@ -94,12 +94,11 @@
         .progress {
             position: fixed;
             left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
+            top: 0;
+            bottom: 0;
+            transform: translateX(-50%);
             width: 4px;
-            height: 62vh;
-            min-height: 220px;
-            max-height: 680px;
+            height: 100vh;
             background: #d8d8d8;
             overflow: hidden;
             z-index: 5;
@@ -147,9 +146,10 @@
             .progress {
                 left: auto;
                 right: 8px;
-                transform: translateY(-50%);
-                height: 54vh;
-                min-height: 180px;
+                top: 0;
+                bottom: 0;
+                transform: none;
+                height: 100vh;
             }
 
             #example {
