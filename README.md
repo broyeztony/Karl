@@ -21,11 +21,6 @@ Try Karl today in your browser: [karl-lang.org](https://karl-lang.org)
 
 Watch the YouTube video: [**Karl Playground, Loom, Sheets & Jupyter Lab integration**](https://www.youtube.com/watch?v=DKqPl7-Rjg8)
 
-## Real-World Validation
-
-Karl is already used to rebuild a production-style app end-to-end:  
-[`vigil_in_karl`](https://github.com/broyeztony/vigil_in_karl) (mock provider API, discovery worker, dedupe, PostgreSQL, Docker runbook).
-
 ## Start Here in 2 Commands
 
 Install Karl from the latest release binaries:  
@@ -45,6 +40,14 @@ Run it locally with `karl playground` (default `http://localhost:8081`). See [pl
 ### VS Code Plugin
 Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.  
 Setup and usage: [karl-vscode/README.md](karl-vscode/README.md).
+
+### Notebook + Jupyter Integration
+Run `.knb` notebooks with `karl notebook`, or use Karl from Jupyter Lab/Notebook through the Karl kernel.  
+See [notebook/README.md](notebook/README.md) and [kernel/README.md](kernel/README.md).
+
+### Karl Sheets App
+Use `karl spreadsheet` to run the reactive spreadsheet app where cells evaluate Karl expressions.  
+By default it serves on `http://localhost:8080`.
 
 ## CLI Commands
 
