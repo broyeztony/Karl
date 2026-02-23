@@ -21,6 +21,16 @@ Try Karl today in your browser: [karl-lang.org](https://karl-lang.org)
 
 Watch the YouTube video: [**Karl Playground, Loom, Sheets & Jupyter Lab integration**](https://www.youtube.com/watch?v=DKqPl7-Rjg8)
 
+## Start Here in 2 Commands
+
+Install Karl from the latest release binaries:  
+[https://github.com/broyeztony/Karl/releases/latest](https://github.com/broyeztony/Karl/releases/latest)
+
+```bash
+karl version
+karl loom
+```
+
 ## Start Here
 
 ### `bench` (Karl Playground)
