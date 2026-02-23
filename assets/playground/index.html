@@ -74,6 +74,32 @@
             position: relative;
         }
 
+        .cta-links {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            z-index: 6;
+            display: inline-flex;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .cta-links a {
+            text-decoration: none;
+            color: var(--ink);
+            font-size: 12px;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 140ms ease, color 140ms ease;
+        }
+
+        .cta-links a:hover,
+        .cta-links a:focus-visible {
+            color: var(--accent-a);
+            opacity: 1;
+            outline: none;
+        }
+
         #example {
             margin: 0;
             width: 100%;
@@ -143,6 +169,11 @@
                 padding: 18px 16px;
             }
 
+            .cta-links {
+                top: 10px;
+                right: 12px;
+            }
+
             .progress {
                 left: auto;
                 right: 8px;
@@ -167,6 +198,10 @@
             </a>
         </section>
         <section class="right" aria-label="Karl feature examples">
+            <nav class="cta-links" aria-label="Karl quick links">
+                <a href="/bench/">Try bench</a>
+                <a href="/sheets/">Karl sheets</a>
+            </nav>
             <pre id="example"></pre>
             <div class="progress" aria-hidden="true">
                 <div id="progressBar" class="progress__bar"></div>
