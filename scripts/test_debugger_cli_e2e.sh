@@ -91,4 +91,76 @@ if grep -q "runtime error:" "$output_file"; then
   exit 1
 fi
 
+module_file_2="$tmp_dir/lib_import_async.k"
+program_file_2="$tmp_dir/main_import_async.k"
+input_file_2="$tmp_dir/input_import_async.txt"
+output_file_2="$tmp_dir/output_import_async.log"
+
+cat > "$module_file_2" <<'EOF'
+let addOne = n -> {
+  let result = n + 1
+  result
+}
+let twice = n -> addOne(addOne(n))
+let asyncTwice = n -> & (() -> {
+  sleep(80)
+  twice(n)
+})()
+{ asyncTwice: asyncTwice }
+EOF
+
+cat > "$program_file_2" <<'EOF'
+let makeLib = import "./lib_import_async.k"
+let lib = makeLib()
+let task = lib.asyncTwice(40)
+let out = wait task
+out
+EOF
+
+cat > "$input_file_2" <<EOF
+break 4
+break $module_file_2:5
+break 5
+continue
+continue
+continue
+continue
+EOF
+
+if ! "$KARL_BIN" trace "$program_file_2" < "$input_file_2" > "$output_file_2" 2>&1; then
+  echo "FAIL: debugger imported+async scenario exited non-zero"
+  cat "$output_file_2"
+  exit 1
+fi
+
+if ! grep -Eq "paused at .*main_import_async\\.k:4:" "$output_file_2"; then
+  echo "FAIL: expected stop at main wait line"
+  cat "$output_file_2"
+  exit 1
+fi
+
+if ! grep -Eq "paused at .*lib_import_async\\.k:5:" "$output_file_2"; then
+  echo "FAIL: expected stop in imported async worker line"
+  cat "$output_file_2"
+  exit 1
+fi
+
+if ! grep -Eq "paused at .*main_import_async\\.k:5:" "$output_file_2"; then
+  echo "FAIL: expected stop at main post-wait line"
+  cat "$output_file_2"
+  exit 1
+fi
+
+if ! grep -q "result: 42" "$output_file_2"; then
+  echo "FAIL: expected imported+async final result"
+  cat "$output_file_2"
+  exit 1
+fi
+
+if grep -q "runtime error:" "$output_file_2"; then
+  echo "FAIL: unexpected runtime error in imported+async scenario"
+  cat "$output_file_2"
+  exit 1
+fi
+
 echo "PASS: debugger CLI e2e"

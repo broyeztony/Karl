@@ -744,6 +744,110 @@ func TestStepIntoImportedFunctionUsesModuleSourcePath(t *testing.T) {
 	}
 }
 
+func TestImportedAsyncWaitStopsInExpectedOrder(t *testing.T) {
+	tmpDir := t.TempDir()
+	modulePath := filepath.Join(tmpDir, "lib.k")
+	mainPath := filepath.Join(tmpDir, "main.k")
+	moduleSource := strings.Join([]string{
+		"let addOne = n -> {",
+		"    let result = n + 1",
+		"    result",
+		"}",
+		"let twice = n -> addOne(addOne(n))",
+		"let asyncTwice = n -> & (() -> {",
+		"    sleep(80)",
+		"    twice(n)",
+		"})()",
+		"{ twice: twice, asyncTwice: asyncTwice }",
+	}, "\n")
+	mainSource := strings.Join([]string{
+		"let makeLib = import \"./lib.k\"",
+		"let lib = makeLib()",
+		"let base = 40",
+		"let task = lib.asyncTwice(base)",
+		"let out = wait task",
+		"out",
+	}, "\n")
+	if err := os.WriteFile(modulePath, []byte(moduleSource), 0o600); err != nil {
+		t.Fatalf("write module: %v", err)
+	}
+	if err := os.WriteFile(mainPath, []byte(mainSource), 0o600); err != nil {
+		t.Fatalf("write main: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     mainPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": mainPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 5},
+			{"line": 6},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints main failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": modulePath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 8},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints module failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+
+	client.waitEvent("stopped")
+	if got := currentTopFramePath(client); canonicalPath(got) != canonicalPath(mainPath) {
+		t.Fatalf("expected first stop path %q, got %q", mainPath, got)
+	}
+	if line := currentTopFrameLine(client); line != 5 {
+		t.Fatalf("expected first stop at main wait line 5, got %d", line)
+	}
+
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if got := currentTopFramePath(client); canonicalPath(got) != canonicalPath(modulePath) {
+		t.Fatalf("expected second stop path %q, got %q", modulePath, got)
+	}
+	if line := currentTopFrameLine(client); line != 8 {
+		t.Fatalf("expected second stop at module worker line 8, got %d", line)
+	}
+
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if got := currentTopFramePath(client); canonicalPath(got) != canonicalPath(mainPath) {
+		t.Fatalf("expected third stop path %q, got %q", mainPath, got)
+	}
+	if line := currentTopFrameLine(client); line != 6 {
+		t.Fatalf("expected third stop at main post-wait line 6, got %d", line)
+	}
+
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("terminated")
+	client.waitEvent("exited")
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
 func TestLocalsIncludeNestedAndOuterBindings(t *testing.T) {
 	tmpDir := t.TempDir()
 	programPath := filepath.Join(tmpDir, "locals_nested.k")
