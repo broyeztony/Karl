@@ -21,6 +21,18 @@ func (e *Evaluator) applyFunction(fn Value, args []Value) (Value, *Signal, error
 				return nil, nil, &RuntimeError{Message: "parameter pattern did not match"}
 			}
 		}
+		prevSource := e.source
+		prevFilename := e.filename
+		if f.Source != "" {
+			e.source = f.Source
+		}
+		if f.Filename != "" {
+			e.filename = f.Filename
+		}
+		defer func() {
+			e.source = prevSource
+			e.filename = prevFilename
+		}()
 		e.pushDebugFrame(functionDebugName(f), f.Body, extended)
 		defer e.popDebugFrame()
 		val, sig, err := e.Eval(f.Body, extended)

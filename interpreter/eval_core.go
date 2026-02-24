@@ -87,7 +87,13 @@ func (e *Evaluator) evalNode(node ast.Node, env *Environment) (Value, *Signal, e
 	case *ast.ForExpression:
 		return e.evalForExpression(n, env)
 	case *ast.LambdaExpression:
-		return &Function{Params: n.Params, Body: n.Body, Env: env}, nil, nil
+		return &Function{
+			Params:   n.Params,
+			Body:     n.Body,
+			Env:      env,
+			Source:   e.source,
+			Filename: e.filename,
+		}, nil, nil
 	case *ast.CallExpression:
 		return e.evalCallExpression(n, env)
 	case *ast.MemberExpression:

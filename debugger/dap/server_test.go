@@ -681,6 +681,69 @@ func TestStepIntoJoinBlockPrefersFirstChildInSourceOrder(t *testing.T) {
 	}
 }
 
+func TestStepIntoImportedFunctionUsesModuleSourcePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	modulePath := filepath.Join(tmpDir, "mod.k")
+	mainPath := filepath.Join(tmpDir, "main.k")
+	moduleSource := strings.Join([]string{
+		"let inc = x -> {",
+		"    let y = x + 1",
+		"    y",
+		"}",
+		"{ inc: inc }",
+	}, "\n")
+	mainSource := strings.Join([]string{
+		"let makeMod = import \"./mod.k\"",
+		"let mod = makeMod()",
+		"let out = mod.inc(1)",
+		"out",
+	}, "\n")
+	if err := os.WriteFile(modulePath, []byte(moduleSource), 0o600); err != nil {
+		t.Fatalf("write module: %v", err)
+	}
+	if err := os.WriteFile(mainPath, []byte(mainSource), 0o600); err != nil {
+		t.Fatalf("write main: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     mainPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": mainPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 3},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if line := currentTopFrameLine(client); line != 3 {
+		t.Fatalf("expected first stop at line 3, got %d", line)
+	}
+	if resp := client.request("stepIn", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("stepIn failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("stopped")
+	if got := currentTopFramePath(client); canonicalPath(got) != canonicalPath(modulePath) {
+		t.Fatalf("expected stepIn source path %q, got %q", modulePath, got)
+	}
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
 func TestLocalsIncludeNestedAndOuterBindings(t *testing.T) {
 	tmpDir := t.TempDir()
 	programPath := filepath.Join(tmpDir, "locals_nested.k")
@@ -1121,4 +1184,28 @@ func currentTopFrameLine(client *testClient) int {
 		client.t.Fatalf("expected stack frame")
 	}
 	return intFromAny(frames[0]["line"])
+}
+
+func currentTopFramePath(client *testClient) string {
+	resp := client.request("stackTrace", map[string]interface{}{"threadId": defaultThreadID})
+	if !responseSuccess(resp) {
+		client.t.Fatalf("stackTrace failed: %v", responseMessage(resp))
+	}
+	frames := bodyArrayOfMaps(resp, "stackFrames")
+	if len(frames) == 0 {
+		client.t.Fatalf("expected stack frame")
+	}
+	source, _ := frames[0]["source"].(map[string]interface{})
+	path, _ := source["path"].(string)
+	return path
+}
+
+func canonicalPath(path string) string {
+	if path == "" {
+		return ""
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil && resolved != "" {
+		path = resolved
+	}
+	return filepath.Clean(path)
 }
