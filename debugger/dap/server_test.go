@@ -758,6 +758,101 @@ func TestLocalsIncludeNestedAndOuterBindings(t *testing.T) {
 	}
 }
 
+func TestPauseWhileStoppedDoesNotQueueExtraStop(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "pause_while_stopped.k")
+	source := strings.Join([]string{
+		"let x = 1",
+		"let y = x + 1",
+		"y",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program": programPath,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+	if event := client.waitEvent("stopped"); event == nil {
+		t.Fatalf("expected entry stop")
+	}
+	if line := currentTopFrameLine(client); line != 1 {
+		t.Fatalf("expected stop at line 1, got %d", line)
+	}
+
+	// Pause while already stopped should be a no-op.
+	if resp := client.request("pause", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("pause failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+		t.Fatalf("continue failed: %v", responseMessage(resp))
+	}
+
+	name, _ := client.waitAnyEvent("stopped", "terminated")
+	if name != "terminated" {
+		t.Fatalf("unexpected extra stop after continue; top line=%d", currentTopFrameLine(client))
+	}
+	client.waitEvent("exited")
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
+func TestStepCommandsRequirePausedState(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "step_requires_pause.k")
+	source := strings.Join([]string{
+		"sleep(200)",
+		"1",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+
+	for _, cmd := range []string{"stepIn", "next", "stepOut"} {
+		resp := client.request(cmd, map[string]interface{}{"threadId": defaultThreadID})
+		if responseSuccess(resp) {
+			t.Fatalf("%s should fail when debugger is not paused", cmd)
+		}
+		if !strings.Contains(responseMessage(resp), "not paused") {
+			t.Fatalf("%s unexpected error message: %q", cmd, responseMessage(resp))
+		}
+	}
+
+	client.waitEvent("terminated")
+	client.waitEvent("exited")
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
 type testClient struct {
 	t         *testing.T
 	in        *io.PipeWriter

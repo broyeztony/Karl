@@ -307,6 +307,47 @@ func TestDebugControllerBreakpointIDsAndDelete(t *testing.T) {
 	}
 }
 
+func TestDebugControllerPauseWhilePausedDoesNotQueueExtraStop(t *testing.T) {
+	source := "let x = 1\nlet y = x + 1\ny\n"
+	p := parser.New(lexer.New(source))
+	program := p.ParseProgram()
+	if errs := p.Errors(); len(errs) > 0 {
+		t.Fatalf("parse errors: %v", errs)
+	}
+
+	eval := interpreter.NewEvaluatorWithSourceAndFilename(source, "test.k")
+	controller := interpreter.NewDebugController("test.k")
+	eval.SetDebugger(controller)
+
+	env := interpreter.NewBaseEnvironment()
+	done := make(chan struct{})
+	go func() {
+		val, sig, err := eval.Eval(program, env)
+		if err == nil && sig != nil {
+			err = &interpreter.RuntimeError{Message: "unexpected signal"}
+		}
+		controller.Finish(val, err)
+		close(done)
+	}()
+
+	if reason := waitDebugStop(t, controller); reason != interpreter.DebugStopPaused {
+		t.Fatalf("expected initial paused stop, got %v", reason)
+	}
+	event, ok := controller.CurrentEvent()
+	if !ok || event.Line != 1 {
+		t.Fatalf("expected initial pause on line 1, got %+v", event)
+	}
+
+	// This should be a no-op while already paused.
+	controller.Pause()
+	controller.Continue()
+
+	if reason := waitDebugStop(t, controller); reason != interpreter.DebugStopDone {
+		t.Fatalf("expected done stop after continue, got %v", reason)
+	}
+	<-done
+}
+
 func waitDebugStop(t *testing.T, controller *interpreter.DebugController) interpreter.DebugStopReason {
 	t.Helper()
 	ch := make(chan interpreter.DebugStopReason, 1)

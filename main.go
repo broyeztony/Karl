@@ -577,7 +577,7 @@ func handleDebugCommand(cmd string, controller *interpreter.DebugController, sta
 			fmt.Fprintf(os.Stdout, "%s\n", err.Error())
 			return false
 		}
-		locals := env.Snapshot()
+		locals := env.SnapshotAll()
 		if len(locals) == 0 {
 			fmt.Fprintf(os.Stdout, "(no locals)\n")
 			return false

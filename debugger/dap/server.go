@@ -216,7 +216,7 @@ func (s *server) handle(req *request) bool {
 		s.respondOK(req, map[string]interface{}{"allThreadsContinued": true})
 		return false
 	case "next":
-		controller, err := s.requireController()
+		controller, err := s.requirePausedController()
 		if err != nil {
 			s.respondErr(req, err)
 			return false
@@ -228,7 +228,7 @@ func (s *server) handle(req *request) bool {
 		s.respondOK(req, map[string]interface{}{})
 		return false
 	case "stepIn":
-		controller, err := s.requireController()
+		controller, err := s.requirePausedController()
 		if err != nil {
 			s.respondErr(req, err)
 			return false
@@ -240,7 +240,7 @@ func (s *server) handle(req *request) bool {
 		s.respondOK(req, map[string]interface{}{})
 		return false
 	case "stepOut":
-		controller, err := s.requireController()
+		controller, err := s.requirePausedController()
 		if err != nil {
 			s.respondErr(req, err)
 			return false
@@ -640,6 +640,17 @@ func (s *server) requireController() (*interpreter.DebugController, error) {
 	s.mu.Unlock()
 	if controller == nil {
 		return nil, fmt.Errorf("debugger not started; call launch/configurationDone first")
+	}
+	return controller, nil
+}
+
+func (s *server) requirePausedController() (*interpreter.DebugController, error) {
+	controller, err := s.requireController()
+	if err != nil {
+		return nil, err
+	}
+	if !controller.IsPaused() {
+		return nil, fmt.Errorf("debugger is not paused")
 	}
 	return controller, nil
 }

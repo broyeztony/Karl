@@ -238,6 +238,13 @@ func (c *DebugController) StepOut() {
 
 func (c *DebugController) Pause() {
 	c.mu.Lock()
+	if c.paused {
+		// Already paused at a stop site; do not queue a pending pause that
+		// would immediately re-stop after continue.
+		c.pauseReq = false
+		c.mu.Unlock()
+		return
+	}
 	c.pauseReq = true
 	c.mu.Unlock()
 }
