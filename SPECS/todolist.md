@@ -15,7 +15,9 @@
 - phase-1 runtime I/O primitives (`argv`, `programPath`, `environ`, `env`, `readLine`) ✅
 - add a httpServer built-in ✅
 - add runtime foundations for Vigil port (sql*, signalWatch, uuid/time helpers, sha256) ✅
-- build a debugger (breakpoints, step in/over/out, stack/locals inspection; CLI first, DAP later)
+- build a debugger (breakpoints, step in/over/out, stack/locals inspection; CLI + DAP) ✅
+- add debugger regression coverage in CI (DAP tests + CLI e2e scenarios) ✅
+- add VSCode/Cursor GUI e2e debugger checks (editor navigation/highlight assertions across platforms)
 - build a notebook system for Karl like Jupyter using the repl server
 - add binary data support
 - change divide-by-zero semantics: raise runtime error instead of returning Inf/NaN ✅
