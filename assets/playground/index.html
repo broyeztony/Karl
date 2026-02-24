@@ -278,13 +278,9 @@ let stream = for true with res = ch.recv(), acc = [] {
 
 wait producer
 log(stream)`,
-            `// fail() + recover
-let divide = (a, b) -> {
-    if b == 0 { fail("division by zero") }
-    a / b
-}
-
-let result = divide(10, 0) ? {
+            `// recover
+let divide = (a, b) -> a / b
+let result = divide(1, 0) ? {
     log("recovered:", error.message)
     0
 }

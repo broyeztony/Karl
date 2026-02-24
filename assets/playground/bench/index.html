@@ -308,6 +308,20 @@
                     <option value="tasks_then">Tasks + then()</option>
                     <option value="join_group">Join Group (&amp; { ... })</option>
                     <option value="channels_stream">Channels Stream</option>
+                    <option value="landing_fibonacci">Landing: Fibonacci</option>
+                    <option value="landing_concurrency_race">Landing: Concurrency + Race</option>
+                    <option value="landing_tasks_then">Landing: Tasks + then()</option>
+                    <option value="landing_channels_stream">Landing: Channels Stream</option>
+                    <option value="landing_recover_runtime">Landing: Recover Runtime Error</option>
+                    <option value="landing_destructuring">Landing: Destructuring</option>
+                    <option value="landing_strings_index_slice">Landing: Strings Index/Slice</option>
+                    <option value="landing_match_guards">Landing: Match + Guards</option>
+                    <option value="landing_file_io">Landing: File I/O</option>
+                    <option value="landing_system_runtime">Landing: System Runtime APIs</option>
+                    <option value="landing_signal_handling">Landing: Signal Handling</option>
+                    <option value="landing_http_server">Landing: HTTP Server</option>
+                    <option value="landing_sql_uuid_hash">Landing: SQL + UUID + Hash</option>
+                    <option value="landing_recover_match">Landing: Recover + Match</option>
                 </select>
             </label>
             <label style="font-size: 14px; user-select: none;">
@@ -507,7 +521,165 @@ let stream = for true with res = ch.recv(), acc = [] {
 } then acc
 
 wait producer
-stream`
+stream`,
+            landing_fibonacci: `// Fibonacci (expression-based loop)
+let fib = n -> {
+    if n <= 1 { n } else {
+        for i < n with i = 1, a = 0, b = 1 {
+            let next = a + b
+            a = b
+            b = next
+            i++
+        } then b
+    }
+}
+log((0..10).map(fib))`,
+            landing_concurrency_race: `// Concurrency + race
+let group = & {
+    (() -> { sleep(120); "A done" })(),
+    (() -> { sleep(80); "B done" })(),
+    (() -> { sleep(40); "C done" })()
+}
+log(wait group)
+
+let fastest = !& {
+    (() -> { sleep(200); "slow" })(),
+    (() -> { sleep(30); "fast" })()
+}
+log(wait fastest)`,
+            landing_tasks_then: `// Tasks + then()
+let base = & (() -> {
+    sleep(100)
+    20
+})()
+
+let out = wait base.then(v -> v + 1).then(v -> v * 2)
+log(out)`,
+            landing_channels_stream: `// Channels stream
+let ch = channel()
+
+let producer = & (() -> {
+    ch.send("alpha")
+    ch.send("beta")
+    ch.send("gamma")
+    ch.done()
+})()
+
+let stream = for true with res = ch.recv(), acc = [] {
+    let [v, done] = res
+    if done { break acc }
+    acc += [v]
+    res = ch.recv()
+} then acc
+
+wait producer
+log(stream)`,
+            landing_recover_runtime: `// recover
+let divide = (a, b) -> a / b
+let result = divide(1, 0) ? {
+    log("recovered:", error.message)
+    0
+}
+log(result)`,
+            landing_destructuring: `// Destructuring
+let user = { id: "u_1", email: "ana@karl.dev", role: "admin", }
+let { id, email, role, } = user
+
+let nums = [10, 20, 30, 40]
+let [head, second, ...tail, ] = nums
+
+let pair = [7, 9]
+let (a, b) = pair
+
+log({ id, email, role, head, second, tail, a, b, })`,
+            landing_strings_index_slice: `// Strings: indexing + slicing
+let text = "karl-language"
+let chars = text.split("")
+let first = chars[0]
+let dash = chars[4]
+let left = text[..4]
+let right = text[5..]
+let last = chars[chars.length - 1]
+
+log({
+    first,
+    dash,
+    left,
+    right,
+    last,
+})`,
+            landing_match_guards: `// Match + guards
+let score = 87
+let rank = match score {
+    case _ if score >= 90 -> "A"
+    case _ if score >= 80 -> "B"
+    case _ if score >= 70 -> "C"
+    case _ -> "D"
+}
+log("rank:", rank)`,
+            landing_file_io: `// File I/O
+let path = "notes.txt"
+writeFile(path, "hello\\n")
+appendFile(path, "from karl\\n")
+
+log(readFile(path))
+log("exists:", exists(path))
+deleteFile(path)`,
+            landing_system_runtime: `// System runtime APIs
+let args = argv()
+let exe = programPath()
+let home = env("HOME")
+let all = environ()
+
+log({
+    args: args,
+    exe: exe,
+    home: home,
+    env_count: all.length,
+})`,
+            landing_signal_handling: `// Signal handling
+let sigs = signalWatch(["SIGINT", "SIGTERM"])
+log("waiting for shutdown...")
+
+let [sig, closed] = sigs.recv()
+if !closed {
+    log("shutdown:", sig)
+}`,
+            landing_http_server: `// HTTP server
+let srv = httpServe({
+    addr: ":8080",
+    routes: [
+        {
+            method: "GET",
+            path: "/health",
+            handler: req -> {
+                status: 200,
+                headers: { "Content-Type": "application/json", },
+                body: jsonEncode({ status: "ok", now: now(), }),
+            }
+        }
+    ],
+})`,
+            landing_sql_uuid_hash: `// SQL + UUID + hash
+let db = sqlOpen("postgres://vigil:vigil@localhost:5432/vigil?sslmode=disable")
+let id = uuidNew()
+let email = "hello@karl-lang.org"
+let fp = sha256(email)
+
+sqlExec(db,
+  "INSERT INTO users (id, email, fingerprint) VALUES ($1, $2, $3)",
+  [id, email, fp]
+)
+log(sqlQueryOne(db, "SELECT id, email FROM users WHERE id = $1", [id]))`,
+            landing_recover_match: `// Recover operator + match
+let cfg = jsonDecode(readFile("config.json")) ? {
+    { mode: "safe", retries: 3, }
+}
+
+match cfg.mode {
+    "safe" -> log("safe mode")
+    _ -> log("custom mode")
+}`
         };
 
         const runBtn = document.getElementById('runBtn');
