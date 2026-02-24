@@ -8,8 +8,11 @@ type Evaluator struct {
 	projectRoot string
 	modules     *moduleState
 
-	runtime     *runtimeState
-	currentTask *Task
+	runtime       *runtimeState
+	currentTask   *Task
+	debugger      Debugger
+	debugFrames   []DebugFrame
+	debugFrameSeq int
 }
 
 func NewEvaluator() *Evaluator {
@@ -92,6 +95,19 @@ func (e *Evaluator) SetSQLDriver(driver string) {
 	e.runtime.setSQLDriver(driver)
 }
 
+func (e *Evaluator) SetDebugger(debugger Debugger) {
+	e.debugger = debugger
+}
+
+func (e *Evaluator) DebugStack() []DebugFrame {
+	if len(e.debugFrames) == 0 {
+		return nil
+	}
+	out := make([]DebugFrame, len(e.debugFrames))
+	copy(out, e.debugFrames)
+	return out
+}
+
 func (e *Evaluator) cloneForTask(task *Task) *Evaluator {
 	return &Evaluator{
 		source:      e.source,
@@ -100,6 +116,7 @@ func (e *Evaluator) cloneForTask(task *Task) *Evaluator {
 		modules:     e.modules,
 		runtime:     e.runtime,
 		currentTask: task,
+		debugger:    e.debugger,
 	}
 }
 
@@ -108,6 +125,7 @@ func (e *Evaluator) newTask(parent *Task, internal bool) *Task {
 		e.runtime = newRuntimeState()
 	}
 	t := newTask()
+	t.debugID = e.runtime.nextDebugTaskID()
 	t.internal = internal
 	t.parent = parent
 	t.source = e.source

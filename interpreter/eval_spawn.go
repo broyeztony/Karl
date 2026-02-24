@@ -24,6 +24,7 @@ func (e *Evaluator) evalSpawnExpression(node *ast.SpawnExpression, env *Environm
 		if err != nil {
 			return nil, nil, err
 		}
+		e.bindPendingStepInTask(task)
 		return task, nil, nil
 	}
 
@@ -34,6 +35,9 @@ func (e *Evaluator) evalSpawnExpression(node *ast.SpawnExpression, env *Environm
 		child, err := e.spawnTask(expr, env, join, true)
 		if err != nil {
 			return nil, nil, err
+		}
+		if len(children) == 0 {
+			e.bindPendingStepInTask(child)
 		}
 		children = append(children, child)
 	}
@@ -100,4 +104,15 @@ func (e *Evaluator) spawnTask(expr ast.Expression, env *Environment, parent *Tas
 		task.complete(val, nil)
 	}()
 	return task, nil
+}
+
+func (e *Evaluator) bindPendingStepInTask(task *Task) {
+	if task == nil || e.debugger == nil {
+		return
+	}
+	controller, ok := e.debugger.(*DebugController)
+	if !ok {
+		return
+	}
+	controller.BindPendingStepInTask(task.debugID)
 }

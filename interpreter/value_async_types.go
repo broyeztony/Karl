@@ -3,6 +3,9 @@ package interpreter
 import "sync"
 
 type Task struct {
+	// Debug thread identifier used by the debugger/DAP bridge.
+	debugID int
+
 	ResultCh chan taskResult
 
 	mu       sync.Mutex

@@ -35,6 +35,12 @@ jobs:
         run: |
           go test -v ./...
 
+      - name: Run debugger CLI e2e scenarios
+        shell: bash
+        run: |
+          chmod +x scripts/test_debugger_cli_e2e.sh
+          KARL_BIN=./karl scripts/test_debugger_cli_e2e.sh
+
       - name: Install Karl globally
         run: |
           sudo mv karl /usr/local/bin/karl

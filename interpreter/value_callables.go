@@ -6,9 +6,12 @@ import (
 )
 
 type Function struct {
-	Params []ast.Pattern
-	Body   ast.Expression
-	Env    *Environment
+	Name     string
+	Params   []ast.Pattern
+	Body     ast.Expression
+	Env      *Environment
+	Source   string
+	Filename string
 }
 
 func (f *Function) Type() ValueType { return FUNC }

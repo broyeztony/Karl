@@ -9,7 +9,7 @@ func (e *Evaluator) resolveAssignable(node ast.Expression, env *Environment) (Va
 		if !ok {
 			return nil, nil, &RuntimeError{Message: "undefined identifier: " + n.Value}
 		}
-		return val, func(v Value) { env.Set(n.Value, v) }, nil
+		return val, func(v Value) { env.Set(n.Value, assignFunctionName(v, n.Value)) }, nil
 	case *ast.MemberExpression:
 		objVal, sig, err := e.Eval(n.Object, env)
 		if err != nil || sig != nil {

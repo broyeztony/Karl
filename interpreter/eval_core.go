@@ -10,8 +10,15 @@ func (e *Evaluator) Eval(node ast.Node, env *Environment) (Value, *Signal, error
 		return nil, nil, err
 	}
 
+	if err := e.debugBeforeNode(node, env); err != nil {
+		return nil, nil, err
+	}
+
 	val, sig, err := e.evalNode(node, env)
 	annotateErrorToken(node, err)
+	if debugErr := e.debugAfterNode(node, env, val, sig, err); debugErr != nil && err == nil {
+		err = debugErr
+	}
 	if fatalErr := e.checkRuntimeAfterEval(sig, err); fatalErr != nil {
 		return nil, nil, fatalErr
 	}
@@ -28,6 +35,9 @@ func (e *Evaluator) evalNode(node ast.Node, env *Environment) (Value, *Signal, e
 		val, sig, err := e.Eval(n.Value, env)
 		if err != nil || sig != nil {
 			return val, sig, err
+		}
+		if ident, ok := n.Name.(*ast.Identifier); ok {
+			val = assignFunctionName(val, ident.Value)
 		}
 		if ok, err := bindPattern(n.Name, val, env); !ok || err != nil {
 			if err != nil {
@@ -77,7 +87,13 @@ func (e *Evaluator) evalNode(node ast.Node, env *Environment) (Value, *Signal, e
 	case *ast.ForExpression:
 		return e.evalForExpression(n, env)
 	case *ast.LambdaExpression:
-		return &Function{Params: n.Params, Body: n.Body, Env: env}, nil, nil
+		return &Function{
+			Params:   n.Params,
+			Body:     n.Body,
+			Env:      env,
+			Source:   e.source,
+			Filename: e.filename,
+		}, nil, nil
 	case *ast.CallExpression:
 		return e.evalCallExpression(n, env)
 	case *ast.MemberExpression:
