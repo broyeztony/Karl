@@ -11,7 +11,7 @@ CURSOR_CLI ?= cursor
 GO_CMD = GOCACHE=$(GOCACHE_DIR) $(GO)
 LATEST_VSIX = $$(ls -t $(VSCODE_EXT_DIR)/*.vsix 2>/dev/null | head -1)
 
-.PHONY: help build build-karl build-wasm build-all test test-nocache lint examples workflow ci clean \
+.PHONY: help build build-karl build-wasm build-all test test-nocache test-debugger test-debugger-stress lint examples workflow ci clean \
 	vscode-package vscode-install vscode-install-cursor vscode-reinstall
 
 help:
@@ -21,6 +21,8 @@ help:
 	@echo "  make build-all     # build binary + wasm"
 	@echo "  make test          # run go tests"
 	@echo "  make test-nocache  # run go tests with cache disabled"
+	@echo "  make test-debugger # run debugger unit + integration + CLI e2e checks"
+	@echo "  make test-debugger-stress # repeat debugger checks to catch flaky behavior"
 	@echo "  make lint          # run golangci-lint"
 	@echo "  make examples      # run examples runtime suite"
 	@echo "  make workflow      # run workflow contrib suite"
@@ -48,6 +50,20 @@ test:
 test-nocache:
 	$(GO_CMD) clean -testcache
 	$(GO_CMD) test -count=1 ./...
+
+test-debugger: build-karl
+	chmod +x scripts/test_debugger_cli_e2e.sh
+	KARL_BIN=$(KARL_BIN) scripts/test_debugger_cli_e2e.sh
+	$(GO_CMD) test ./tests -run Debug -count=1
+	$(GO_CMD) test ./debugger/dap -count=1
+	$(GO_CMD) test -race ./tests -run Debug -count=1
+	$(GO_CMD) test -race ./debugger/dap -count=1
+
+test-debugger-stress: build-karl
+	chmod +x scripts/test_debugger_cli_e2e.sh
+	KARL_BIN=$(KARL_BIN) scripts/test_debugger_cli_e2e.sh
+	$(GO_CMD) test ./debugger/dap -count=20
+	$(GO_CMD) test ./tests -run Debug -count=20
 
 lint:
 	golangci-lint run --timeout=5m --out-format=colored-line-number
