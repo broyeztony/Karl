@@ -2,6 +2,30 @@
 
 All notable changes to Karl are documented here.
 
+## [v0.8.3] - 2026-02-24
+
+Highlights:
+- Added a first-class Karl debugger for CLI and DAP clients.
+- Added VS Code/Cursor debugging support via `karl trace dap`.
+- Added broad debugger regression coverage in CI (DAP + CLI e2e scenarios).
+
+Debugger:
+- Added CLI debugger commands: breakpoints, continue/step/next/finish, stack/frame, locals/print, watches, quit.
+- Added debugger runtime controller with pause/continue/step semantics across tasks.
+- Added expression evaluation in selected stack frames for inspect workflows.
+- Added watch expression management and rendering on stops.
+
+DAP / editor integration:
+- Added DAP server (`debugger/dap`) on stdio.
+- Added DAP request handling for launch, breakpoints, stepping, stack, scopes, variables, evaluate, pause/continue, disconnect.
+- Added VS Code extension adapter wiring to launch `karl trace dap`.
+- Fixed step-into source mapping for imported-module function bodies.
+
+Tests & CI:
+- Added debugger unit/integration tests (`tests/debug_controller_test.go`, `tests/debugger_hooks_test.go`, `debugger/dap/server_test.go`).
+- Added CLI debugger e2e suite (`scripts/test_debugger_cli_e2e.sh`) with corner-case scenarios.
+- Added debugger e2e execution to CI workflow.
+
 ## [v0.7.0] - 2026-02-21
 
 Highlights:
