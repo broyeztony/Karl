@@ -6,6 +6,7 @@
     <title>Karl Playground</title>
     <!-- CodeMirror & Theme -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
     <style>
         :root {
             --ink: #1e1e1e;
@@ -54,6 +55,17 @@
             background: #ffffff;
         }
 
+        body.theme-dark {
+            --ink: #f8f8f2;
+            --line: #44475a;
+            background: #282a36;
+            color: #f8f8f2;
+        }
+
+        body.theme-dark #container {
+            background: #282a36;
+        }
+
         .CodeMirror {
             flex: 1;
             height: 100%;
@@ -81,12 +93,17 @@
 
         .CodeMirror-linenumber {
             color: rgba(30, 30, 30, 0.42);
-            text-align: right;
-            padding: 0 12px;
+            text-align: center !important;
+            width: 100% !important;
+            padding: 0 !important;
         }
 
         .CodeMirror-cursor {
             border-left: 1px solid var(--ink);
+        }
+
+        body.theme-dark .CodeMirror-cursor {
+            border-left: 1px solid #f8f8f2;
         }
 
         .CodeMirror-vscrollbar {
@@ -140,11 +157,28 @@
             color: var(--ink);
             font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
             font-size: 13px;
+            font-weight: 700 !important;
             overflow: auto;
             white-space: pre-wrap;
             border-left: 1px solid var(--line);
             margin: 0;
             line-height: 1.5;
+        }
+
+        body.theme-dark #output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-left: 1px solid #44475a;
+            font-weight: 400 !important;
+        }
+
+        body.theme-dark .CodeMirror-gutters {
+            background: #282a36;
+            border-right: 1px solid #44475a;
+        }
+
+        body.theme-dark .CodeMirror-linenumber {
+            color: #6272a4;
         }
 
         button {
@@ -166,6 +200,25 @@
             background: #6272a4;
             cursor: not-allowed;
             color: #f8f8f2;
+        }
+
+        #themeToggle {
+            border: none;
+            background: transparent;
+            color: #f8f8f2;
+            cursor: pointer;
+            font-size: 13px;
+            line-height: 1;
+            padding: 4px 2px;
+            opacity: 0.85;
+            transition: opacity 120ms ease, color 120ms ease;
+        }
+
+        #themeToggle:hover,
+        #themeToggle:focus-visible {
+            opacity: 1;
+            color: #bd93f9;
+            outline: none;
         }
 
         #status {
@@ -239,6 +292,7 @@
     <div id="toolbar">
         <div class="title"><img src="../logo-32x32.png" alt="Karl">bench</div>
         <div id="toolbarCenter">
+            <button id="themeToggle" type="button">Dark theme</button>
             <button id="runBtn" disabled>Run ▶</button>
             <span id="status">Loading WASM environment...</span>
             <label style="font-size: 13px; user-select: none;">
@@ -262,91 +316,31 @@
         </div>
     </div>
     <div id="container">
-        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">// Karl Playground: 30-second tour
+        <textarea id="editor" spellcheck="false" placeholder="Write your Karl code here...">log("hello:", "Karl")
 
-let hr = () -> log("\n----------------------\n")
-
-log("hello:", "Karl")
 let nums = 1..6
 log("squares:", nums.map(x -> x * x))
 
-hr()
-
-// Channels communication
+// spawn starts a background task
 let c = channel()
-// Use spawn or & to start background computations
-spawn (chan -> {
-	chan.send("Hello from thread!")
-    chan.done()
-})(c)
-
-// recv() blocks until a message is ready to read
-log("received:", c.recv())
-log("received: ", c.recv())
-
-hr()
-
-// & runs a group concurrently and returns <task>
-let grouped = & {
-    (() -> { sleep(120); "A done" })(),
-    (() -> { sleep(80); "B done" })(),
-    (() -> { sleep(40); "C done" })()
-}
-log("grouped:", wait grouped)
-
-hr()
-
-// !& races tasks and resolves with the first result
-let fastest = !& {
-    (() -> { sleep(200); { label: "slow", } })(),
-    (() -> { sleep(60); { label: "fast", } })()
-}
-log("race:", wait fastest)
+spawn (ch -> ch.send("Hello from thread!"))(c)
+let [msg, _closed] = c.recv()
+log("received:", msg)
 </textarea>
         <pre id="output"></pre>
     </div>
     <script>
         const EXAMPLES = {
-            quickstart: `// Karl Playground: 30-second tour
+            quickstart: `log("hello:", "Karl")
 
-let hr = () -> log("\\n----------------------\\n")
-
-log("hello:", "Karl")
 let nums = 1..6
 log("squares:", nums.map(x -> x * x))
 
-hr()
-
-// Channels communication
+// spawn starts a background task
 let c = channel()
-// Use spawn or & to start background computations
-spawn (chan -> {
-	chan.send("Hello from thread!")
-    chan.done()
-})(c)
-
-// recv() blocks until a message is ready to read
-log("received:", c.recv())
-log("received: ", c.recv())
-
-hr()
-
-// & runs a group concurrently and returns <task>
-let grouped = & {
-    (() -> { sleep(120); "A done" })(),
-    (() -> { sleep(80); "B done" })(),
-    (() -> { sleep(40); "C done" })()
-}
-log("grouped:", wait grouped)
-
-hr()
-
-// !& races tasks and resolves with the first result
-let fastest = !& {
-    (() -> { sleep(200); { label: "slow", } })(),
-    (() -> { sleep(60); { label: "fast", } })()
-}
-log("race:", wait fastest)`,
+spawn (ch -> ch.send("Hello from thread!"))(c)
+let [msg, _closed] = c.recv()
+log("received:", msg)`,
             language_concurrency: `// Karl Playground: language + concurrency demo
 
 let new_line 	= () -> log("\n----------------------\n")
@@ -520,11 +514,13 @@ stream`
         const editorArea = document.getElementById('editor');
         const exampleSelect = document.getElementById('exampleSelect');
         const autoRunCheckbox = document.getElementById('autoRun');
+        const themeToggle = document.getElementById('themeToggle');
         const status = document.getElementById('status');
         const output = document.getElementById('output');
         let cm;
         let worker;
         let debounceTimer;
+        let isDarkTheme = false;
 
         // Initialize CodeMirror if loaded
         if (typeof CodeMirror !== 'undefined') {
@@ -581,6 +577,19 @@ stream`
             output.textContent = "Error: CodeMirror library could not be loaded.";
         }
 
+        function applyTheme(nextDark) {
+            isDarkTheme = nextDark;
+            document.body.classList.toggle("theme-dark", isDarkTheme);
+            themeToggle.textContent = isDarkTheme ? "Light theme" : "Dark theme";
+            if (cm) {
+                cm.setOption("theme", isDarkTheme ? "dracula" : "default");
+            }
+        }
+
+        themeToggle.addEventListener("click", () => {
+            applyTheme(!isDarkTheme);
+        });
+
         function setEditorValue(code) {
             if (cm) {
                 cm.setValue(code);
@@ -609,6 +618,7 @@ stream`
 
         // Ensure default content is in sync with selected sample.
         loadExample(exampleSelect.value);
+        applyTheme(false);
 
         function initWorker() {
             if (worker) worker.terminate();

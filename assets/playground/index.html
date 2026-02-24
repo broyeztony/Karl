@@ -56,7 +56,7 @@
         }
 
         .left img {
-            width: min(44%, 320px);
+            width: min(36%, 260px);
             height: auto;
             display: block;
             user-select: none;
@@ -64,7 +64,7 @@
         }
 
         .right {
-            border-left: 1px solid var(--line);
+            border-left: none;
             min-width: 0;
             min-height: 0;
             padding: 34px 40px;
@@ -115,16 +115,15 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            white-space: pre;
+            overflow-x: hidden;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
             color: var(--ink);
             font-size: clamp(14px, 1.45vw, 24px);
             line-height: 1.55;
             opacity: 1;
-            transition: opacity 360ms ease;
-        }
-
-        #example.fade {
-            opacity: 0;
+            transition: opacity 180ms ease;
         }
 
         .progress {
@@ -135,7 +134,7 @@
             transform: translateX(-50%);
             width: 2px;
             height: 100vh;
-            background: #efefef;
+            background: transparent;
             overflow: hidden;
             z-index: 5;
             pointer-events: none;
@@ -144,7 +143,7 @@
         .progress__bar {
             width: 100%;
             height: 100%;
-            background: var(--accent-a);
+            background: rgb(30, 30, 30);
             transform: scaleY(0);
             transform-origin: center bottom;
         }
@@ -401,13 +400,15 @@ match cfg.mode {
         const el = document.getElementById("example");
         const progressBar = document.getElementById("progressBar");
         const CYCLE_MS = 10000;
-        const FADE_MS = 360;
+        const DECODE_MS = 920;
+        const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*+-=<>?/|~";
         let index = 0;
         let timerId = null;
         let cycleStartAt = 0;
         let remainingMs = CYCLE_MS;
         let isPaused = false;
         let isTransitioning = false;
+        let decodeRaf = null;
 
         const escapeHTML = (s) => s
             .replace(/&/g, "&amp;")
@@ -461,6 +462,71 @@ match cfg.mode {
             el.scrollTop = 0;
         }
 
+        function randomGlyph() {
+            return GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+        }
+
+        function buildDecodePlan(fromCode, toCode) {
+            const maxLen = Math.max(fromCode.length, toCode.length);
+            const plan = [];
+            for (let i = 0; i < maxLen; i++) {
+                const target = toCode[i] || "";
+                const norm = maxLen > 1 ? i / (maxLen - 1) : 1;
+                const jitter = (Math.random() * 0.18) - 0.09;
+                const lockAt = Math.max(0.06, Math.min(0.98, (norm * 0.72) + 0.12 + jitter));
+                plan.push({ target, lockAt });
+            }
+            return plan;
+        }
+
+        function renderDecoded(plan, progress) {
+            let text = "";
+            for (let i = 0; i < plan.length; i++) {
+                const slot = plan[i];
+                const t = slot.target;
+                if (progress >= slot.lockAt) {
+                    text += t;
+                    continue;
+                }
+                if (t === "\n" || t === "\r" || t === "\t" || t === " ") {
+                    text += t;
+                    continue;
+                }
+                text += randomGlyph();
+            }
+            el.innerHTML = highlight(text);
+            el.scrollTop = 0;
+        }
+
+        function decodeTo(nextIndex, onDone) {
+            const fromCode = EXAMPLES[index];
+            const toCode = EXAMPLES[nextIndex];
+            const plan = buildDecodePlan(fromCode, toCode);
+            const start = performance.now();
+
+            const step = (now) => {
+                const elapsed = now - start;
+                const raw = Math.max(0, Math.min(1, elapsed / DECODE_MS));
+                const eased = 1 - Math.pow(1 - raw, 3);
+                renderDecoded(plan, eased);
+
+                if (raw < 1) {
+                    decodeRaf = requestAnimationFrame(step);
+                    return;
+                }
+
+                decodeRaf = null;
+                render(nextIndex);
+                onDone();
+            };
+
+            if (decodeRaf) {
+                cancelAnimationFrame(decodeRaf);
+                decodeRaf = null;
+            }
+            decodeRaf = requestAnimationFrame(step);
+        }
+
         function setProgressStatic(ratio) {
             progressBar.style.transition = "none";
             progressBar.style.transform = `scaleY(${ratio})`;
@@ -496,11 +562,9 @@ match cfg.mode {
                 clearTimeout(timerId);
                 timerId = null;
             }
-            el.classList.add("fade");
-            setTimeout(() => {
-                index = (index + step + EXAMPLES.length) % EXAMPLES.length;
-                render(index);
-                el.classList.remove("fade");
+            const nextIndex = (index + step + EXAMPLES.length) % EXAMPLES.length;
+            decodeTo(nextIndex, () => {
+                index = nextIndex;
                 isTransitioning = false;
                 if (isPaused) {
                     remainingMs = CYCLE_MS;
@@ -508,7 +572,7 @@ match cfg.mode {
                 } else {
                     scheduleNext(CYCLE_MS);
                 }
-            }, FADE_MS);
+            });
         }
 
         function pauseLoop() {
