@@ -76,3 +76,20 @@ let fastest = !& { taskA(), taskB() }`
 		t.Fatalf("expected RaceExpression, got %T", stmt1.Value)
 	}
 }
+
+func TestSpawnAndRaceKeywordAliases(t *testing.T) {
+	input := `let tasks = spawn { taskA(), taskB() }
+let fastest = race { taskA(), taskB() }`
+	p := parser.New(lexer.New(input))
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt0 := program.Statements[0].(*ast.LetStatement)
+	if _, ok := stmt0.Value.(*ast.SpawnExpression); !ok {
+		t.Fatalf("expected SpawnExpression, got %T", stmt0.Value)
+	}
+	stmt1 := program.Statements[1].(*ast.LetStatement)
+	if _, ok := stmt1.Value.(*ast.RaceExpression); !ok {
+		t.Fatalf("expected RaceExpression, got %T", stmt1.Value)
+	}
+}

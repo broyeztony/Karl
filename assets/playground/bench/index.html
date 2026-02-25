@@ -702,7 +702,7 @@ match cfg.mode {
                     { regex: /"(?:[^\\]|\\.)*?(?:"|$)/, token: "string" },
                     { regex: /'(?:[^\\]|\\.)*?(?:'|$)/, token: "string" },
                     // Keywords
-                    { regex: /(?:let|if|else|for|match|wait|break|continue|return|then|with|shape|fn)\b/, token: "keyword" },
+                    { regex: /(?:let|if|else|for|match|wait|spawn|race|break|continue|return|then|with|shape|fn)\b/, token: "keyword" },
                     { regex: /\/\/.*/, token: "comment" },
                     // Atoms/Booleans
                     { regex: /\b(?:true|false|nil|null)\b/, token: "atom" },

@@ -22,6 +22,10 @@ func TestParserErrors(t *testing.T) {
 			input: "& foo",
 		},
 		{
+			name:  "spawn_keyword_requires_call",
+			input: "spawn foo",
+		},
+		{
 			name:  "object_shorthand_requires_trailing_comma",
 			input: "let o = { x, y }",
 		},

@@ -388,7 +388,7 @@ match cfg.mode {
 
         const KEYWORDS = new Set([
             "let", "if", "else", "match", "case", "for", "with", "then",
-            "true", "false", "null", "wait", "spawn", "break"
+            "true", "false", "null", "wait", "spawn", "race", "break"
         ]);
 
         const tokenRe = /\/\/.*$|"(?:\\.|[^"\\])*"|\b[a-zA-Z_][a-zA-Z0-9_]*(?=\()|\b[a-zA-Z_][a-zA-Z0-9_]*\b|\b\d+(?:\.\d+)?\b|->|!&|&&|\|\||==|!=|<=|>=|[=+\-*/%<>]/gm;

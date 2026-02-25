@@ -603,6 +603,16 @@ wait !& { slow(), fast() }
 	assertInteger(t, val, 2)
 }
 
+func TestEvalRaceExpressionKeywordAlias(t *testing.T) {
+	input := `
+let slow = () -> { sleep(10); 1 }
+let fast = () -> 2
+wait race { slow(), fast() }
+`
+	val := mustEval(t, input)
+	assertInteger(t, val, 2)
+}
+
 func TestEvalRaceCancelsLosers(t *testing.T) {
 	input := `
 let state = { hits: 0 }
@@ -625,6 +635,47 @@ func TestEvalSpawnGroup(t *testing.T) {
 	expected := &Array{Elements: []Value{
 		&Integer{Value: 1},
 		&Integer{Value: 2},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestEvalSpawnKeywordAlias(t *testing.T) {
+	val := mustEval(t, "let a = () -> 1; let b = () -> 2; wait spawn { a(), b() }")
+	expected := &Array{Elements: []Value{
+		&Integer{Value: 1},
+		&Integer{Value: 2},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestEvalSpawnKeywordAliasSingleTask(t *testing.T) {
+	input := `
+let work = () -> 41
+let t = spawn work()
+wait t
+`
+	val := mustEval(t, input)
+	assertInteger(t, val, 41)
+}
+
+func TestEvalSpawnAndRaceRemainValidIdentifiers(t *testing.T) {
+	input := `
+let spawn = 9
+let race = 7
+let obj = { spawn: spawn, race: race, }
+{
+	spawn: spawn,
+	race: race,
+	objSpawn: obj.spawn,
+	objRace: obj.race,
+}
+`
+	val := mustEval(t, input)
+	expected := &Object{Pairs: map[string]Value{
+		"spawn":    &Integer{Value: 9},
+		"race":     &Integer{Value: 7},
+		"objSpawn": &Integer{Value: 9},
+		"objRace":  &Integer{Value: 7},
 	}}
 	assertEquivalent(t, val, expected)
 }

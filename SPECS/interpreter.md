@@ -367,7 +367,9 @@ Tasks that never hit a yield point will monopolize the event loop.
 ### Spawn and wait
 
 - `& call()` spawns a task and returns a Task handle.
+- `spawn call()` is an alias of `& call()`.
 - `& { call1(), call2(), ... }` spawns tasks concurrently and returns a Task handle for ordered results.
+- `spawn { call1(), call2(), ... }` is an alias of `& { ... }`.
 - `wait task` waits and yields the result.
 - `wait` on non-Task is a runtime error (exit).
 
@@ -400,6 +402,7 @@ JoinTask result: [A, B, C] (preserves input order)
 ### Race
 
 - `!& { call1(), call2(), ... }` spawns tasks and returns a Task handle.
+- `race { call1(), call2(), ... }` is an alias of `!& { ... }`.
 - `wait` on that handle yields the first completed result.
 - Remaining tasks are cancelled automatically (cooperative cancellation).
 
