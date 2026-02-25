@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Karl Docs - Specs</title>
+    <link rel="stylesheet" href="/docs/docs.css">
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/docs/">
+                <img src="/logo-32x32.png" alt="Karl logo">
+                <span>karl docs / specs</span>
+            </a>
+            <nav class="nav-links" aria-label="Docs sections">
+                <a href="/docs/specs/" aria-current="page">Specs</a>
+                <a href="/docs/std/">Std</a>
+                <a href="/docs/idiomatic/">Idiomatic</a>
+                <a href="/bench/">Bench</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page doc two-col">
+        <aside class="toc" aria-label="Specs table of contents">
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="#notation">Notation</a></li>
+                <li><a href="#lexical">Lexical Elements</a></li>
+                <li><a href="#grammar">Grammar (EBNF)</a></li>
+                <li><a href="#evaluation">Evaluation Semantics</a></li>
+                <li><a href="#concurrency">Concurrency Model</a></li>
+                <li><a href="#errors">Error Model</a></li>
+                <li><a href="#imports">Imports and Modules</a></li>
+                <li><a href="#runtime">Runtime Snapshot</a></li>
+            </ul>
+        </aside>
+
+        <article>
+            <h2 id="notation">1. Notation</h2>
+            <p>
+                This specification is normative for Karl parser and interpreter behavior.
+                Grammar uses EBNF-style productions. Literal tokens are quoted; non-terminals are lowercase names.
+            </p>
+            <p>
+                Karl is expression-based: every construct yields a value.
+                Assignment and loop control are expressions, not statements-only forms.
+            </p>
+
+            <h2 id="lexical">2. Lexical Elements</h2>
+            <ul>
+                <li>Identifiers: <code>[a-zA-Z_][a-zA-Z0-9_]*</code>.</li>
+                <li>Literals: integers, floats, strings, chars, booleans, <code>null</code>, and unit <code>()</code>.</li>
+                <li>Comments: line comment form <code>// ...</code>.</li>
+                <li>Operators include arithmetic, comparisons, assignment operators, <code>&amp;</code>, <code>!&amp;</code>, and <code>?</code>.</li>
+                <li><code>spawn</code> is an alias keyword for <code>&amp;</code>; <code>race</code> is an alias for <code>!&amp;</code>.</li>
+            </ul>
+
+            <h2 id="grammar">3. Core Grammar (EBNF)</h2>
+            <pre><code>program         = { statement } ;
+statement       = let_stmt | expr_stmt ;
+let_stmt        = "let" pattern "=" expr [";"] ;
+expr_stmt       = expr [";"] ;
+
+expr            = if_expr
+                | match_expr
+                | for_expr
+                | lambda_expr
+                | loop_ctrl
+                | assign ;
+
+assign          = logic_or | lvalue assign_op expr ;
+lvalue          = IDENT { ("." IDENT | "[" expr "]") } ;
+assign_op       = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
+
+spawn_expr      = ("&" | "spawn") spawn_target ;
+spawn_target    = call_expr | "{" [call_expr {"," call_expr}] "}" ;
+
+race_expr       = ("!&" | "race") "{" [call_expr {"," call_expr}] "}" ;
+
+recover_expr    = call_expr ["?" recovery_block] ;
+recovery_block  = block ;
+
+query_expr      = "from" IDENT "in" expr
+                  {"where" expr}
+                  ["orderby" expr]
+                  "select" expr ;
+</code></pre>
+
+            <h3>3.1 Object vs Block Disambiguation</h3>
+            <p>
+                <code>{ ... }</code> parses as an object literal when a top-level colon, spread, or trailing comma is present.
+                Otherwise it parses as a block expression.
+                Shorthand-only objects should use trailing comma form, e.g. <code>{ x, y, }</code>.
+            </p>
+
+            <h2 id="evaluation">4. Evaluation Semantics</h2>
+            <h3>4.1 Order</h3>
+            <p>
+                Karl evaluates left-to-right for arguments, array/object entries, and infix operands.
+                Logical <code>&amp;&amp;</code> and <code>||</code> short-circuit.
+            </p>
+
+            <h3>4.2 Truthy / Falsy</h3>
+            <p>Falsy values are: <code>null</code>, <code>false</code>, numeric zero, empty string, empty array/object/map/set. Everything else is truthy.</p>
+
+            <h3>4.3 Loop Results</h3>
+            <ul>
+                <li><code>for ... then ...</code> returns the <code>then</code> expression on normal termination.</li>
+                <li><code>break expr</code> exits loop with <code>expr</code> directly (bypasses <code>then</code>).</li>
+                <li><code>break</code> with no value uses <code>then</code> result if present, else unit <code>()</code>.</li>
+            </ul>
+
+            <h3>4.4 Equality</h3>
+            <ul>
+                <li><code>==</code>: identity for composite values.</li>
+                <li><code>eqv</code>: deep structural equality for arrays/objects/maps.</li>
+            </ul>
+
+            <h2 id="concurrency">5. Concurrency Model</h2>
+            <p>
+                Karl concurrency is task-based with channels and explicit waiting.
+                Runtime implementation is cooperative from the language perspective.
+            </p>
+            <pre><code>let grouped = &amp; { a(), b(), c() }
+let grouped2 = spawn { a(), b(), c() }   // alias
+let all = wait grouped
+
+let first = wait !&amp; { slow(), fast() }
+let first2 = wait race { slow(), fast() } // alias
+</code></pre>
+            <ul>
+                <li><code>&amp;</code>/<code>spawn</code> returns a <code>&lt;task&gt;</code>.</li>
+                <li><code>!&amp;</code>/<code>race</code> resolves first result and cancels losers cooperatively.</li>
+                <li><code>wait</code> expects a task handle; otherwise runtime error.</li>
+                <li>Channels expose <code>send</code>, <code>recv</code>, <code>done</code>.</li>
+            </ul>
+
+            <h2 id="errors">6. Error Model</h2>
+            <p>
+                Karl supports recover blocks via postfix <code>?</code>.
+                Recover receives implicit <code>error</code> object with <code>kind</code> and <code>message</code>.
+            </p>
+            <pre><code>let parsed = jsonDecode(raw) ? {
+    log(error.message)
+    { fallback: true, }
+}
+</code></pre>
+            <ul>
+                <li>Recover applies to call expressions and recovers runtime or recoverable builtin errors.</li>
+                <li><code>fail()</code> creates recoverable failures.</li>
+                <li><code>exit()</code> is terminal and not recoverable.</li>
+            </ul>
+
+            <h2 id="imports">7. Imports and Modules</h2>
+            <p>
+                <code>import "path"</code> returns a factory function.
+                Calling the factory evaluates module top-level bindings in a fresh module environment and returns exported bindings.
+            </p>
+            <ul>
+                <li>Relative paths resolve against importer directory.</li>
+                <li>Non-relative paths resolve against project root.</li>
+                <li>Top-level <code>let</code> bindings are exported.</li>
+            </ul>
+
+            <h2 id="runtime">8. Runtime Snapshot and Context</h2>
+            <p>
+                Process context (<code>argv</code>, environment snapshot, program path) is captured at runtime initialization and shared by spawned tasks.
+            </p>
+            <dl class="kv">
+                <dt><code>argv()</code></dt>
+                <dd>Program arguments after <code>--</code> in <code>karl run</code>.</dd>
+                <dt><code>programPath()</code></dt>
+                <dd>Current script path, <code>&lt;stdin&gt;</code>, or <code>null</code> when unavailable.</dd>
+                <dt><code>environ()</code></dt>
+                <dd>Environment snapshot as <code>["KEY=value", ...]</code>.</dd>
+                <dt><code>env(name)</code></dt>
+                <dd>Environment lookup returning string or <code>null</code>.</dd>
+            </dl>
+
+            <div class="footer">
+                <span>Normative sources: <code>SPECS/language.md</code>, <code>SPECS/interpreter.md</code>.</span>
+                <span><a href="/docs/std/">Next: standard library reference</a></span>
+            </div>
+        </article>
+    </main>
+</body>
+
+</html>

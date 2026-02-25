@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Karl Docs - Idiomatic</title>
+    <link rel="stylesheet" href="/docs/docs.css">
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/docs/">
+                <img src="/logo-32x32.png" alt="Karl logo">
+                <span>karl docs / idiomatic</span>
+            </a>
+            <nav class="nav-links" aria-label="Docs sections">
+                <a href="/docs/specs/">Specs</a>
+                <a href="/docs/std/">Std</a>
+                <a href="/docs/idiomatic/" aria-current="page">Idiomatic</a>
+                <a href="/bench/">Bench</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page doc two-col">
+        <aside class="toc" aria-label="Idiomatic table of contents">
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="#style">Style Rules</a></li>
+                <li><a href="#data">Concise Data Shaping</a></li>
+                <li><a href="#recover">Recover and Defaults</a></li>
+                <li><a href="#tasks">Tasks and Concurrency</a></li>
+                <li><a href="#channels">Streaming with Channels</a></li>
+                <li><a href="#match">Match + Guards</a></li>
+                <li><a href="#destructure">Destructuring</a></li>
+            </ul>
+        </aside>
+
+        <article>
+            <h2>Idiomatic Karl</h2>
+            <p>
+                Karl favors expression flow and compact transforms.
+                Prefer direct expressions over ceremony and helper wrappers unless reuse is real.
+            </p>
+
+            <h3 id="style">1. Style Rules</h3>
+            <ul>
+                <li>Keep bindings close to where values are used.</li>
+                <li>Prefer expression return style over multi-step temporary blocks.</li>
+                <li>Use object shorthand for readability: <code>{ id, email, }</code>.</li>
+                <li>Reach for <code>match</code> + guards rather than long nested <code>if</code> ladders.</li>
+            </ul>
+
+            <h3 id="data">2. Concise Data Shaping</h3>
+            <pre><code>// compact object construction
+let mkJSONHeaders = () -> map().set("Content-Type", "application/json")
+
+let jsonResponse = (status, payload) -> {
+    status,
+    headers: mkJSONHeaders(),
+    body: jsonEncode(payload),
+}
+
+let users = rows
+    .filter(u -> u.active)
+    .map(u -> { id: u.id, email: u.email, })
+</code></pre>
+
+            <h3 id="recover">3. Recover and Defaults</h3>
+            <pre><code>// fail fast by default, recover only where fallback is meaningful
+let cfg = jsonDecode(raw) ? { mode: "safe", retries: 3, }
+
+// recover inline and continue expression flow
+let quota = parseInt(env("MAX_RETRY") ? "3") ? { 3 }
+</code></pre>
+
+            <h3 id="tasks">4. Tasks and Concurrency</h3>
+            <pre><code>// spawn group + wait
+let grouped = spawn {
+    fetchUser("u1"),
+    fetchUser("u2"),
+}
+let [u1, u2, ] = wait grouped
+
+// race first result
+let fastest = wait race {
+    fetchFrom("a"),
+    fetchFrom("b"),
+}
+
+// chain async transforms
+let score = wait (&amp; compute()).then(x -> x + 1).then(x -> x * 10)
+</code></pre>
+
+            <h3 id="channels">5. Streaming with Channels</h3>
+            <pre><code>let ch = channel()
+
+let producer = spawn (c -> {
+    c.send("a")
+    c.send("b")
+    c.done()
+})(ch)
+
+let stream = for true with res = ch.recv(), acc = [] {
+    let [v, done] = res
+    if done { break acc }
+    acc += [v]
+    res = ch.recv()
+} then acc
+
+wait producer
+log(stream)
+</code></pre>
+
+            <h3 id="match">6. Match + Guards</h3>
+            <pre><code>let classify = n -> match n {
+    case _ if n &lt; 0 -> "negative"
+    case 0 -> "zero"
+    case _ if n &lt; 10 -> "small"
+    case _ -> "large"
+}
+
+let msg = match event {
+    case { kind: "email", payload: { id, subject, } } -> "mail:" + id + ":" + subject
+    case { kind } -> "event:" + kind
+    case _ -> "unknown"
+}
+</code></pre>
+
+            <h3 id="destructure">7. Destructuring First</h3>
+            <pre><code>// pull structure first, then compute
+let { id, email, profile: { role, }, } = user
+let [head, second, ...tail, ] = items
+let (x, y) = pair
+
+log({ id, email, role, head, second, tail, x, y, })
+</code></pre>
+
+            <div class="footer">
+                <span>Prefer expression flow over helper bloat.</span>
+                <span><a href="/bench/">Try snippets in bench</a></span>
+            </div>
+        </article>
+    </main>
+</body>
+
+</html>

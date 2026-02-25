@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Karl Docs</title>
+    <link rel="stylesheet" href="/docs/docs.css">
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/">
+                <img src="/logo-32x32.png" alt="Karl logo">
+                <span>karl docs</span>
+            </a>
+            <nav class="nav-links" aria-label="Site">
+                <a href="/bench/">Bench</a>
+                <a href="/sheets/">Sheets</a>
+                <a href="https://github.com/broyeztony/Karl">GitHub</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="hero">
+            <h1>Documentation</h1>
+            <p>
+                Single source of truth for Karl language behavior, runtime semantics, and library APIs.
+                This section is split into formal spec material, standard library reference, and idiomatic patterns.
+            </p>
+            <div class="meta-row">Version focus: v0.8.x</div>
+        </section>
+
+        <section class="grid-cards" aria-label="Documentation sections">
+            <article class="card">
+                <h2>Specs</h2>
+                <p>
+                    Formal, implementation-oriented specification of Karl grammar and semantics.
+                    Covers parser grammar (EBNF), expression evaluation, concurrency model, error handling,
+                    import/runtime behavior, and determinism rules.
+                </p>
+                <a class="card-link" href="/docs/specs/">Open /docs/specs</a>
+            </article>
+
+            <article class="card">
+                <h2>Std</h2>
+                <p>
+                    Complete reference for Karl standard library built-ins and method sugars.
+                    Includes argument lists, return values, runtime constraints, and environment availability
+                    (CLI vs browser runtime).
+                </p>
+                <a class="card-link" href="/docs/std/">Open /docs/std</a>
+            </article>
+
+            <article class="card">
+                <h2>Idiomatic</h2>
+                <p>
+                    Concise Karl patterns: destructuring, recover flows, task composition, channel streams,
+                    and expressive match + guard style.
+                    Each pattern is optimized for readable and compact Karl code.
+                </p>
+                <a class="card-link" href="/docs/idiomatic/">Open /docs/idiomatic</a>
+            </article>
+        </section>
+
+        <section class="doc" style="margin-top: 18px;">
+            <article>
+                <h2>Quick Entry Points</h2>
+                <pre><code>// Try Karl now in your browser
+https://karl-lang.org/bench/
+
+// Run Karl locally
+karl run file.k
+
+// Open docs
+https://karl-lang.org/docs/
+</code></pre>
+                <div class="footer">
+                    <span>Docs live with the codebase in <code>assets/playground/docs/</code>.</span>
+                    <span><a href="https://github.com/broyeztony/Karl">Suggest a doc change</a></span>
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+
+</html>

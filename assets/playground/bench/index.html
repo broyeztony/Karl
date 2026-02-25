@@ -221,6 +221,22 @@
             outline: none;
         }
 
+        .toolbarLink {
+            color: #f8f8f2;
+            text-decoration: none;
+            font-size: 13px;
+            line-height: 1;
+            opacity: 0.85;
+            transition: opacity 120ms ease, color 120ms ease;
+        }
+
+        .toolbarLink:hover,
+        .toolbarLink:focus-visible {
+            opacity: 1;
+            color: #bd93f9;
+            outline: none;
+        }
+
         #status {
             font-size: 0.9em;
             color: #bd93f9;
@@ -292,6 +308,7 @@
     <div id="toolbar">
         <div class="title"><img src="../logo-32x32.png" alt="Karl">bench</div>
         <div id="toolbarCenter">
+            <a class="toolbarLink" href="/docs/">Docs</a>
             <button id="themeToggle" type="button">Dark theme</button>
             <button id="runBtn" disabled>Run ▶</button>
             <span id="status">Loading WASM environment...</span>
