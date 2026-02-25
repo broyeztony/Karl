@@ -253,6 +253,12 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 }
 
 func (p *Parser) parseIdentifier() ast.Expression {
+	if p.curToken.Literal == "spawn" && (p.peekTokenIs(token.LBRACE) || p.peekTokenIs(token.IDENT) || p.peekTokenIs(token.LPAREN)) {
+		return p.parseSpawnExpression()
+	}
+	if p.curToken.Literal == "race" && p.peekTokenIs(token.LBRACE) {
+		return p.parseRaceExpression()
+	}
 	if p.curToken.Literal == "_" {
 		return &ast.Placeholder{Token: p.curToken}
 	}
@@ -358,7 +364,7 @@ func (p *Parser) parseRaceExpression() ast.Expression {
 }
 
 func (p *Parser) parseReservedPipeExpression() ast.Expression {
-	p.addError(p.curToken, "operator '|' is reserved for stream piping; use '!& { ... }' for race")
+	p.addError(p.curToken, "operator '|' is reserved for stream piping; use '!& { ... }' or 'race { ... }' for race")
 	return nil
 }
 

@@ -44,7 +44,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.karl",
-                    "match": "\\b(if|else|for|while|break|continue|return|match|case|then|with|wait)\\b"
+                    "match": "\\b(if|else|for|while|break|continue|return|match|case|then|with|wait|spawn|race)\\b"
                 },
                 {
                     "name": "keyword.other.karl",

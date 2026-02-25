@@ -8,7 +8,7 @@ Beautiful syntax highlighting for the Karl programming language!
 
 ✨ **Comprehensive Syntax Highlighting**
 - Keywords: `let`, `if`, `else`, `for`, `match`, `wait`, etc.
-- Async operators: `&` (spawn), `!&` (race)
+- Async operators: `&`/`spawn` (spawn), `!&`/`race` (race)
 - Arrow functions: `->`
 - Built-in functions across runtime, SQL, HTTP server, UUID/time/hash, collections, and concurrency
 - String and number literals
@@ -93,7 +93,7 @@ results
 - **Async:** `wait`
 
 ### Operators
-- **Async:** `&` (spawn task), `!&` (race tasks)
+- **Async:** `&`/`spawn` (spawn task), `!&`/`race` (race tasks)
 - **Arrow:** `->`
 - **Comparison:** `==`, `!=`, `<`, `>`, `<=`, `>=`
 - **Logical:** `&&`, `||`

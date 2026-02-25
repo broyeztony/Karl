@@ -19,7 +19,9 @@ arr[1..]
 obj.field
 jsonDecode("{}") ? { foo: "bar", }
 & taskA()
+spawn taskA()
 !& { taskA(), taskB() }
+race { taskA(), taskB() }
 `
 
 	tests := []struct {
@@ -96,7 +98,23 @@ jsonDecode("{}") ? { foo: "bar", }
 		{token.LPAREN, "("},
 		{token.RPAREN, ")"},
 
+		{token.IDENT, "spawn"},
+		{token.IDENT, "taskA"},
+		{token.LPAREN, "("},
+		{token.RPAREN, ")"},
+
 		{token.RACE, "!&"},
+		{token.LBRACE, "{"},
+		{token.IDENT, "taskA"},
+		{token.LPAREN, "("},
+		{token.RPAREN, ")"},
+		{token.COMMA, ","},
+		{token.IDENT, "taskB"},
+		{token.LPAREN, "("},
+		{token.RPAREN, ")"},
+		{token.RBRACE, "}"},
+
+		{token.IDENT, "race"},
 		{token.LBRACE, "{"},
 		{token.IDENT, "taskA"},
 		{token.LPAREN, "("},

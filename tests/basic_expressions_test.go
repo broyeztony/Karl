@@ -578,6 +578,32 @@ func TestExpressionKinds(t *testing.T) {
 			},
 		},
 		{
+			name:  "identifier_named_spawn",
+			input: "spawn",
+			assert: func(t *testing.T, expr ast.Expression) {
+				id, ok := expr.(*ast.Identifier)
+				if !ok {
+					t.Fatalf("expected Identifier, got %T", expr)
+				}
+				if id.Value != "spawn" {
+					t.Fatalf("expected identifier spawn, got %q", id.Value)
+				}
+			},
+		},
+		{
+			name:  "identifier_named_race",
+			input: "race",
+			assert: func(t *testing.T, expr ast.Expression) {
+				id, ok := expr.(*ast.Identifier)
+				if !ok {
+					t.Fatalf("expected Identifier, got %T", expr)
+				}
+				if id.Value != "race" {
+					t.Fatalf("expected identifier race, got %q", id.Value)
+				}
+			},
+		},
+		{
 			name:  "race_expression",
 			input: "!& { taskA(), taskB() }",
 			assert: func(t *testing.T, expr ast.Expression) {
@@ -591,8 +617,34 @@ func TestExpressionKinds(t *testing.T) {
 			},
 		},
 		{
+			name:  "race_expression_keyword_alias",
+			input: "race { taskA(), taskB() }",
+			assert: func(t *testing.T, expr ast.Expression) {
+				re, ok := expr.(*ast.RaceExpression)
+				if !ok {
+					t.Fatalf("expected RaceExpression, got %T", expr)
+				}
+				if len(re.Tasks) != 2 {
+					t.Fatalf("expected 2 tasks, got %d", len(re.Tasks))
+				}
+			},
+		},
+		{
 			name:  "spawn_expression",
 			input: "& taskA()",
+			assert: func(t *testing.T, expr ast.Expression) {
+				se, ok := expr.(*ast.SpawnExpression)
+				if !ok {
+					t.Fatalf("expected SpawnExpression, got %T", expr)
+				}
+				if se.Task == nil {
+					t.Fatalf("expected task expression")
+				}
+			},
+		},
+		{
+			name:  "spawn_expression_keyword_alias",
+			input: "spawn taskA()",
 			assert: func(t *testing.T, expr ast.Expression) {
 				se, ok := expr.(*ast.SpawnExpression)
 				if !ok {

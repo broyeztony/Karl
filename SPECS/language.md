@@ -464,15 +464,25 @@ let fib = (n) -> match n {
 
 // Spawn expressions - all tasks run concurrently
 // & { ... } returns a Task handle for an array of results
+// spawn is an alias of &
 let tasks = & {
     task1(),
     task2(),
     task3()
 }
 let results = wait tasks
+let same = wait spawn {
+    task1(),
+    task2()
+}
 
 // Race expression - first to complete wins
+// race is an alias of !&
 let fastest = wait !& {
+    fetchFromServer1(),
+    fetchFromServer2()
+}
+let sameFastest = wait race {
     fetchFromServer1(),
     fetchFromServer2()
 }
@@ -483,9 +493,12 @@ let fastest = wait !& {
 // - Concurrency is cooperative and scheduled by a single event loop.
 // - The model is CSP-style: tasks communicate via rendezvous channels (created with rendezvous() or channel()).
 // - & call spawns a task and returns a Task handle.
+// - spawn call is an alias of & call.
 // - & { call1(), call2(), ... } spawns all calls concurrently and returns a Task handle of results in order.
+// - spawn { call1(), call2(), ... } is an alias of & { ... }.
 // - wait task waits for completion and yields the task result.
 // - !& { call1(), call2(), ... } returns a Task handle for the first completed result.
+// - race { call1(), call2(), ... } is an alias of !& { ... }.
 // - wait on that handle yields the first result; losing tasks are cancelled automatically
 //   (cooperative cancellation).
 // - `|` is reserved for future stream piping syntax.
@@ -644,7 +657,7 @@ unary           = ( "!" | "-" ) unary
 
 wait_expr      = "wait" unary ;
 import_expr    = "import" STRING ;
-spawn_expr      = "&" spawn_target ;
+spawn_expr      = ( "&" | "spawn" ) spawn_target ;
 spawn_target    = call_expr
                 | "{" [ call_expr { "," call_expr } ] "}" ;
 
@@ -674,7 +687,7 @@ object          = "{" [ object_entry { "," object_entry } [ "," ] ] "}" ;
 object_entry    = IDENT [ ":" expr ] | "..." expr ;
 array           = "[" [ expr { "," expr } [ "," ] ] "]" ;
 
-race_expr       = "!&" "{" [ call_expr { "," call_expr } ] "}" ;
+race_expr       = ( "!&" | "race" ) "{" [ call_expr { "," call_expr } ] "}" ;
 
 struct_init     = IDENT object ;
 
