@@ -393,9 +393,9 @@ let fast = () -> {
   "fast"
 }
 let t = spawn worker(c)
-let winner = wait race { slow(), fast() }
 let pair = c.recv()
 let _ = wait t;
+let winner = wait race { slow(), fast() };
 [winner, pair]
 EOF
 cat > "$input_11" <<EOF
@@ -403,11 +403,10 @@ break $program_11:3
 break $program_11:11
 continue
 stack
+delete 1
 continue
 stack
-continue
-continue
-continue
+delete 2
 continue
 EOF
 run_trace "$program_11" "$input_11" "$output_11"
