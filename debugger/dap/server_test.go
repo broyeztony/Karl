@@ -366,6 +366,110 @@ func TestBreakpointsHitInsideSpawnedTask(t *testing.T) {
 	}
 }
 
+func TestBreakpointsHitInsideSpawnAndRaceKeywordAliases(t *testing.T) {
+	tmpDir := t.TempDir()
+	programPath := filepath.Join(tmpDir, "spawn_race_alias_breakpoint.k")
+	source := strings.Join([]string{
+		"let c = channel()",
+		"let worker = (ch) -> {",
+		"    ch.send(\"ok\")",
+		"    ch.done()",
+		"}",
+		"let slow = () -> {",
+		"    sleep(80)",
+		"    \"slow\"",
+		"}",
+		"let fast = () -> {",
+		"    sleep(10)",
+		"    \"fast\"",
+		"}",
+		"let t = spawn worker(c)",
+		"let winner = wait race { slow(), fast() }",
+		"let pair = c.recv()",
+		"let _ = wait t;",
+		"[winner, pair]",
+	}, "\n")
+	if err := os.WriteFile(programPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write program: %v", err)
+	}
+
+	client, done := newTestClient(t)
+	defer done()
+	if resp := client.request("initialize", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("initialize failed: %v", responseMessage(resp))
+	}
+	client.waitEvent("initialized")
+	if resp := client.request("launch", map[string]interface{}{
+		"program":     programPath,
+		"stopOnEntry": false,
+	}); !responseSuccess(resp) {
+		t.Fatalf("launch failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("setBreakpoints", map[string]interface{}{
+		"source": map[string]interface{}{"path": programPath},
+		"breakpoints": []map[string]interface{}{
+			{"line": 3},
+			{"line": 11},
+		},
+	}); !responseSuccess(resp) {
+		t.Fatalf("setBreakpoints failed: %v", responseMessage(resp))
+	}
+	if resp := client.request("configurationDone", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("configurationDone failed: %v", responseMessage(resp))
+	}
+
+	seenWorker := false
+	seenRace := false
+	for i := 0; i < 6; i++ {
+		name, _ := client.waitAnyEvent("stopped", "terminated")
+		if name == "terminated" {
+			break
+		}
+		switch line := currentTopFrameLine(client); line {
+		case 3:
+			seenWorker = true
+		case 11:
+			seenRace = true
+		default:
+			t.Fatalf("unexpected stop at line %d", line)
+		}
+		if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+			t.Fatalf("continue failed: %v", responseMessage(resp))
+		}
+		if seenWorker && seenRace {
+			break
+		}
+	}
+	if !seenWorker {
+		t.Fatalf("expected breakpoint hit in spawn worker alias path")
+	}
+	if !seenRace {
+		t.Fatalf("expected breakpoint hit in race alias path")
+	}
+
+	for i := 0; i < 4; i++ {
+		name, _ := client.waitAnyEvent("stopped", "terminated")
+		if name == "terminated" {
+			break
+		}
+		line := currentTopFrameLine(client)
+		if line != 3 && line != 11 {
+			t.Fatalf("unexpected extra stop at line %d", line)
+		}
+		if resp := client.request("continue", map[string]interface{}{"threadId": defaultThreadID}); !responseSuccess(resp) {
+			t.Fatalf("continue failed: %v", responseMessage(resp))
+		}
+		if i == 3 {
+			t.Fatalf("expected terminated event after continuing")
+		}
+	}
+
+	client.waitEvent("exited")
+	if resp := client.request("disconnect", map[string]interface{}{}); !responseSuccess(resp) {
+		t.Fatalf("disconnect failed: %v", responseMessage(resp))
+	}
+}
+
 func TestBreakpointsHitInJoinChildTask(t *testing.T) {
 	tmpDir := t.TempDir()
 	programPath := filepath.Join(tmpDir, "join_breakpoint.k")

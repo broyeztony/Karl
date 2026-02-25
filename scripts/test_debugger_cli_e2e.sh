@@ -374,4 +374,50 @@ run_trace "$program_10" "$input_10" "$output_10"
 assert_not_grep "runtime error:" "$output_10" "unexpected runtime error in scenario 10"
 assert_not_grep "^result:" "$output_10" "quit should terminate without final result in scenario 10"
 
+# Scenario 11: spawn/race keyword aliases hit debugger breakpoints in child tasks.
+program_11="$tmp_dir/scenario11_spawn_race_alias.k"
+input_11="$tmp_dir/scenario11_spawn_race_alias.in"
+output_11="$tmp_dir/scenario11_spawn_race_alias.out"
+cat > "$program_11" <<'EOF'
+let c = channel()
+let worker = (ch) -> {
+  ch.send("ok")
+  ch.done()
+}
+let slow = () -> {
+  sleep(80)
+  "slow"
+}
+let fast = () -> {
+  sleep(10)
+  "fast"
+}
+let t = spawn worker(c)
+let winner = wait race { slow(), fast() }
+let pair = c.recv()
+let _ = wait t;
+[winner, pair]
+EOF
+cat > "$input_11" <<EOF
+break $program_11:3
+break $program_11:11
+continue
+stack
+continue
+stack
+continue
+continue
+continue
+continue
+EOF
+run_trace "$program_11" "$input_11" "$output_11"
+assert_grep "breakpoint #[0-9]+ set at .*scenario11_spawn_race_alias\\.k:3" "$output_11" "expected worker alias breakpoint set in scenario 11"
+assert_grep "breakpoint #[0-9]+ set at .*scenario11_spawn_race_alias\\.k:11" "$output_11" "expected race alias breakpoint set in scenario 11"
+assert_grep "paused at .*scenario11_spawn_race_alias\\.k:3:" "$output_11" "expected stop in spawn alias worker in scenario 11"
+assert_grep "paused at .*scenario11_spawn_race_alias\\.k:11:" "$output_11" "expected stop in race alias winner in scenario 11"
+assert_grep "worker at .*scenario11_spawn_race_alias\\.k" "$output_11" "expected worker frame in scenario 11"
+assert_grep "fast at .*scenario11_spawn_race_alias\\.k" "$output_11" "expected fast frame in scenario 11"
+assert_grep "result: \\[\"fast\", \\[\"ok\", false\\]\\]" "$output_11" "expected final result in scenario 11"
+assert_not_grep "runtime error:" "$output_11" "unexpected runtime error in scenario 11"
+
 echo "PASS: debugger CLI e2e"
