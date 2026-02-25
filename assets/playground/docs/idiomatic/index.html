@@ -28,93 +28,94 @@
         <aside class="toc" aria-label="Idiomatic table of contents">
             <h3>Contents</h3>
             <ul>
-                <li><a href="#style">Style Rules</a></li>
-                <li><a href="#data">Concise Data Shaping</a></li>
-                <li><a href="#recover">Recover and Defaults</a></li>
-                <li><a href="#tasks">Tasks and Concurrency</a></li>
-                <li><a href="#channels">Streaming with Channels</a></li>
+                <li><a href="#mindset">Mindset</a></li>
+                <li><a href="#helpers">Expression-First Helpers</a></li>
+                <li><a href="#data">Data Shaping + Shorthand</a></li>
+                <li><a href="#recover">Recover at Boundaries</a></li>
                 <li><a href="#match">Match + Guards</a></li>
+                <li><a href="#collections">Collection Flows</a></li>
                 <li><a href="#destructure">Destructuring</a></li>
+                <li><a href="#tasks">Tasks and race/spawn</a></li>
+                <li><a href="#channels">Channels Stream Pattern</a></li>
+                <li><a href="#runtime">Runtime + Signals</a></li>
+                <li><a href="#sql">SQL + Time Pattern</a></li>
+                <li><a href="#anti">Anti-Patterns</a></li>
             </ul>
         </aside>
 
         <article>
             <h2>Idiomatic Karl</h2>
             <p>
-                Karl favors expression flow and compact transforms.
-                Prefer direct expressions over ceremony and helper wrappers unless reuse is real.
+                Karl shines when code stays expression-first, compact, and direct.
+                Prefer a single clear expression over boilerplate wrappers.
+                Keep abstractions only when reused enough to justify them.
             </p>
 
-            <h3 id="style">1. Style Rules</h3>
+            <h3 id="mindset">1. Mindset</h3>
             <ul>
-                <li>Keep bindings close to where values are used.</li>
-                <li>Prefer expression return style over multi-step temporary blocks.</li>
-                <li>Use object shorthand for readability: <code>{ id, email, }</code>.</li>
-                <li>Reach for <code>match</code> + guards rather than long nested <code>if</code> ladders.</li>
+                <li>Think in values: every block returns a value, every branch returns a value.</li>
+                <li>Prefer local clarity over generic utility helpers.</li>
+                <li>Use <code>spawn</code>/<code>race</code> to communicate intent quickly.</li>
+                <li>Recover only where a safe fallback exists; fail fast elsewhere.</li>
+                <li>Keep data structure shape visible in-place with object shorthand.</li>
             </ul>
 
-            <h3 id="data">2. Concise Data Shaping</h3>
-            <pre><code>// compact object construction
+            <h3 id="helpers">2. Expression-First Helpers</h3>
+            <p>
+                Keep tiny helpers as single expressions. Avoid wrappers that just rename existing built-ins.
+            </p>
+            <pre><code>// good: one-expression helpers
 let mkJSONHeaders = () -> map().set("Content-Type", "application/json")
+let normalizeEmail = s -> s.trim().toLower()
 
-let jsonResponse = (status, payload) -> {
-    status,
-    headers: mkJSONHeaders(),
-    body: jsonEncode(payload),
+// avoid: pass-through aliases with no semantic value
+// let msToRFC3339 = ms -> timeFormatRFC3339(ms)
+// let rfc3339ToMs = txt -> timeParseRFC3339(txt)
+</code></pre>
+
+            <h3 id="data">3. Data Shaping + Shorthand</h3>
+            <pre><code>let userToDTO = u -> {
+    id: u.id,
+    email: u.email.toLower(),
+    active: u.active,
 }
 
-let users = rows
+let activeUsers = users
     .filter(u -> u.active)
-    .map(u -> { id: u.id, email: u.email, })
-</code></pre>
+    .map(userToDTO)
 
-            <h3 id="recover">3. Recover and Defaults</h3>
-            <pre><code>// fail fast by default, recover only where fallback is meaningful
-let cfg = jsonDecode(raw) ? { mode: "safe", retries: 3, }
-
-// recover inline and continue expression flow
-let quota = parseInt(env("MAX_RETRY") ? "3") ? { 3 }
-</code></pre>
-
-            <h3 id="tasks">4. Tasks and Concurrency</h3>
-            <pre><code>// spawn group + wait
-let grouped = spawn {
-    fetchUser("u1"),
-    fetchUser("u2"),
-}
-let [u1, u2, ] = wait grouped
-
-// race first result
-let fastest = wait race {
-    fetchFrom("a"),
-    fetchFrom("b"),
+let result = {
+    count: activeUsers.length,
+    users: activeUsers,
 }
 
-// chain async transforms
-let score = wait (&amp; compute()).then(x -> x + 1).then(x -> x * 10)
+let id = "u_42"
+let email = "ana@karl.dev"
+log({ id, email, }) // shorthand
 </code></pre>
 
-            <h3 id="channels">5. Streaming with Channels</h3>
-            <pre><code>let ch = channel()
+            <h3 id="recover">4. Recover at Boundaries</h3>
+            <p>
+                Recover around IO/parsing boundaries, not around all business logic.
+            </p>
+            <pre><code>// decode boundary
+let cfg = jsonDecode(rawConfig) ? {
+    log("invalid config:", error.message)
+    { mode: "safe", retries: 3, }
+}
 
-let producer = spawn (c -> {
-    c.send("a")
-    c.send("b")
-    c.done()
-})(ch)
+// arithmetic boundary with explicit recover
+let divide = (a, b) -> a / b
+let value = divide(10, 0) ? {
+    log("recover:", error.message)
+    0
+}
 
-let stream = for true with res = ch.recv(), acc = [] {
-    let [v, done] = res
-    if done { break acc }
-    acc += [v]
-    res = ch.recv()
-} then acc
-
-wait producer
-log(stream)
+// parse boundary
+let tickMs = parseInt(tickText) ? { 1000 }
 </code></pre>
 
-            <h3 id="match">6. Match + Guards</h3>
+            <h3 id="match">5. Match + Guards</h3>
             <pre><code>let classify = n -> match n {
     case _ if n &lt; 0 -> "negative"
     case 0 -> "zero"
@@ -122,25 +123,172 @@ log(stream)
     case _ -> "large"
 }
 
-let msg = match event {
-    case { kind: "email", payload: { id, subject, } } -> "mail:" + id + ":" + subject
-    case { kind } -> "event:" + kind
-    case _ -> "unknown"
+let route = event -> match event {
+    case { kind: "email", payload: { user_id, subject, }, } -> {
+        type: "notify",
+        user_id,
+        subject,
+    }
+    case { kind: "system", payload, } if payload.priority &gt;= 10 -> {
+        type: "alert",
+        payload,
+    }
+    case { kind } -> { type: "ignore", kind, }
+    case _ -> { type: "invalid", }
 }
 </code></pre>
 
-            <h3 id="destructure">7. Destructuring First</h3>
-            <pre><code>// pull structure first, then compute
-let { id, email, profile: { role, }, } = user
-let [head, second, ...tail, ] = items
-let (x, y) = pair
+            <h3 id="collections">6. Collection Flows</h3>
+            <pre><code>let emails = [
+    { id: "e1", score: 7, },
+    { id: "e2", score: 2, },
+    { id: "e3", score: 9, },
+]
 
-log({ id, email, role, head, second, tail, x, y, })
+let important = emails
+    .filter(e -> e.score &gt;= 5)
+    .sort((a, b) -> b.score - a.score)
+
+let scoreSum = important
+    .map(e -> e.score)
+    .sum()
+
+let firstCritical = important.find(e -> e.score &gt;= 8)
+log({ important, scoreSum, firstCritical, })
+</code></pre>
+
+            <h3 id="destructure">7. Destructuring First</h3>
+            <pre><code>let { id, email, profile: { role, team, }, } = user
+let [head, second, ...tail, ] = values
+let (x, y) = point
+
+let summary = {
+    id,
+    email,
+    role,
+    team,
+    head,
+    second,
+    tail,
+    x,
+    y,
+}
+log(summary)
+</code></pre>
+
+            <h3 id="tasks">8. Tasks and <code>spawn</code>/<code>race</code></h3>
+            <pre><code>let grouped = spawn {
+    (() -> { sleep(80); { src: "a", score: 4, } })(),
+    (() -> { sleep(120); { src: "b", score: 8, } })(),
+}
+
+let [a, b, ] = wait grouped
+
+let fastest = wait race {
+    (() -> { sleep(100); "slow" })(),
+    (() -> { sleep(20); "fast" })(),
+}
+
+let computed = wait (&amp; (() -> 20)()).then(x -> x + 1).then(x -> x * 2)
+log({ a, b, fastest, computed, })
+</code></pre>
+
+            <h3 id="channels">9. Channels Stream Pattern</h3>
+            <pre><code>let ch = buffered(64)
+
+let producer = spawn (c -> {
+    c.send({ id: "e1", score: 4, })
+    c.send({ id: "e2", score: 9, })
+    c.send({ id: "e3", score: 7, })
+    c.done()
+})(ch)
+
+let consumed = for true with res = ch.recv(), acc = [] {
+    let [msg, done] = res
+    if done { break acc }
+    if msg.score &gt;= 5 {
+        acc += [msg.id]
+    }
+    res = ch.recv()
+} then acc
+
+wait producer
+log(consumed)
+</code></pre>
+
+            <h3 id="runtime">10. Runtime + Signals Pattern</h3>
+            <pre><code>// CLI-oriented pattern
+let mode = match env("MODE") {
+    case null -> "dev"
+    case v -> v
+}
+
+let sigs = signalWatch(["SIGINT", "SIGTERM"])
+let worker = spawn (() -> {
+    for true with running = true {
+        sleep(1000)
+        log("tick", mode)
+    } then ()
+})()
+
+let [sig, closed] = sigs.recv()
+if !closed {
+    log("shutdown:", sig)
+}
+worker.cancel()
+let _ = (wait worker) ? {}
+</code></pre>
+
+            <h3 id="sql">11. SQL + Time Pattern</h3>
+            <pre><code>let db = sqlOpen(dsn)
+let nowMs = now()
+
+let _ = sqlExec(db,
+    "INSERT INTO users (id, email, last_email_check) VALUES ($1, $2, $3)",
+    [userId, email, nowMs]
+)
+
+let row = sqlQueryOne(db,
+    "SELECT id, email, last_email_check FROM users WHERE id = $1",
+    [userId]
+)
+
+let view = match row {
+    case null -> { found: false, }
+    case r -> {
+        found: true,
+        id: r.id,
+        email: r.email,
+        checked_at: timeFormatRFC3339(r.last_email_check),
+    }
+}
+
+log(view)
+sqlClose(db)
+</code></pre>
+
+            <h3 id="anti">12. Anti-Patterns to Avoid</h3>
+            <ul>
+                <li>One-off wrappers that only rename built-ins.</li>
+                <li>Introducing helper functions before confirming reuse.</li>
+                <li>Using <code>if/else</code> chains where <code>match + guards</code> is clearer.</li>
+                <li>Recovering every expression instead of boundary operations.</li>
+                <li>Verbose object construction when shorthand is sufficient.</li>
+            </ul>
+            <pre><code>// noisy
+let mk = () -> {
+    let h = map()
+    h.set("Content-Type", "application/json")
+    h
+}
+
+// idiomatic
+let mk = () -> map().set("Content-Type", "application/json")
 </code></pre>
 
             <div class="footer">
-                <span>Prefer expression flow over helper bloat.</span>
-                <span><a href="/bench/">Try snippets in bench</a></span>
+                <span>Write Karl as compact expression flow, not ceremony.</span>
+                <span><a href="/bench/">Run snippets in bench</a></span>
             </div>
         </article>
     </main>
