@@ -2,6 +2,26 @@
 
 All notable changes to Karl are documented here.
 
+## [v0.8.4] - 2026-02-25
+
+Highlights:
+- Added language keyword aliases: `spawn` for `&`, and `race` for `!&`.
+- Extended debugger coverage for alias flows in both DAP and CLI e2e scenarios.
+- Cleaned playground bench examples to keep only browser-runnable demos.
+
+Language:
+- `spawn ...` now parses and runs with the same semantics as `& ...`.
+- `race { ... }` now parses and runs with the same semantics as `!& { ... }`.
+- Removed the legacy builtin-style `spawn` runtime path in favor of a single expression-based model.
+
+Debugger / tests:
+- Added DAP regression coverage for breakpoints through `spawn`/`race` alias task flows.
+- Added and stabilized debugger CLI e2e coverage for alias scenarios to avoid CI nondeterminism across platforms.
+
+Playground:
+- Removed landing examples from bench dropdown that rely on system APIs unavailable in the browser runtime.
+- Updated `Landing: Recover + Match` to use inline JSON (no file I/O dependency).
+
 ## [v0.8.3] - 2026-02-24
 
 Highlights:
