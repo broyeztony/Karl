@@ -316,11 +316,6 @@
                     <option value="landing_destructuring">Landing: Destructuring</option>
                     <option value="landing_strings_index_slice">Landing: Strings Index/Slice</option>
                     <option value="landing_match_guards">Landing: Match + Guards</option>
-                    <option value="landing_file_io">Landing: File I/O</option>
-                    <option value="landing_system_runtime">Landing: System Runtime APIs</option>
-                    <option value="landing_signal_handling">Landing: Signal Handling</option>
-                    <option value="landing_http_server">Landing: HTTP Server</option>
-                    <option value="landing_sql_uuid_hash">Landing: SQL + UUID + Hash</option>
                     <option value="landing_recover_match">Landing: Recover + Match</option>
                 </select>
             </label>
@@ -617,62 +612,8 @@ let rank = match score {
     case _ -> "D"
 }
 log("rank:", rank)`,
-            landing_file_io: `// File I/O
-let path = "notes.txt"
-writeFile(path, "hello\\n")
-appendFile(path, "from karl\\n")
-
-log(readFile(path))
-log("exists:", exists(path))
-deleteFile(path)`,
-            landing_system_runtime: `// System runtime APIs
-let args = argv()
-let exe = programPath()
-let home = env("HOME")
-let all = environ()
-
-log({
-    args: args,
-    exe: exe,
-    home: home,
-    env_count: all.length,
-})`,
-            landing_signal_handling: `// Signal handling
-let sigs = signalWatch(["SIGINT", "SIGTERM"])
-log("waiting for shutdown...")
-
-let [sig, closed] = sigs.recv()
-if !closed {
-    log("shutdown:", sig)
-}`,
-            landing_http_server: `// HTTP server
-let srv = httpServe({
-    addr: ":8080",
-    routes: [
-        {
-            method: "GET",
-            path: "/health",
-            handler: req -> {
-                status: 200,
-                headers: { "Content-Type": "application/json", },
-                body: jsonEncode({ status: "ok", now: now(), }),
-            }
-        }
-    ],
-})`,
-            landing_sql_uuid_hash: `// SQL + UUID + hash
-let db = sqlOpen("postgres://vigil:vigil@localhost:5432/vigil?sslmode=disable")
-let id = uuidNew()
-let email = "hello@karl-lang.org"
-let fp = sha256(email)
-
-sqlExec(db,
-  "INSERT INTO users (id, email, fingerprint) VALUES ($1, $2, $3)",
-  [id, email, fp]
-)
-log(sqlQueryOne(db, "SELECT id, email FROM users WHERE id = $1", [id]))`,
             landing_recover_match: `// Recover operator + match
-let cfg = jsonDecode(readFile("config.json")) ? {
+let cfg = jsonDecode("{\"mode\":\"safe\"}") ? {
     { mode: "safe", retries: 3, }
 }
 
