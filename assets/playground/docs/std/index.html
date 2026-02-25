@@ -37,6 +37,7 @@
                 <li><a href="#io-http-sql">File, HTTP, SQL, Signals</a></li>
                 <li><a href="#math-random">Math + Random</a></li>
                 <li><a href="#methods">Method Sugar</a></li>
+                <li><a href="#examples">Less Intuitive Cases</a></li>
             </ul>
         </aside>
 
@@ -225,6 +226,68 @@
                     <tr><td><code>Task</code></td><td>-</td><td><code>.then .cancel</code></td></tr>
                 </tbody>
             </table>
+
+            <h3 id="examples">10. Less Intuitive Cases (Examples)</h3>
+            <p>These are the APIs where behavior is correct but easy to misread without examples.</p>
+
+            <h4><code>map</code> is overloaded (constructor and transform)</h4>
+            <pre><code>let m = map()                              // empty Map
+let doubled = map([1, 2, 3], x -> x * 2)  // array transform
+log({ m, doubled, })</code></pre>
+
+            <h4><code>set</code> is also overloaded</h4>
+            <pre><code>let uniq = set([1, 1, 2, 3])   // Set constructor from array
+let kv = map()
+let sameMap = set(kv, "a", 10)  // map update; returns the map
+log({ uniq: uniq.values(), sameMap: sameMap.get("a"), })</code></pre>
+
+            <h4><code>recv()</code> returns <code>[value, done]</code></h4>
+            <pre><code>let ch = channel()
+spawn (c -> { c.send("one"); c.done() })(ch)
+
+let [v1, done1] = ch.recv()  // ["one", false]
+let [v2, done2] = ch.recv()  // [null, true]
+log({ v1, done1, v2, done2, })</code></pre>
+
+            <h4>Recovering parse/runtime boundary failures with <code>? { ... }</code></h4>
+            <pre><code>let n = parseInt("not-a-number") ? {
+    log("parseInt:", error.message)
+    0
+}
+
+let payload = jsonDecode("{bad json}") ? {
+    log("jsonDecode:", error.message)
+    { ok: false, }
+}
+log({ n, payload, })</code></pre>
+
+            <h4>String length is Unicode-aware (runes, not bytes)</h4>
+            <pre><code>let s = "é🙂"
+log({ len_builtin: len(s), len_property: s.length, }) // both 2</code></pre>
+
+            <h4>Method syntax is sugar for global built-ins</h4>
+            <pre><code>let xs = [1, 2, 3]
+let a = xs.map(x -> x + 1)
+let b = map(xs, x -> x + 1)
+log(a eqv b) // true</code></pre>
+
+            <h4><code>jsonEncode</code> requires string-like map keys</h4>
+            <pre><code>let m = map()
+set(m, 42, "answer") // int key is valid for Map
+
+let encoded = jsonEncode(m) ? {
+    log("jsonEncode:", error.message) // map keys must be string/char for JSON
+    "{}"
+}
+log(encoded)</code></pre>
+
+            <h4>Runtime-specific APIs should be guarded in browser/WASM</h4>
+            <pre><code>// In bench (WASM), server/sql/signal APIs are unavailable.
+let maybeServer = httpServe({ addr: ":8080", routes: [], }) ? {
+    log(error.kind, error.message)
+    null
+}
+log(maybeServer)</code></pre>
 
             <div class="footer">
                 <span>Normative source: builtins in <code>interpreter/builtins_*.go</code>.</span>
