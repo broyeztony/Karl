@@ -20,8 +20,6 @@ Notably, it features:
 Website: [karl-lang.org](https://karl-lang.org)  
 Try Karl today in your browser (`bench`): [karl-lang.org/bench](https://karl-lang.org/bench)
 
-Watch the YouTube video: [**Karl Playground, Loom, Sheets & Jupyter Lab integration**](https://www.youtube.com/watch?v=DKqPl7-Rjg8)
-
 ## Start Here in 2 Commands
 
 Install Karl from the latest release binaries:  
