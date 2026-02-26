@@ -220,6 +220,21 @@ Ordering requires comparable keys; otherwise runtime error.
   - Reads one line from stdin and strips trailing newline.
   - Returns `null` on EOF.
   - I/O read failures are recoverable (`kind = "readLine"`).
+- `processRun({ command, args?, cwd?, env?, inheritEnv?, stdin?, timeoutMs?, maxOutputBytes? }) -> ProcessResult`
+  - Runs one command with no shell expansion.
+  - `command` is required; `args` must be an array of strings when present.
+  - `cwd` may be absolute or project-root-relative.
+  - `env` accepts object or map of string pairs.
+  - `inheritEnv` defaults to `true` (uses runtime environment snapshot).
+  - `stdin` sends string data to process stdin.
+  - `timeoutMs` cancels on deadline and returns recoverable `kind = "process_timeout"`.
+  - `maxOutputBytes` bounds captured `stdout` + `stderr` (default `1 MiB`), overflow returns recoverable `kind = "process_output_limit"`.
+  - Spawn/start failures return recoverable `kind = "process_spawn"`.
+  - Other process I/O/runtime failures return recoverable `kind = "process_io"`.
+  - Non-zero exit codes do not throw; they return `ProcessResult` with `ok = false`.
+
+`ProcessResult`:
+- `{ ok, exitCode, stdout, stderr, durationMs, timedOut, killed }`
 
 Snapshot semantics:
 - Runtime context (`argv`, `programPath`, environment snapshot) is captured at evaluator startup.
@@ -514,6 +529,7 @@ Implementation details (current runtime):
 - `deleteFile(path)` -> Unit
 - `exists(path)` -> Bool
 - `listDir(path)` -> Array<String>
+- `processRun({ command, args?, cwd?, env?, inheritEnv?, stdin?, timeoutMs?, maxOutputBytes? })` -> `{ ok, exitCode, stdout, stderr, durationMs, timedOut, killed }`
 - `http({ method, url, headers, body, })` -> { status, headers, body, }
 - `httpServe({ addr, routes, })` -> Server
 - `httpServerStop(server)` -> Unit

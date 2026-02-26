@@ -159,7 +159,7 @@ let found = for true with msg = null {
 // Builtins that can produce recoverable errors:
 // jsonDecode, readFile, writeFile, appendFile, deleteFile, exists, listDir, http,
 // sqlOpen, sqlClose, sqlExec, sqlQuery, sqlQueryOne, sqlBegin, sqlCommit, sqlRollback,
-// uuidParse, timeParseRFC3339, fail, readLine
+// uuidParse, timeParseRFC3339, fail, readLine, processRun
 
 // Example: recover from bad JSON
 let raw = "{\"foo\":\"bar\"}"
@@ -202,6 +202,18 @@ let path = programPath()    // "file.k" | "<stdin>" | null
 
 // readLine() returns line without trailing newline, null on EOF.
 let line = readLine() ? { null }
+
+// processRun() executes an external command without a shell.
+let run = processRun({
+    command: "echo",
+    args: ["hello"],
+    timeoutMs: 1000,
+})
+if !run.ok { exit("command failed: " + str(run.exitCode)) }
+log(run.stdout)
+
+// recoverable process error kinds:
+// process_spawn, process_timeout, process_output_limit, process_io
 
 // ============================================
 // 4. FUNCTIONAL EXPRESSIONS
