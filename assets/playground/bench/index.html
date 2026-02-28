@@ -13,6 +13,7 @@
             --accent-a: #bd93f9;
             --accent-b: #ff79c6;
             --line: #e6e6e6;
+            --toolbar-font-size: 13px;
         }
 
         *,
@@ -188,7 +189,7 @@
             color: #282a36;
             border: none;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: var(--toolbar-font-size);
             transition: background 0.2s;
         }
 
@@ -207,7 +208,8 @@
             background: transparent;
             color: #f8f8f2;
             cursor: pointer;
-            font-size: 13px;
+            font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            font-size: var(--toolbar-font-size);
             line-height: 1;
             padding: 4px 2px;
             opacity: 0.85;
@@ -224,7 +226,7 @@
         .toolbarLink {
             color: #f8f8f2;
             text-decoration: none;
-            font-size: 13px;
+            font-size: var(--toolbar-font-size);
             line-height: 1;
             opacity: 0.85;
             transition: opacity 120ms ease, color 120ms ease;
@@ -238,7 +240,7 @@
         }
 
         #status {
-            font-size: 0.9em;
+            font-size: var(--toolbar-font-size);
             color: #bd93f9;
         }
 
@@ -261,6 +263,11 @@
             color: #f8f8f2;
         }
 
+        .toolbarLabel {
+            font-size: var(--toolbar-font-size);
+            user-select: none;
+        }
+
         #autoRun {
             accent-color: #bd93f9;
         }
@@ -279,7 +286,7 @@
             border: 1px solid #6272a4;
             border-radius: 4px;
             padding: 7px 34px 7px 10px;
-            font-size: 13px;
+            font-size: var(--toolbar-font-size);
             min-width: 250px;
             outline: none;
         }
@@ -312,7 +319,7 @@
             <button id="themeToggle" type="button">Dark theme</button>
             <button id="runBtn" disabled>Run ▶</button>
             <span id="status">Loading WASM environment...</span>
-            <label style="font-size: 13px; user-select: none;">
+            <label class="toolbarLabel">
                 <select id="exampleSelect" title="Load a feature example">
                     <option value="quickstart" selected>Quickstart</option>
                     <option value="language_concurrency">Language + Concurrency</option>
@@ -336,7 +343,7 @@
                     <option value="landing_recover_match">Landing: Recover + Match</option>
                 </select>
             </label>
-            <label style="font-size: 14px; user-select: none;">
+            <label class="toolbarLabel">
                 <input type="checkbox" id="autoRun"> Auto Run
             </label>
         </div>
