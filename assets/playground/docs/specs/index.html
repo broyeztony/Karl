@@ -60,34 +60,103 @@
             </ul>
 
             <h2 id="grammar">3. Core Grammar (EBNF)</h2>
-            <pre><code>program         = { statement } ;
-statement       = let_stmt | expr_stmt ;
-let_stmt        = "let" pattern "=" expr [";"] ;
-expr_stmt       = expr [";"] ;
+            <pre><code>program              = { statement } ;
+statement            = let_stmt | expr_stmt ;
+let_stmt             = "let" pattern "=" expr [ ";" ] ;
+expr_stmt            = expr [ ";" ] ;
 
-expr            = if_expr
-                | match_expr
-                | for_expr
-                | lambda_expr
-                | loop_ctrl
-                | assign ;
+expr                 = assign ;
 
-assign          = logic_or | lvalue assign_op expr ;
-lvalue          = IDENT { ("." IDENT | "[" expr "]") } ;
-assign_op       = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
+assign               = logic_or
+                     | lvalue assign_op assign ;   // right-associative
+lvalue               = IDENT { "." IDENT | "[" expr "]" } ;
+assign_op            = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
 
-spawn_expr      = ("&" | "spawn") spawn_target ;
-spawn_target    = call_expr | "{" [call_expr {"," call_expr}] "}" ;
+logic_or             = logic_and { "||" logic_and } ;
+logic_and            = equality { "&amp;&amp;" equality } ;
+equality             = comparison { ( "==" | "!=" | "eqv" ) comparison } ;
+comparison           = range { ( "&lt;" | "&lt;=" | "&gt;" | "&gt;=" ) range } ;
+range                = sum [ ".." sum [ "step" sum ] ] ;
+sum                  = product { ( "+" | "-" ) product } ;
+product              = prefix { ( "*" | "/" | "%" ) prefix } ;
 
-race_expr       = ("!&" | "race") "{" [call_expr {"," call_expr}] "}" ;
+prefix               = ( "!" | "-" | "wait" ) prefix
+                     | import_expr
+                     | spawn_expr
+                     | race_expr
+                     | if_expr
+                     | match_expr
+                     | for_expr
+                     | break_expr
+                     | continue_expr
+                     | postfix ;
 
-recover_expr    = call_expr ["?" recovery_block] ;
-recovery_block  = block ;
+import_expr          = "import" STRING ;
+spawn_expr           = ( "&amp;" | "spawn" ) spawn_target ;
+spawn_target         = call_expr | group_expr ;
+race_expr            = ( "!&amp;" | "race" ) group_expr ;
+group_expr           = "{" [ call_expr { "," call_expr } [ "," ] ] "}" ;
 
-query_expr      = "from" IDENT "in" expr
-                  {"where" expr}
-                  ["orderby" expr]
-                  "select" expr ;
+postfix              = primary { call_op | recover_op | member_op | index_or_slice_op | inc_dec_op } ;
+call_expr            = primary { member_op | index_or_slice_op } call_op { call_op | member_op | index_or_slice_op | inc_dec_op } ;
+call_op              = "(" [ expr { "," expr } [ "," ] ] ")" ;
+recover_op           = "?" expr ;
+member_op            = "." ( IDENT | "then" ) ;
+index_or_slice_op    = "[" ( expr [ ".." [ expr ] ] | ".." [ expr ] ) "]" ;
+inc_dec_op           = "++" | "--" ;
+
+if_expr              = "if" expr block [ "else" ( if_expr | block | expr ) ] ;
+match_expr           = "match" expr "{" { match_arm [ ";" ] } "}" ;
+match_arm            = "case" pattern [ "if" expr ] "->" expr ;
+for_expr             = "for" expr [ "with" bindings ] block [ "then" ( brace_expr | expr ) ] ;
+bindings             = binding { "," binding } ;
+binding              = pattern "=" expr ;
+break_expr           = "break" [ expr ] ;
+continue_expr        = "continue" ;
+
+primary              = literal
+                     | IDENT
+                     | "_"
+                     | "(" expr ")"
+                     | "()"
+                     | brace_expr
+                     | array
+                     | lambda_expr
+                     | query_expr
+                     | struct_init ;
+
+lambda_expr          = binder "->" expr ;
+binder               = pattern | "(" [ pattern { "," pattern } [ "," ] ] ")" ;
+
+brace_expr           = block | object ;
+block                = "{" { statement } "}" ;
+object               = "{" [ object_entry { "," object_entry } [ "," ] ] "}" ;
+object_entry         = IDENT [ ":" expr ] | "..." expr ;
+
+array                = "[" [ expr { "," expr } [ "," ] ] "]" ;
+struct_init          = IDENT object ;
+
+query_expr           = "from" IDENT "in" expr
+                       { "where" expr }
+                       [ "orderby" expr ]
+                       "select" expr ;
+
+pattern              = "_"
+                     | IDENT
+                     | literal
+                     | range_pattern
+                     | object_pattern
+                     | array_pattern
+                     | tuple_pattern ;
+range_pattern        = literal ".." pattern ;
+object_pattern       = "{" [ pattern_entry { "," pattern_entry } [ "," ] ] "}" ;
+pattern_entry        = IDENT [ ":" pattern ] ;
+array_pattern        = "[" [ array_pattern_items ] "]" ;
+array_pattern_items  = "..." pattern [ "," ]
+                     | pattern { "," pattern } [ "," "..." pattern ] [ "," ] ;
+tuple_pattern        = "(" [ pattern { "," pattern } [ "," ] ] ")" ;
+
+literal              = INT | FLOAT | STRING | CHAR | "true" | "false" | "null" ;
 </code></pre>
 
             <h3>3.1 Object vs Block Disambiguation</h3>
@@ -95,6 +164,9 @@ query_expr      = "from" IDENT "in" expr
                 <code>{ ... }</code> parses as an object literal when a top-level colon, spread, or trailing comma is present.
                 Otherwise it parses as a block expression.
                 Shorthand-only objects should use trailing comma form, e.g. <code>{ x, y, }</code>.
+            </p>
+            <p>
+                Constraint: <code>spawn</code>/<code>&amp;</code> and <code>race</code>/<code>!&amp;</code> group entries must be call expressions.
             </p>
 
             <h2 id="evaluation">4. Evaluation Semantics</h2>
@@ -150,7 +222,7 @@ let first2 = wait race { slow(), fast() } // alias
 }
 </code></pre>
             <ul>
-                <li>Recover applies to call expressions and recovers runtime or recoverable builtin errors.</li>
+                <li>Recover applies to expressions and recovers runtime or recoverable builtin errors.</li>
                 <li><code>fail()</code> creates recoverable failures.</li>
                 <li><code>exit()</code> is terminal and not recoverable.</li>
             </ul>
