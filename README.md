@@ -18,7 +18,9 @@ Notably, it features:
 - Concurrency model inspired by Go
 
 Website: [karl-lang.org](https://karl-lang.org)
+
 Try Karl today in your browser (`bench`): [karl-lang.org/bench](https://karl-lang.org/bench)
+
 Docs: [https://karl-lang.org/docs/](https://karl-lang.org/docs/)
 
 ## Start Here in 2 Commands
