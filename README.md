@@ -17,9 +17,9 @@ Notably, it features:
 - Recover operator (`?`)
 - Concurrency model inspired by Go
 
-Website: [karl-lang.org](https://karl-lang.org)  
+Website: [karl-lang.org](https://karl-lang.org)
 Try Karl today in your browser (`bench`): [karl-lang.org/bench](https://karl-lang.org/bench)
-Read the docs: https://karl-lang.org/docs/
+Docs: [https://karl-lang.org/docs/](https://karl-lang.org/docs/)
 
 ## Start Here in 2 Commands
 
