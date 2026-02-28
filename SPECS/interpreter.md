@@ -220,21 +220,35 @@ Ordering requires comparable keys; otherwise runtime error.
   - Reads one line from stdin and strips trailing newline.
   - Returns `null` on EOF.
   - I/O read failures are recoverable (`kind = "readLine"`).
-- `processRun({ command, args?, cwd?, env?, inheritEnv?, stdin?, timeoutMs?, maxOutputBytes? }) -> ProcessResult`
-  - Runs one command with no shell expansion.
-  - `command` is required; `args` must be an array of strings when present.
-  - `cwd` may be absolute or project-root-relative.
-  - `env` accepts object or map of string pairs.
-  - `inheritEnv` defaults to `true` (uses runtime environment snapshot).
-  - `stdin` sends string data to process stdin.
-  - `timeoutMs` cancels on deadline and returns recoverable `kind = "process_timeout"`.
-  - `maxOutputBytes` bounds captured `stdout` + `stderr` (default `1 MiB`), overflow returns recoverable `kind = "process_output_limit"`.
-  - Spawn/start failures return recoverable `kind = "process_spawn"`.
-  - Other process I/O/runtime failures return recoverable `kind = "process_io"`.
-  - Non-zero exit codes do not throw; they return `ProcessResult` with `ok = false`.
+- `cmd(command, args?) -> <cmd>`
+  - Creates one process stage for pipeline composition.
+  - `cmd({ command, args })` object form is also supported.
+- `leftCmdOrPipeline | rightCmdOrPipeline -> <pipeline>`
+  - Composes command stages without starting any process.
+  - `|` is defined only for `<cmd>` / `<pipeline>` values.
+- `proc(specOrPlan) -> <process>`
+  - Starts process execution immediately and returns a handle.
+  - Object spec supports:
+    - `command`, `args` for a single stage, or `plan` (`<cmd>` / `<pipeline>`)
+    - `cwd`, `env`, `inheritEnv`
+    - stdio modes: `stdIn`, `stdOut`, `stdErr` in `"pipe" | "inherit" | "null"`
+    - `timeoutMs`
+- `run(specOrPlan) -> RunStatus`
+  - Blocking convenience API.
+  - Captures `output`/`error` with bounded memory (default `maxOutputBytes = 1048576`).
+  - Overflow mode defaults to `"truncate"`; `"error"` raises recoverable `process_output_limit`.
+- `stdIn(process) -> Channel<String>`
+- `stdOut(process) -> Channel<String>`
+- `stdErr(process) -> Channel<String>`
+  - Available only when corresponding stdio mode is `"pipe"`; otherwise recoverable `process_state`.
+- `wait process -> ProcessStatus`
+  - `wait` now accepts both task and process handles.
 
-`ProcessResult`:
-- `{ ok, exitCode, stdout, stderr, durationMs, timedOut, killed }`
+`ProcessStatus`:
+- `{ ok, code, signal, timedOut, aborted, durationMs }`
+
+`RunStatus`:
+- `ProcessStatus + { output, error, outputTruncated, errorTruncated }`
 
 Snapshot semantics:
 - Runtime context (`argv`, `programPath`, environment snapshot) is captured at evaluator startup.
@@ -529,7 +543,12 @@ Implementation details (current runtime):
 - `deleteFile(path)` -> Unit
 - `exists(path)` -> Bool
 - `listDir(path)` -> Array<String>
-- `processRun({ command, args?, cwd?, env?, inheritEnv?, stdin?, timeoutMs?, maxOutputBytes? })` -> `{ ok, exitCode, stdout, stderr, durationMs, timedOut, killed }`
+- `cmd(command, args?)` -> Cmd
+- `proc(specOrPlan)` -> Process
+- `run(specOrPlan)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
+- `stdIn(process)` -> Channel<String>
+- `stdOut(process)` -> Channel<String>
+- `stdErr(process)` -> Channel<String>
 - `http({ method, url, headers, body, })` -> { status, headers, body, }
 - `httpServe({ addr, routes, })` -> Server
 - `httpServerStop(server)` -> Unit

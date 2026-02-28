@@ -30,9 +30,14 @@ func TestParserErrors(t *testing.T) {
 			input: "let o = { x, y }",
 		},
 		{
-			name:         "pipe_race_syntax_removed",
+			name:         "pipe_without_left_operand",
 			input:        "wait | { fast(), slow() }",
-			errorContain: "reserved for stream piping",
+			errorContain: "expects command or pipeline on the left",
+		},
+		{
+			name:         "spawn_proc_is_rejected",
+			input:        "& proc({ command: \"echo\", args: [\"hi\"], })",
+			errorContain: "already returns <process>",
 		},
 	}
 

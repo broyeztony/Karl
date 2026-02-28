@@ -93,3 +93,19 @@ let fastest = race { taskA(), taskB() }`
 		t.Fatalf("expected RaceExpression, got %T", stmt1.Value)
 	}
 }
+
+func TestPipelineOperatorParsing(t *testing.T) {
+	input := `let p = cmd("echo", ["hi"]) | cmd("wc", ["-c"])`
+	p := parser.New(lexer.New(input))
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt := program.Statements[0].(*ast.LetStatement)
+	infix, ok := stmt.Value.(*ast.InfixExpression)
+	if !ok {
+		t.Fatalf("expected InfixExpression, got %T", stmt.Value)
+	}
+	if infix.Operator != "|" {
+		t.Fatalf("expected '|', got %q", infix.Operator)
+	}
+}

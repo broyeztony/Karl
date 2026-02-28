@@ -49,6 +49,8 @@ func (e *Evaluator) evalMemberExpression(node *ast.MemberExpression, env *Enviro
 		return e.channelMethod(obj, node.Property.Value)
 	case *Task:
 		return e.taskMethod(obj, node.Property.Value)
+	case *Process:
+		return e.processMethod(obj, node.Property.Value)
 	default:
 		if object == nil {
 			return nil, nil, &RuntimeError{Message: "member access on non-object (got <nil>)"}

@@ -1,0 +1,337 @@
+package tests
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestProcessAPIHelperProcess(t *testing.T) {
+	if os.Getenv("KARL_PROCESS_HELPER") != "1" {
+		return
+	}
+
+	mode := os.Getenv("KARL_PROCESS_MODE")
+	if mode == "" && len(os.Args) > 1 {
+		mode = os.Args[len(os.Args)-1]
+	}
+
+	switch mode {
+	case "ok":
+		cwd, _ := os.Getwd()
+		stdin, _ := io.ReadAll(os.Stdin)
+		_, _ = fmt.Fprintf(os.Stdout, "OUT|%s|%s|%s", os.Getenv("KARL_PROCESS_TEST_ENV"), cwd, string(stdin))
+		_, _ = os.Stderr.WriteString("ERR")
+		os.Exit(0)
+	case "exit7":
+		_, _ = os.Stdout.WriteString("OUT7")
+		_, _ = os.Stderr.WriteString("ERR7")
+		os.Exit(7)
+	case "sleep":
+		time.Sleep(300 * time.Millisecond)
+		_, _ = os.Stdout.WriteString("late")
+		os.Exit(0)
+	case "bigout":
+		_, _ = os.Stdout.WriteString(strings.Repeat("x", 4096))
+		os.Exit(0)
+	case "emit":
+		_, _ = os.Stdout.WriteString("alpha\nbeta\n")
+		os.Exit(0)
+	case "capture":
+		stdin, _ := io.ReadAll(os.Stdin)
+		_, _ = fmt.Fprintf(os.Stdout, "CAP|%s", string(stdin))
+		os.Exit(0)
+	default:
+		_, _ = os.Stderr.WriteString("unknown mode")
+		os.Exit(2)
+	}
+}
+
+func TestRunReturnsCapturedStatus(t *testing.T) {
+	bin := mustExecutable(t)
+	tempDir := t.TempDir()
+
+	input := fmt.Sprintf(`
+let st = run({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
+    cwd: %q,
+    env: {
+        KARL_PROCESS_HELPER: "1",
+        KARL_PROCESS_TEST_ENV: "karl-env",
+    },
+    inheritEnv: true,
+    stdin: "ping",
+})
+
+st
+`, bin, tempDir)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	obj, ok := val.(*Object)
+	if !ok {
+		t.Fatalf("expected object, got %T", val)
+	}
+
+	assertBoolean(t, obj.Pairs["ok"], true)
+	assertInteger(t, obj.Pairs["code"], 0)
+	assertBoolean(t, obj.Pairs["timedOut"], false)
+	assertBoolean(t, obj.Pairs["aborted"], false)
+	assertBoolean(t, obj.Pairs["outputTruncated"], false)
+	assertBoolean(t, obj.Pairs["errorTruncated"], false)
+	assertString(t, obj.Pairs["error"], "ERR")
+
+	output, ok := obj.Pairs["output"].(*String)
+	if !ok {
+		t.Fatalf("expected output string, got %T", obj.Pairs["output"])
+	}
+	parts := strings.SplitN(output.Value, "|", 4)
+	if len(parts) != 4 {
+		t.Fatalf("unexpected output format: %q", output.Value)
+	}
+	if parts[0] != "OUT" || parts[1] != "karl-env" || parts[3] != "ping" {
+		t.Fatalf("unexpected output segments: %#v", parts)
+	}
+	assertSamePath(t, tempDir, parts[2])
+}
+
+func TestRunNonZeroExitReturnsStatus(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let st = run({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "exit7"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+})
+;
+[st.ok, st.code, st.output, st.error]
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	assertBoolean(t, arr.Elements[0], false)
+	assertInteger(t, arr.Elements[1], 7)
+	assertString(t, arr.Elements[2], "OUT7")
+	assertString(t, arr.Elements[3], "ERR7")
+}
+
+func TestRunTruncatesByDefault(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let st = run({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "bigout"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+    maxOutputBytes: 64,
+})
+;
+[st.ok, st.output.length, st.outputTruncated]
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr := val.(*Array)
+	assertBoolean(t, arr.Elements[0], true)
+	assertInteger(t, arr.Elements[1], 64)
+	assertBoolean(t, arr.Elements[2], true)
+}
+
+func TestRunOverflowErrorMode(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+run({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "bigout"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+    maxOutputBytes: 64,
+    overflow: "error",
+}) ? { error.kind }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "process_output_limit")
+}
+
+func TestProcWaitAndPipeChannels(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let p = proc({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
+    env: {
+        KARL_PROCESS_HELPER: "1",
+        KARL_PROCESS_TEST_ENV: "chan",
+    },
+    inheritEnv: true,
+    stdIn: "pipe",
+    stdOut: "pipe",
+    stdErr: "pipe",
+})
+
+let inCh = stdIn(p)
+inCh.send("ping")
+inCh.done()
+
+let [out, _closedOut] = stdOut(p).recv()
+let [err, _closedErr] = stdErr(p).recv()
+let st = wait p
+;
+
+{ ok: st.ok, code: st.code, out: out, err: err, pid: p.pid, running: p.running, }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	obj, ok := val.(*Object)
+	if !ok {
+		t.Fatalf("expected object, got %T", val)
+	}
+	assertBoolean(t, obj.Pairs["ok"], true)
+	assertInteger(t, obj.Pairs["code"], 0)
+	assertString(t, obj.Pairs["err"], "ERR")
+	assertBoolean(t, obj.Pairs["running"], false)
+	pid, ok := obj.Pairs["pid"].(*Integer)
+	if !ok || pid.Value <= 0 {
+		t.Fatalf("expected pid > 0, got %v", obj.Pairs["pid"])
+	}
+}
+
+func TestProcTimeoutReturnsStatus(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let p = proc({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "sleep"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+    timeoutMs: 20,
+})
+let st = wait p
+;
+[st.ok, st.timedOut]
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr := val.(*Array)
+	assertBoolean(t, arr.Elements[0], false)
+	assertBoolean(t, arr.Elements[1], true)
+}
+
+func TestProcPipelineComposition(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let plan = cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], })
+    | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], })
+
+let p = proc({
+    plan: plan,
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+    stdOut: "pipe",
+    stdErr: "pipe",
+    stdIn: "null",
+})
+
+let collect = ch -> for true with r = ch.recv(), acc = "" {
+    let [chunk, closed] = r
+    if closed { break acc }
+    acc = acc + chunk
+    r = ch.recv()
+} then acc
+
+let out = collect(stdOut(p))
+let st = wait p
+;
+[st.ok, out]
+`, bin, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr := val.(*Array)
+	assertBoolean(t, arr.Elements[0], true)
+	assertString(t, arr.Elements[1], "CAP|alpha\nbeta\n")
+}
+
+func TestStdOutRequiresPipeMode(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let p = proc({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
+    env: { KARL_PROCESS_HELPER: "1", KARL_PROCESS_TEST_ENV: "state", },
+    inheritEnv: true,
+    stdOut: "null",
+    stdErr: "null",
+})
+stdOut(p) ? { error.kind }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "process_state")
+}
+
+func mustExecutable(t *testing.T) string {
+	t.Helper()
+	path, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable: %v", err)
+	}
+	return path
+}
+
+func assertBoolean(t *testing.T, val Value, expected bool) {
+	t.Helper()
+	b, ok := val.(*Boolean)
+	if !ok {
+		t.Fatalf("expected Boolean, got %T (%v)", val, val)
+	}
+	if b.Value != expected {
+		t.Fatalf("expected %v, got %v", expected, b.Value)
+	}
+}
+
+func assertSamePath(t *testing.T, expected string, actual string) {
+	t.Helper()
+	expectedResolved, err := filepath.EvalSymlinks(expected)
+	if err != nil {
+		expectedResolved = filepath.Clean(expected)
+	}
+	actualResolved, err := filepath.EvalSymlinks(actual)
+	if err != nil {
+		actualResolved = filepath.Clean(actual)
+	}
+	if expectedResolved != actualResolved {
+		t.Fatalf("expected path %q, got %q", expectedResolved, actualResolved)
+	}
+}

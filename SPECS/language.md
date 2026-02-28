@@ -146,7 +146,7 @@ let found = for true with msg = null {
 // - Recoverable failures are only allowed from specific builtin calls (see below).
 // - Use explicit checks for optional data (null or sentinel values).
 // - Missing property access or out-of-bounds index access are runtime errors and call exit(...).
-// - `wait` on a non-Task is a runtime error and calls exit(...).
+// - `wait` on a non-task/non-process is a runtime error and calls exit(...).
 
 // Recoverable errors: postfix catch block
 // - Only call expressions may use `? { ... }`.
@@ -159,7 +159,7 @@ let found = for true with msg = null {
 // Builtins that can produce recoverable errors:
 // jsonDecode, readFile, writeFile, appendFile, deleteFile, exists, listDir, http,
 // sqlOpen, sqlClose, sqlExec, sqlQuery, sqlQueryOne, sqlBegin, sqlCommit, sqlRollback,
-// uuidParse, timeParseRFC3339, fail, readLine, processRun
+// uuidParse, timeParseRFC3339, fail, readLine, proc, run, stdIn, stdOut, stdErr
 
 // Example: recover from bad JSON
 let raw = "{\"foo\":\"bar\"}"
@@ -203,17 +203,29 @@ let path = programPath()    // "file.k" | "<stdin>" | null
 // readLine() returns line without trailing newline, null on EOF.
 let line = readLine() ? { null }
 
-// processRun() executes an external command without a shell.
-let run = processRun({
-    command: "echo",
-    args: ["hello"],
-    timeoutMs: 1000,
-})
-if !run.ok { exit("command failed: " + str(run.exitCode)) }
-log(run.stdout)
+// run() is the blocking convenience API.
+let st = run({ command: "echo", args: ["hello"], })
+if !st.ok { exit("command failed: " + str(st.code)) }
+log(st.output)
+
+// proc() starts a waitable/abortable process handle.
+let p = proc({ command: "cat", stdIn: "pipe", stdOut: "pipe", stdErr: "pipe", })
+let inCh = stdIn(p)
+inCh.send("hello\\n")
+inCh.done()
+let [line, _closed] = stdOut(p).recv()
+log(line)
+wait p
+
+// cmd(...) + `|` builds process pipelines.
+let plan = cmd("printf", ["alpha\\nbeta\\n"]) | cmd("wc", ["-l"])
+let p2 = proc({ plan: plan, stdOut: "pipe", })
+let [count, _] = stdOut(p2).recv()
+log(count)
+wait p2
 
 // recoverable process error kinds:
-// process_spawn, process_timeout, process_output_limit, process_io
+// process_spawn, process_state, process_io, process_output_limit
 
 // ============================================
 // 4. FUNCTIONAL EXPRESSIONS
@@ -654,7 +666,10 @@ assign          = logic_or
 lvalue          = IDENT { ( "." IDENT | "[" expr "]" ) } ;
 assign_op       = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
 
-logic_or        = logic_and { "||" logic_and } ;
+// Process pipeline composition (`|`) is type-checked at runtime:
+// valid only for cmd/pipeline values.
+logic_or        = pipe_expr { "||" pipe_expr } ;
+pipe_expr       = logic_and { "|" logic_and } ;
 logic_and       = equality { "&&" equality } ;
 equality        = comparison { ( "==" | "!=" | "eqv" ) comparison } ;
 comparison      = range { ( "<" | "<=" | ">" | ">=" ) range } ;

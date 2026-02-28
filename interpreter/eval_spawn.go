@@ -7,15 +7,19 @@ func (e *Evaluator) evalAwaitExpression(node *ast.AwaitExpression, env *Environm
 	if err != nil || sig != nil {
 		return val, sig, err
 	}
-	task, ok := val.(*Task)
-	if !ok {
-		return nil, nil, &RuntimeError{Message: "wait expects task"}
-	}
+
 	var cancelCh <-chan struct{}
 	if e.currentTask != nil {
 		cancelCh = e.currentTask.cancelCh
 	}
-	return taskAwaitWithCancel(task, cancelCh, e.runtime)
+
+	if task, ok := val.(*Task); ok {
+		return taskAwaitWithCancel(task, cancelCh, e.runtime)
+	}
+	if process, ok := val.(*Process); ok {
+		return processAwaitWithCancel(process, cancelCh, e.runtime)
+	}
+	return nil, nil, &RuntimeError{Message: "wait expects task or process"}
 }
 
 func (e *Evaluator) evalSpawnExpression(node *ast.SpawnExpression, env *Environment) (Value, *Signal, error) {

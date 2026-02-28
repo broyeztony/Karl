@@ -99,3 +99,57 @@ func (e *Evaluator) taskMethod(t *Task, name string) (Value, *Signal, error) {
 		return nil, nil, &RuntimeError{Message: "unknown task member: " + name}
 	}
 }
+
+func (e *Evaluator) processMethod(p *Process, name string) (Value, *Signal, error) {
+	switch name {
+	case "pid":
+		return &Integer{Value: p.PID()}, nil, nil
+	case "running":
+		return &Boolean{Value: p.Running()}, nil, nil
+	case "abort":
+		return &Builtin{
+			Name: "abort",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "abort expects no arguments"}
+				}
+				if err := p.Abort(); err != nil {
+					return nil, recoverableError("process_state", "process abort error: "+err.Error())
+				}
+				return UnitValue, nil
+			},
+		}, nil, nil
+	case "kill":
+		return &Builtin{
+			Name: "kill",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "kill expects no arguments"}
+				}
+				if err := p.Kill(); err != nil {
+					return nil, recoverableError("process_state", "process kill error: "+err.Error())
+				}
+				return UnitValue, nil
+			},
+		}, nil, nil
+	case "signal":
+		return &Builtin{
+			Name: "signal",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "signal expects signal name"}
+				}
+				name, ok := stringArg(args[0])
+				if !ok {
+					return nil, &RuntimeError{Message: "signal expects string signal name"}
+				}
+				if err := p.Signal(name); err != nil {
+					return nil, recoverableError("process_state", "process signal error: "+err.Error())
+				}
+				return UnitValue, nil
+			},
+		}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "unknown process member: " + name}
+	}
+}
