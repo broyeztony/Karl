@@ -15,16 +15,19 @@ let takeBytes = (ch, limit) -> for true with r = ch.recv(), acc = "", n = 0 {
     r = ch.recv()
 } then { bytes: n, sample: acc[..200], }
 
-let p = proc({
+let stage = cmd({
     command: "yes",
     args: ["karl"],
+})
+
+let p = proc(stage, {
     stdOut: "pipe",
     stdErr: "pipe",
 }) ? {
     fail("cannot start long-running command: " + error.message)
 }
 
-let outTask = & (() -> takeBytes(stdOut(p), 8000))()
+let outTask = & (() -> takeBytes(p.stdout, 8000))()
 let runningBeforeAbort = p.running
 
 sleep(120)

@@ -106,6 +106,24 @@ func (e *Evaluator) processMethod(p *Process, name string) (Value, *Signal, erro
 		return &Integer{Value: p.PID()}, nil, nil
 	case "running":
 		return &Boolean{Value: p.Running()}, nil, nil
+	case "stdin":
+		ch, ok := p.inputChannel()
+		if !ok {
+			return nil, nil, recoverableError("process_state", "stdin is only available when stdIn mode is \"pipe\"")
+		}
+		return ch, nil, nil
+	case "stdout":
+		ch, ok := p.outputChannel()
+		if !ok {
+			return nil, nil, recoverableError("process_state", "stdout is only available when stdOut mode is \"pipe\"")
+		}
+		return ch, nil, nil
+	case "stderr":
+		ch, ok := p.errorChannel()
+		if !ok {
+			return nil, nil, recoverableError("process_state", "stderr is only available when stdErr mode is \"pipe\"")
+		}
+		return ch, nil, nil
 	case "abort":
 		return &Builtin{
 			Name: "abort",

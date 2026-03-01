@@ -6,7 +6,8 @@ This document is the normative specification for Karl process execution, process
 
 This specification defines:
 - process value types (`<cmd>`, `<pipeline>`, `<process>`)
-- process built-ins (`cmd`, `proc`, `run`, `stdIn`, `stdOut`, `stdErr`)
+- process built-ins (`cmd`, `proc`, `run`)
+- process channel properties (`p.stdin`, `p.stdout`, `p.stderr`)
 - pipeline composition via `|`
 - process lifecycle and waiting semantics
 - process status objects and recoverable error kinds
@@ -18,7 +19,7 @@ This specification defines:
 
 Recoverable errors in unsupported runtimes use:
 - `kind = "process_spawn"` for `cmd` / `proc` / `run`
-- `kind = "process_state"` for `stdIn` / `stdOut` / `stdErr` / `wait <process>`
+- `kind = "process_state"` for process channel properties / `wait <process>`
 
 ## Value types
 
@@ -30,13 +31,15 @@ Recoverable errors in unsupported runtimes use:
 
 ### `cmd`
 
-Signatures:
-- `cmd(command, args?) -> <cmd>`
-- `cmd({ command, args }) -> <cmd>`
+Signature:
+- `cmd({ command, args?, cwd?, env?, inheritEnv? }) -> <cmd>`
 
 Rules:
 - `command` must be non-empty string.
 - `args` must be array of strings when provided.
+- `cwd` must be string when provided.
+- `env` must be object/map/module-object with string values when provided.
+- `inheritEnv` must be bool when provided (default `true`).
 
 ### `|`
 
@@ -51,38 +54,24 @@ Rules:
 ### `proc`
 
 Signature:
-- `proc(specOrPlan) -> <process>`
+- `proc(cmdOrPipeline, opts?) -> <process>`
 
 Accepted input:
-- `<cmd>`
-- `<pipeline>`
-- object spec:
-  - single-stage form: `{ command, args?, ... }`
-  - plan form: `{ plan, ... }` where `plan` is `<cmd>` or `<pipeline>`
+- first argument: `<cmd>` or `<pipeline>`
+- second argument (`opts`) is optional object
 
 Process starts immediately and returns a waitable/abortable handle.
 
 ### `run`
 
 Signature:
-- `run(specOrPlan) -> RunStatus`
+- `run(cmdOrPipeline, opts?) -> RunStatus`
 
 Accepted input:
-- same forms as `proc` (`<cmd>`, `<pipeline>`, or object with `command/...` or `plan`).
+- first argument: `<cmd>` or `<pipeline>`
+- second argument (`opts`) is optional object
 
 `run` is blocking convenience API: equivalent behavior to launching and waiting, with captured output/error.
-
-### `stdIn` / `stdOut` / `stdErr`
-
-Signatures:
-- `stdIn(process) -> Channel<String>`
-- `stdOut(process) -> Channel<String>`
-- `stdErr(process) -> Channel<String>`
-
-Rules:
-- Argument must be `<process>`.
-- Channel accessor is valid only when corresponding mode is `"pipe"`.
-- Otherwise recoverable `process_state` error.
 
 ### `wait`
 
@@ -97,37 +86,39 @@ For process values:
 For `p: <process>`, supported members are:
 - `p.pid -> Int`
 - `p.running -> Bool`
+- `p.stdin -> Channel<String>`
+- `p.stdout -> Channel<String>`
+- `p.stderr -> Channel<String>`
 - `p.abort() -> Unit`
 - `p.kill() -> Unit`
 - `p.signal(name) -> Unit`
 
 Rules:
+- `stdin/stdout/stderr` are available only when corresponding stdio mode is `"pipe"`.
 - `abort/kill/signal` on non-running process raise recoverable `process_state`.
 - `signal(name)` requires string signal name; unknown name raises recoverable `process_state`.
 
-## Object spec fields
+## Object fields
 
-### Shared (`proc` and `run`)
+### `cmd` stage fields
 
-- `command: String`
+- `command: String` (required)
 - `args: [String]` (optional)
-- `plan: <cmd>|<pipeline>` (optional; mutually exclusive with `command` in intent)
 - `cwd: String` (optional)
 - `env: Object|Map|ModuleObject` values must be strings (optional)
 - `inheritEnv: Bool` (optional, default `true`)
-- `timeoutMs: Int` (optional, default `0` = no timeout)
 
-If both `plan` and `command` are present, `plan` is used.
-
-### `proc`-specific stdio fields
+### `proc` options
 
 - `stdIn: "pipe" | "inherit" | "null"` (default `"inherit"`)
 - `stdOut: "pipe" | "inherit" | "null"` (default `"inherit"`)
 - `stdErr: "pipe" | "inherit" | "null"` (default `"inherit"`)
+- `timeoutMs: Int` (optional, default `0` = no timeout)
 
-### `run`-specific fields
+### `run` options
 
 - `stdin: String` (optional; when provided it is sent to process stdin)
+- `timeoutMs: Int` (optional, default `0` = no timeout)
 - `maxOutputBytes: Int` (optional, default `1048576`)
 - `overflow: "truncate" | "error"` (optional, default `"truncate"`)
 
@@ -140,14 +131,14 @@ If both `plan` and `command` are present, `plan` is used.
 
 For `stage1 | stage2 | ... | stageN`:
 - stdout of stage `i` is connected to stdin of stage `i+1`.
-- exposed `stdOut(process)` corresponds to stage `N` stdout.
-- exposed `stdErr(process)` merges stderr from all stages.
-- exposed `stdIn(process)` writes to stage `1` stdin.
+- exposed `p.stdout` corresponds to stage `N` stdout.
+- exposed `p.stderr` merges stderr from all stages.
+- exposed `p.stdin` writes to stage `1` stdin.
 
 ## Channels and data shape
 
-- `stdIn(process)` expects string chunks sent through channel.
-- `stdOut/stdErr` yield string chunks.
+- `p.stdin` expects string chunks sent through channel.
+- `p.stdout` / `p.stderr` yield string chunks.
 - Standard channel receive shape applies: `[value, is_closed]`.
 - Closing stdin channel closes underlying process stdin pipe.
 
@@ -215,7 +206,7 @@ Rationale: `proc(...)` already yields `<process>` and starts execution immediate
 ### Blocking run with captured output
 
 ```karl
-let st = run({ command: "echo", args: ["hello"], })
+let st = run(cmd({ command: "echo", args: ["hello"], }))
 if !st.ok { exit("command failed: " + str(st.code)) }
 log(st.output)
 ```
@@ -223,11 +214,11 @@ log(st.output)
 ### Managed process with pipes
 
 ```karl
-let p = proc({ command: "cat", stdIn: "pipe", stdOut: "pipe", stdErr: "pipe", })
-let inCh = stdIn(p)
+let p = proc(cmd({ command: "cat", }), { stdIn: "pipe", stdOut: "pipe", stdErr: "pipe", })
+let inCh = p.stdin
 inCh.send("hello\n")
 inCh.done()
-let [line, _closed] = stdOut(p).recv()
+let [line, _closed] = p.stdout.recv()
 log(line)
 let st = wait p
 ```
@@ -235,9 +226,9 @@ let st = wait p
 ### Pipeline
 
 ```karl
-let plan = cmd("printf", ["alpha\nbeta\n"]) | cmd("wc", ["-l"])
-let p = proc({ plan: plan, stdOut: "pipe", stdErr: "pipe", stdIn: "null", })
-let [count, _] = stdOut(p).recv()
+let plan = cmd({ command: "printf", args: ["alpha\nbeta\n"], }) | cmd({ command: "wc", args: ["-l"], })
+let p = proc(plan, { stdOut: "pipe", stdErr: "pipe", stdIn: "null", })
+let [count, _] = p.stdout.recv()
 log(count)
 wait p
 ```

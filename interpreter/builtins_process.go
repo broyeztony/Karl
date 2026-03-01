@@ -30,8 +30,11 @@ const (
 )
 
 type processStageSpec struct {
-	command string
-	args    []string
+	command    string
+	args       []string
+	cwd        string
+	env        map[string]string
+	inheritEnv bool
 }
 
 type ProcessCommand struct {
@@ -291,10 +294,7 @@ type processWaitResult struct {
 type processSpec struct {
 	stages []processStageSpec
 
-	cwd        string
-	env        map[string]string
-	inheritEnv bool
-	timeoutMs  int64
+	timeoutMs int64
 
 	stdinMode  string
 	stdoutMode string
@@ -310,49 +310,28 @@ func registerProcessBuiltins() {
 	builtins["cmd"] = &Builtin{Name: "cmd", Fn: builtinCmd}
 	builtins["proc"] = &Builtin{Name: "proc", Fn: builtinProc}
 	builtins["run"] = &Builtin{Name: "run", Fn: builtinRun}
-	builtins["stdIn"] = &Builtin{Name: "stdIn", Fn: builtinStdIn}
-	builtins["stdOut"] = &Builtin{Name: "stdOut", Fn: builtinStdOut}
-	builtins["stdErr"] = &Builtin{Name: "stdErr", Fn: builtinStdErr}
 }
 
 func builtinCmd(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 && len(args) != 2 {
-		return nil, &RuntimeError{Message: "cmd expects (command) or (command, args)"}
+	if len(args) != 1 {
+		return nil, &RuntimeError{Message: "cmd expects 1 object argument"}
 	}
-
-	if len(args) == 1 {
-		if pairs, ok := objectPairs(args[0]); ok {
-			stage, err := parseProcessStageFromPairs(pairs)
-			if err != nil {
-				return nil, err
-			}
-			return &ProcessCommand{Stage: stage}, nil
-		}
-	}
-
-	command, ok := stringArg(args[0])
+	pairs, ok := objectPairs(args[0])
 	if !ok {
-		return nil, &RuntimeError{Message: "cmd command must be string"}
+		return nil, &RuntimeError{Message: "cmd expects object spec"}
 	}
-	if strings.TrimSpace(command) == "" {
-		return nil, &RuntimeError{Message: "cmd command must not be empty"}
-	}
-	stage := processStageSpec{command: command}
-	if len(args) == 2 {
-		parsed, err := parseProcessArgs(args[1], "cmd args")
-		if err != nil {
-			return nil, err
-		}
-		stage.args = parsed
+	stage, err := parseProcessStageFromPairs(pairs)
+	if err != nil {
+		return nil, err
 	}
 	return &ProcessCommand{Stage: stage}, nil
 }
 
 func builtinProc(e *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "proc expects 1 argument"}
+	if len(args) < 1 || len(args) > 2 {
+		return nil, &RuntimeError{Message: "proc expects (cmdOrPipeline, opts?)"}
 	}
-	spec, err := parseProcSpec(args[0])
+	spec, err := parseProcSpec(args)
 	if err != nil {
 		return nil, err
 	}
@@ -364,10 +343,10 @@ func builtinProc(e *Evaluator, args []Value) (Value, error) {
 }
 
 func builtinRun(e *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "run expects 1 argument"}
+	if len(args) < 1 || len(args) > 2 {
+		return nil, &RuntimeError{Message: "run expects (cmdOrPipeline, opts?)"}
 	}
-	spec, err := parseRunSpec(args[0])
+	spec, err := parseRunSpec(args)
 	if err != nil {
 		return nil, err
 	}
@@ -429,128 +408,24 @@ func builtinRun(e *Evaluator, args []Value) (Value, error) {
 	return statusObj, nil
 }
 
-func builtinStdIn(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "stdIn expects process"}
-	}
-	p, ok := args[0].(*Process)
-	if !ok {
-		return nil, &RuntimeError{Message: "stdIn expects process"}
-	}
-	ch, ok := p.inputChannel()
-	if !ok {
-		return nil, recoverableError("process_state", "stdIn is only available when stdIn mode is \"pipe\"")
-	}
-	return ch, nil
-}
-
-func builtinStdOut(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "stdOut expects process"}
-	}
-	p, ok := args[0].(*Process)
-	if !ok {
-		return nil, &RuntimeError{Message: "stdOut expects process"}
-	}
-	ch, ok := p.outputChannel()
-	if !ok {
-		return nil, recoverableError("process_state", "stdOut is only available when stdOut mode is \"pipe\"")
-	}
-	return ch, nil
-}
-
-func builtinStdErr(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "stdErr expects process"}
-	}
-	p, ok := args[0].(*Process)
-	if !ok {
-		return nil, &RuntimeError{Message: "stdErr expects process"}
-	}
-	ch, ok := p.errorChannel()
-	if !ok {
-		return nil, recoverableError("process_state", "stdErr is only available when stdErr mode is \"pipe\"")
-	}
-	return ch, nil
-}
-
-func parseProcSpec(val Value) (processSpec, error) {
+func parseProcSpec(args []Value) (processSpec, error) {
 	spec := processSpec{
-		inheritEnv: true,
 		stdinMode:  processModeInherit,
 		stdoutMode: processModeInherit,
 		stderrMode: processModeInherit,
 	}
-	return parseProcessSpecValue(val, spec, false)
-}
-
-func parseRunSpec(val Value) (processSpec, error) {
-	spec := processSpec{
-		inheritEnv:     true,
-		stdinMode:      processModeNull,
-		stdoutMode:     processModePipe,
-		stderrMode:     processModePipe,
-		maxOutputBytes: defaultProcessCaptureBytes,
-		overflow:       processOverflowTruncate,
+	stages, err := parseProcessPlanStages(args[0])
+	if err != nil {
+		return processSpec{}, &RuntimeError{Message: "proc expects cmd or pipeline as first argument"}
 	}
-	return parseProcessSpecValue(val, spec, true)
-}
+	spec.stages = stages
 
-func parseProcessSpecValue(val Value, base processSpec, forRun bool) (processSpec, error) {
-	spec := base
-	switch v := val.(type) {
-	case *ProcessCommand:
-		spec.stages = []processStageSpec{v.Stage}
-		return spec, nil
-	case *ProcessPipeline:
-		spec.stages = append([]processStageSpec(nil), v.Stages...)
+	if len(args) == 1 || Equivalent(args[1], NullValue) {
 		return spec, nil
 	}
-
-	pairs, ok := objectPairs(val)
+	pairs, ok := objectPairs(args[1])
 	if !ok {
-		if forRun {
-			return processSpec{}, &RuntimeError{Message: "run expects command spec or cmd/pipeline"}
-		}
-		return processSpec{}, &RuntimeError{Message: "proc expects command spec or cmd/pipeline"}
-	}
-
-	if planVal, ok := pairs["plan"]; ok && !Equivalent(planVal, NullValue) {
-		stages, err := parseProcessPlanStages(planVal)
-		if err != nil {
-			return processSpec{}, err
-		}
-		spec.stages = stages
-	} else {
-		stage, err := parseProcessStageFromPairs(pairs)
-		if err != nil {
-			return processSpec{}, err
-		}
-		spec.stages = []processStageSpec{stage}
-	}
-
-	if cwdVal, ok := pairs["cwd"]; ok && !Equivalent(cwdVal, NullValue) {
-		cwd, ok := stringArg(cwdVal)
-		if !ok {
-			return processSpec{}, &RuntimeError{Message: "process cwd must be string"}
-		}
-		spec.cwd = cwd
-	}
-
-	if envVal, ok := pairs["env"]; ok && !Equivalent(envVal, NullValue) {
-		env, err := parseProcessEnv(envVal)
-		if err != nil {
-			return processSpec{}, err
-		}
-		spec.env = env
-	}
-
-	if inheritVal, ok := pairs["inheritEnv"]; ok && !Equivalent(inheritVal, NullValue) {
-		inherit, ok := inheritVal.(*Boolean)
-		if !ok {
-			return processSpec{}, &RuntimeError{Message: "process inheritEnv must be bool"}
-		}
-		spec.inheritEnv = inherit.Value
+		return processSpec{}, &RuntimeError{Message: "proc options must be object"}
 	}
 
 	if timeoutVal, ok := pairs["timeoutMs"]; ok && !Equivalent(timeoutVal, NullValue) {
@@ -563,42 +438,6 @@ func parseProcessSpecValue(val Value, base processSpec, forRun bool) (processSpe
 		}
 		spec.timeoutMs = timeout.Value
 	}
-
-	if forRun {
-		if stdinVal, ok := pairs["stdin"]; ok && !Equivalent(stdinVal, NullValue) {
-			stdin, ok := stringArg(stdinVal)
-			if !ok {
-				return processSpec{}, &RuntimeError{Message: "run stdin must be string"}
-			}
-			spec.stdinText = &stdin
-			spec.stdinMode = processModePipe
-		}
-
-		if limitVal, ok := pairs["maxOutputBytes"]; ok && !Equivalent(limitVal, NullValue) {
-			limit, ok := limitVal.(*Integer)
-			if !ok {
-				return processSpec{}, &RuntimeError{Message: "run maxOutputBytes must be integer"}
-			}
-			if limit.Value <= 0 {
-				return processSpec{}, &RuntimeError{Message: "run maxOutputBytes must be > 0"}
-			}
-			spec.maxOutputBytes = limit.Value
-		}
-
-		if overflowVal, ok := pairs["overflow"]; ok && !Equivalent(overflowVal, NullValue) {
-			overflow, ok := stringArg(overflowVal)
-			if !ok {
-				return processSpec{}, &RuntimeError{Message: "run overflow must be string"}
-			}
-			overflow = strings.TrimSpace(strings.ToLower(overflow))
-			if overflow != processOverflowTruncate && overflow != processOverflowError {
-				return processSpec{}, &RuntimeError{Message: "run overflow must be \"truncate\" or \"error\""}
-			}
-			spec.overflow = overflow
-		}
-		return spec, nil
-	}
-
 	if modeVal, ok := pairs["stdIn"]; ok && !Equivalent(modeVal, NullValue) {
 		mode, err := parseProcessMode(modeVal, "stdIn")
 		if err != nil {
@@ -620,7 +459,70 @@ func parseProcessSpecValue(val Value, base processSpec, forRun bool) (processSpe
 		}
 		spec.stderrMode = mode
 	}
+	return spec, nil
+}
 
+func parseRunSpec(args []Value) (processSpec, error) {
+	spec := processSpec{
+		stdinMode:      processModeNull,
+		stdoutMode:     processModePipe,
+		stderrMode:     processModePipe,
+		maxOutputBytes: defaultProcessCaptureBytes,
+		overflow:       processOverflowTruncate,
+	}
+	stages, err := parseProcessPlanStages(args[0])
+	if err != nil {
+		return processSpec{}, &RuntimeError{Message: "run expects cmd or pipeline as first argument"}
+	}
+	spec.stages = stages
+
+	if len(args) == 1 || Equivalent(args[1], NullValue) {
+		return spec, nil
+	}
+	pairs, ok := objectPairs(args[1])
+	if !ok {
+		return processSpec{}, &RuntimeError{Message: "run options must be object"}
+	}
+
+	if timeoutVal, ok := pairs["timeoutMs"]; ok && !Equivalent(timeoutVal, NullValue) {
+		timeout, ok := timeoutVal.(*Integer)
+		if !ok {
+			return processSpec{}, &RuntimeError{Message: "process timeoutMs must be integer milliseconds"}
+		}
+		if timeout.Value < 0 {
+			return processSpec{}, &RuntimeError{Message: "process timeoutMs must be >= 0"}
+		}
+		spec.timeoutMs = timeout.Value
+	}
+	if stdinVal, ok := pairs["stdin"]; ok && !Equivalent(stdinVal, NullValue) {
+		stdin, ok := stringArg(stdinVal)
+		if !ok {
+			return processSpec{}, &RuntimeError{Message: "run stdin must be string"}
+		}
+		spec.stdinText = &stdin
+		spec.stdinMode = processModePipe
+	}
+	if limitVal, ok := pairs["maxOutputBytes"]; ok && !Equivalent(limitVal, NullValue) {
+		limit, ok := limitVal.(*Integer)
+		if !ok {
+			return processSpec{}, &RuntimeError{Message: "run maxOutputBytes must be integer"}
+		}
+		if limit.Value <= 0 {
+			return processSpec{}, &RuntimeError{Message: "run maxOutputBytes must be > 0"}
+		}
+		spec.maxOutputBytes = limit.Value
+	}
+	if overflowVal, ok := pairs["overflow"]; ok && !Equivalent(overflowVal, NullValue) {
+		overflow, ok := stringArg(overflowVal)
+		if !ok {
+			return processSpec{}, &RuntimeError{Message: "run overflow must be string"}
+		}
+		overflow = strings.TrimSpace(strings.ToLower(overflow))
+		if overflow != processOverflowTruncate && overflow != processOverflowError {
+			return processSpec{}, &RuntimeError{Message: "run overflow must be \"truncate\" or \"error\""}
+		}
+		spec.overflow = overflow
+	}
 	return spec, nil
 }
 
@@ -631,30 +533,51 @@ func parseProcessPlanStages(val Value) ([]processStageSpec, error) {
 	case *ProcessPipeline:
 		return append([]processStageSpec(nil), v.Stages...), nil
 	default:
-		return nil, &RuntimeError{Message: "process plan must be cmd or pipeline"}
+		return nil, &RuntimeError{Message: "expects cmd or pipeline"}
 	}
 }
 
 func parseProcessStageFromPairs(pairs map[string]Value) (processStageSpec, error) {
 	commandVal, ok := pairs["command"]
 	if !ok {
-		return processStageSpec{}, &RuntimeError{Message: "process command spec expects command"}
+		return processStageSpec{}, &RuntimeError{Message: "cmd spec expects command"}
 	}
 	command, ok := stringArg(commandVal)
 	if !ok {
-		return processStageSpec{}, &RuntimeError{Message: "process command must be string"}
+		return processStageSpec{}, &RuntimeError{Message: "cmd command must be string"}
 	}
 	if strings.TrimSpace(command) == "" {
-		return processStageSpec{}, &RuntimeError{Message: "process command must not be empty"}
+		return processStageSpec{}, &RuntimeError{Message: "cmd command must not be empty"}
 	}
-	stage := processStageSpec{command: command}
+	stage := processStageSpec{command: command, inheritEnv: true}
 
 	if argsVal, ok := pairs["args"]; ok && !Equivalent(argsVal, NullValue) {
-		args, err := parseProcessArgs(argsVal, "process args")
+		args, err := parseProcessArgs(argsVal, "cmd args")
 		if err != nil {
 			return processStageSpec{}, err
 		}
 		stage.args = args
+	}
+	if cwdVal, ok := pairs["cwd"]; ok && !Equivalent(cwdVal, NullValue) {
+		cwd, ok := stringArg(cwdVal)
+		if !ok {
+			return processStageSpec{}, &RuntimeError{Message: "cmd cwd must be string"}
+		}
+		stage.cwd = cwd
+	}
+	if envVal, ok := pairs["env"]; ok && !Equivalent(envVal, NullValue) {
+		env, err := parseProcessEnv(envVal)
+		if err != nil {
+			return processStageSpec{}, err
+		}
+		stage.env = env
+	}
+	if inheritVal, ok := pairs["inheritEnv"]; ok && !Equivalent(inheritVal, NullValue) {
+		inherit, ok := inheritVal.(*Boolean)
+		if !ok {
+			return processStageSpec{}, &RuntimeError{Message: "cmd inheritEnv must be bool"}
+		}
+		stage.inheritEnv = inherit.Value
 	}
 	return stage, nil
 }
@@ -798,15 +721,15 @@ func startProcess(e *Evaluator, spec processSpec) (*Process, error) {
 	cmds := make([]*exec.Cmd, 0, len(spec.stages))
 	for _, stage := range spec.stages {
 		cmd := exec.CommandContext(ctx, stage.command, stage.args...)
-		if spec.cwd != "" {
-			dir, err := resolveProcessDir(e, spec.cwd)
+		if stage.cwd != "" {
+			dir, err := resolveProcessDir(e, stage.cwd)
 			if err != nil {
 				cleanup()
 				return nil, recoverableError("process_spawn", "process spawn error: "+err.Error())
 			}
 			cmd.Dir = dir
 		}
-		env := processEnvSnapshot(e, spec)
+		env := processStageEnvSnapshot(e, stage)
 		if env != nil {
 			cmd.Env = env
 		}
@@ -1093,24 +1016,24 @@ func collectProcessChannel(ch *Channel, limit int64, overflow string) (string, b
 	return builder.String(), truncated
 }
 
-func processEnvSnapshot(e *Evaluator, spec processSpec) []string {
-	if !spec.inheritEnv {
-		if len(spec.env) == 0 {
+func processStageEnvSnapshot(e *Evaluator, stage processStageSpec) []string {
+	if !stage.inheritEnv {
+		if len(stage.env) == 0 {
 			return []string{}
 		}
-		return processSortedEnv(spec.env)
+		return processSortedEnv(stage.env)
 	}
 
 	base := runtimeEnviron(e)
 	if len(base) == 0 {
 		base = os.Environ()
 	}
-	if len(spec.env) == 0 {
+	if len(stage.env) == 0 {
 		return cloneStrings(base)
 	}
 
 	merged := makeEnvMap(base)
-	for key, value := range spec.env {
+	for key, value := range stage.env {
 		merged[key] = value
 	}
 	return processSortedEnv(merged)

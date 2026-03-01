@@ -221,26 +221,31 @@ Ordering requires comparable keys; otherwise runtime error.
   - Returns `null` on EOF.
   - I/O read failures are recoverable (`kind = "readLine"`).
 - Process execution/pipeline semantics are specified in `SPECS/process.md`.
-- `cmd(command, args?) -> <cmd>`
+- `cmd({ command, args?, cwd?, env?, inheritEnv? }) -> <cmd>`
   - Creates one process stage for pipeline composition.
-  - `cmd({ command, args })` object form is also supported.
 - `leftCmdOrPipeline | rightCmdOrPipeline -> <pipeline>`
   - Composes command stages without starting any process.
   - `|` is defined only for `<cmd>` / `<pipeline>` values.
-- `proc(specOrPlan) -> <process>`
+- `proc(cmdOrPipeline, opts?) -> <process>`
   - Starts process execution immediately and returns a handle.
-  - Object spec supports:
-    - `command`, `args` for a single stage, or `plan` (`<cmd>` / `<pipeline>`)
-    - `cwd`, `env`, `inheritEnv`
+  - First argument: `<cmd>` or `<pipeline>`.
+  - Optional `opts` supports:
     - stdio modes: `stdIn`, `stdOut`, `stdErr` in `"pipe" | "inherit" | "null"`
     - `timeoutMs`
-- `run(specOrPlan) -> RunStatus`
+- `run(cmdOrPipeline, opts?) -> RunStatus`
   - Blocking convenience API.
+  - First argument: `<cmd>` or `<pipeline>`.
+  - Optional `opts` supports:
+    - `stdin` (string sent to stdin)
+    - `timeoutMs`
+    - `maxOutputBytes`
+    - `overflow` (`"truncate"` or `"error"`)
   - Captures `output`/`error` with bounded memory (default `maxOutputBytes = 1048576`).
   - Overflow mode defaults to `"truncate"`; `"error"` raises recoverable `process_output_limit`.
-- `stdIn(process) -> Channel<String>`
-- `stdOut(process) -> Channel<String>`
-- `stdErr(process) -> Channel<String>`
+- Process channel properties:
+  - `process.stdin -> Channel<String>`
+  - `process.stdout -> Channel<String>`
+  - `process.stderr -> Channel<String>`
   - Available only when corresponding stdio mode is `"pipe"`; otherwise recoverable `process_state`.
 - `wait process -> ProcessStatus`
   - `wait` now accepts both task and process handles.
@@ -545,12 +550,9 @@ Implementation details (current runtime):
 - `deleteFile(path)` -> Unit
 - `exists(path)` -> Bool
 - `listDir(path)` -> Array<String>
-- `cmd(command, args?)` -> Cmd
-- `proc(specOrPlan)` -> Process
-- `run(specOrPlan)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
-- `stdIn(process)` -> Channel<String>
-- `stdOut(process)` -> Channel<String>
-- `stdErr(process)` -> Channel<String>
+- `cmd({ command, args?, cwd?, env?, inheritEnv? })` -> Cmd
+- `proc(cmdOrPipeline, opts?)` -> Process
+- `run(cmdOrPipeline, opts?)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
 - `http({ method, url, headers, body, })` -> { status, headers, body, }
 - `httpServe({ addr, routes, })` -> Server
 - `httpServerStop(server)` -> Unit

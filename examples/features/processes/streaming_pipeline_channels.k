@@ -9,11 +9,10 @@
 //   karl run examples/features/processes/streaming_pipeline_channels.k
 
 let plan =
-    cmd("sh", ["-c", "i=1; while [ $i -le 12 ]; do echo \"evt-$i\"; i=$((i+1)); sleep 0.15; done"]) |
-    cmd("awk", ["{ print toupper($0); fflush() }"])
+    cmd({ command: "sh", args: ["-c", "i=1; while [ $i -le 12 ]; do echo \"evt-$i\"; i=$((i+1)); sleep 0.15; done"], }) |
+    cmd({ command: "awk", args: ["{ print toupper($0); fflush() }"], })
 
-let p = proc({
-    plan: plan,
+let p = proc(plan, {
     stdIn: "null",
     stdOut: "pipe",
     stdErr: "pipe",
@@ -22,8 +21,8 @@ let p = proc({
 logt("pid", p.pid)
 
 let events = channel()
-let outCh = stdOut(p)
-let errCh = stdErr(p)
+let outCh = p.stdout
+let errCh = p.stderr
 
 let outTask = & (() -> for true with r = outCh.recv(), n = 0 {
     let [chunk, closed] = r

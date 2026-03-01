@@ -18,24 +18,23 @@ let corpus =
     "Production automation benefits from clear syntax.\n"
 
 let plan =
-    cmd("tr", ["A-Z", "a-z"]) |
-    cmd("tr", ["-cs", "a-z", "\\n"]) |
-    cmd("sort", []) |
-    cmd("uniq", ["-c"]) |
-    cmd("sort", ["-nr"]) |
-    cmd("head", ["-n", "8"])
+    cmd({ command: "tr", args: ["A-Z", "a-z"], }) |
+    cmd({ command: "tr", args: ["-cs", "a-z", "\\n"], }) |
+    cmd({ command: "sort", args: [], }) |
+    cmd({ command: "uniq", args: ["-c"], }) |
+    cmd({ command: "sort", args: ["-nr"], }) |
+    cmd({ command: "head", args: ["-n", "8"], })
 
-let p = proc({
-    plan: plan,
+let p = proc(plan, {
     stdIn: "pipe",
     stdOut: "pipe",
     stdErr: "pipe",
 })
 
-let outTask = & (() -> collect(stdOut(p)))()
-let errTask = & (() -> collect(stdErr(p)))()
+let outTask = & (() -> collect(p.stdout))()
+let errTask = & (() -> collect(p.stderr))()
 
-let inCh = stdIn(p)
+let inCh = p.stdin
 inCh.send(corpus)
 inCh.done()
 

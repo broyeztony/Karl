@@ -159,7 +159,7 @@ let found = for true with msg = null {
 // Builtins that can produce recoverable errors:
 // jsonDecode, readFile, writeFile, appendFile, deleteFile, exists, listDir, http,
 // sqlOpen, sqlClose, sqlExec, sqlQuery, sqlQueryOne, sqlBegin, sqlCommit, sqlRollback,
-// uuidParse, timeParseRFC3339, fail, readLine, proc, run, stdIn, stdOut, stdErr
+// uuidParse, timeParseRFC3339, fail, readLine, proc, run
 
 // Example: recover from bad JSON
 let raw = "{\"foo\":\"bar\"}"
@@ -195,7 +195,8 @@ if user == null { exit("user not found") }
 // ============================================
 
 // Process model reference:
-// - SPECS/process.md is the normative source for cmd/proc/run/stdIn/stdOut/stdErr,
+// - SPECS/process.md is the normative source for cmd/proc/run and process channels
+//   (p.stdin/p.stdout/p.stderr),
 //   process status objects, and pipeline (`|`) semantics.
 
 // Program args (only values passed after `--` in `karl run`)
@@ -208,23 +209,23 @@ let path = programPath()    // "file.k" | "<stdin>" | null
 let line = readLine() ? { null }
 
 // run() is the blocking convenience API.
-let st = run({ command: "echo", args: ["hello"], })
+let st = run(cmd({ command: "echo", args: ["hello"], }))
 if !st.ok { exit("command failed: " + str(st.code)) }
 log(st.output)
 
 // proc() starts a waitable/abortable process handle.
-let p = proc({ command: "cat", stdIn: "pipe", stdOut: "pipe", stdErr: "pipe", })
-let inCh = stdIn(p)
+let p = proc(cmd({ command: "cat", }), { stdIn: "pipe", stdOut: "pipe", stdErr: "pipe", })
+let inCh = p.stdin
 inCh.send("hello\\n")
 inCh.done()
-let [line, _closed] = stdOut(p).recv()
+let [line, _closed] = p.stdout.recv()
 log(line)
 wait p
 
 // cmd(...) + `|` builds process pipelines.
-let plan = cmd("printf", ["alpha\\nbeta\\n"]) | cmd("wc", ["-l"])
-let p2 = proc({ plan: plan, stdOut: "pipe", })
-let [count, _] = stdOut(p2).recv()
+let plan = cmd({ command: "printf", args: ["alpha\\nbeta\\n"], }) | cmd({ command: "wc", args: ["-l"], })
+let p2 = proc(plan, { stdOut: "pipe", })
+let [count, _] = p2.stdout.recv()
 log(count)
 wait p2
 

@@ -95,7 +95,7 @@ let fastest = race { taskA(), taskB() }`
 }
 
 func TestPipelineOperatorParsing(t *testing.T) {
-	input := `let p = cmd("echo", ["hi"]) | cmd("wc", ["-c"])`
+	input := `let p = cmd({ command: "echo", args: ["hi"], }) | cmd({ command: "wc", args: ["-c"], })`
 	p := parser.New(lexer.New(input))
 	program := p.ParseProgram()
 	checkParserErrors(t, p)

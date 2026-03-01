@@ -56,7 +56,7 @@ func TestRunReturnsCapturedStatus(t *testing.T) {
 	tempDir := t.TempDir()
 
 	input := fmt.Sprintf(`
-let st = run({
+let stage = cmd({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
     cwd: %q,
@@ -65,6 +65,9 @@ let st = run({
         KARL_PROCESS_TEST_ENV: "karl-env",
     },
     inheritEnv: true,
+})
+
+let st = run(stage, {
     stdin: "ping",
 })
 
@@ -105,12 +108,13 @@ st
 func TestRunNonZeroExitReturnsStatus(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let st = run({
+let stage = cmd({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "exit7"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
 })
+let st = run(stage)
 ;
 [st.ok, st.code, st.output, st.error]
 `, bin)
@@ -132,11 +136,13 @@ let st = run({
 func TestRunTruncatesByDefault(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let st = run({
+let stage = cmd({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "bigout"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
+})
+let st = run(stage, {
     maxOutputBytes: 64,
 })
 ;
@@ -156,11 +162,13 @@ let st = run({
 func TestRunOverflowErrorMode(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-run({
+let stage = cmd({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "bigout"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
+})
+run(stage, {
     maxOutputBytes: 64,
     overflow: "error",
 }) ? { error.kind }
@@ -176,7 +184,7 @@ run({
 func TestProcWaitAndPipeChannels(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let p = proc({
+let stage = cmd({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
     env: {
@@ -184,17 +192,19 @@ let p = proc({
         KARL_PROCESS_TEST_ENV: "chan",
     },
     inheritEnv: true,
+})
+let p = proc(stage, {
     stdIn: "pipe",
     stdOut: "pipe",
     stdErr: "pipe",
 })
 
-let inCh = stdIn(p)
+let inCh = p.stdin
 inCh.send("ping")
 inCh.done()
 
-let [out, _closedOut] = stdOut(p).recv()
-let [err, _closedErr] = stdErr(p).recv()
+let [out, _closedOut] = p.stdout.recv()
+let [err, _closedErr] = p.stderr.recv()
 let st = wait p
 ;
 
@@ -222,11 +232,13 @@ let st = wait p
 func TestProcTimeoutReturnsStatus(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let p = proc({
+let stage = cmd({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "sleep"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
+})
+let p = proc(stage, {
     timeoutMs: 20,
 })
 let st = wait p
@@ -246,13 +258,11 @@ let st = wait p
 func TestProcPipelineComposition(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let plan = cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], })
-    | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], })
+let plan =
+    cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
+    | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
 
-let p = proc({
-    plan: plan,
-    env: { KARL_PROCESS_HELPER: "1", },
-    inheritEnv: true,
+let p = proc(plan, {
     stdOut: "pipe",
     stdErr: "pipe",
     stdIn: "null",
@@ -265,7 +275,7 @@ let collect = ch -> for true with r = ch.recv(), acc = "" {
     r = ch.recv()
 } then acc
 
-let out = collect(stdOut(p))
+let out = collect(p.stdout)
 let st = wait p
 ;
 [st.ok, out]
@@ -283,14 +293,12 @@ let st = wait p
 func TestProcPipelineCompositionRepeatedRuns(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let plan = cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], })
-    | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], })
+let plan =
+    cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
+    | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
 
 let once = () -> {
-    let p = proc({
-        plan: plan,
-        env: { KARL_PROCESS_HELPER: "1", },
-        inheritEnv: true,
+    let p = proc(plan, {
         stdOut: "pipe",
         stdErr: "pipe",
         stdIn: "null",
@@ -303,7 +311,7 @@ let once = () -> {
         r = ch.recv()
     } then acc
 
-    let out = collect(stdOut(p))
+    let out = collect(p.stdout)
     let st = wait p
     if !st.ok { fail("pipeline failed") }
     out
@@ -325,15 +333,17 @@ for i < 20 with i = 0, last = "" {
 func TestStdOutRequiresPipeMode(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let p = proc({
+let stage = cmd({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
     env: { KARL_PROCESS_HELPER: "1", KARL_PROCESS_TEST_ENV: "state", },
     inheritEnv: true,
+})
+let p = proc(stage, {
     stdOut: "null",
     stdErr: "null",
 })
-stdOut(p) ? { error.kind }
+p.stdout ? { error.kind }
 `, bin)
 
 	val, err := evalInput(t, input)

@@ -34,56 +34,35 @@ func (p *Process) Kill() error     { return fmt.Errorf("process API is not suppo
 func (p *Process) Signal(string) error {
 	return fmt.Errorf("process API is not supported in this runtime")
 }
+func (p *Process) inputChannel() (*Channel, bool)  { return nil, false }
+func (p *Process) outputChannel() (*Channel, bool) { return nil, false }
+func (p *Process) errorChannel() (*Channel, bool)  { return nil, false }
 
 func registerProcessBuiltins() {
 	builtins["cmd"] = &Builtin{Name: "cmd", Fn: builtinCmd}
 	builtins["proc"] = &Builtin{Name: "proc", Fn: builtinProc}
 	builtins["run"] = &Builtin{Name: "run", Fn: builtinRun}
-	builtins["stdIn"] = &Builtin{Name: "stdIn", Fn: builtinStdIn}
-	builtins["stdOut"] = &Builtin{Name: "stdOut", Fn: builtinStdOut}
-	builtins["stdErr"] = &Builtin{Name: "stdErr", Fn: builtinStdErr}
 }
 
 func builtinCmd(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) == 0 {
-		return nil, &RuntimeError{Message: "cmd expects arguments"}
+	if len(args) != 1 {
+		return nil, &RuntimeError{Message: "cmd expects 1 object argument"}
 	}
 	return nil, recoverableError("process_spawn", "process API is not supported in this runtime")
 }
 
 func builtinProc(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "proc expects 1 argument"}
+	if len(args) < 1 || len(args) > 2 {
+		return nil, &RuntimeError{Message: "proc expects (cmdOrPipeline, opts?)"}
 	}
 	return nil, recoverableError("process_spawn", "process API is not supported in this runtime")
 }
 
 func builtinRun(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "run expects 1 argument"}
+	if len(args) < 1 || len(args) > 2 {
+		return nil, &RuntimeError{Message: "run expects (cmdOrPipeline, opts?)"}
 	}
 	return nil, recoverableError("process_spawn", "process API is not supported in this runtime")
-}
-
-func builtinStdIn(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "stdIn expects process"}
-	}
-	return nil, recoverableError("process_state", "process API is not supported in this runtime")
-}
-
-func builtinStdOut(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "stdOut expects process"}
-	}
-	return nil, recoverableError("process_state", "process API is not supported in this runtime")
-}
-
-func builtinStdErr(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "stdErr expects process"}
-	}
-	return nil, recoverableError("process_state", "process API is not supported in this runtime")
 }
 
 func processPipeInfix(left Value, right Value) (Value, error) {
