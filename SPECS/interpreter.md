@@ -530,6 +530,7 @@ Implementation details (current runtime):
 - `exit(message)` -> no return (terminates)
 - `fail(message)` -> no return (recoverable error)
 - `log(...values)` -> Unit
+- `logt(...values)` -> Unit (prefixes output with current UTC RFC3339 timestamp)
 - `str(value)` -> String
 - `parseInt(string)` -> Int
 - `sha256(text)` -> String (hex digest)

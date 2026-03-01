@@ -3,12 +3,24 @@ package interpreter
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 func builtinLog(_ *Evaluator, args []Value) (Value, error) {
 	parts := make([]string, len(args))
 	for i, arg := range args {
 		parts[i] = formatLogValue(arg)
+	}
+	fmt.Println(strings.Join(parts, " "))
+	return UnitValue, nil
+}
+
+func builtinLogt(_ *Evaluator, args []Value) (Value, error) {
+	prefix := "[" + time.Now().UTC().Format(time.RFC3339) + "]"
+	parts := make([]string, 0, len(args)+1)
+	parts = append(parts, prefix)
+	for _, arg := range args {
+		parts = append(parts, formatLogValue(arg))
 	}
 	fmt.Println(strings.Join(parts, " "))
 	return UnitValue, nil

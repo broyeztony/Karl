@@ -2,8 +2,10 @@ package tests
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -223,6 +225,23 @@ func TestEvalStrBuiltin(t *testing.T) {
 	assertString(t, val, "123")
 }
 
+func TestEvalLogtBuiltin(t *testing.T) {
+	restore, output := captureStdout(t)
+
+	val := mustEval(t, `logt("hello", 42); "ok"`)
+	assertString(t, val, "ok")
+
+	restore()
+	got := strings.TrimSpace(output())
+	if got == "" {
+		t.Fatalf("expected output from logt")
+	}
+	re := regexp.MustCompile(`^\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\] hello 42$`)
+	if !re.MatchString(got) {
+		t.Fatalf("unexpected logt output: %q", got)
+	}
+}
+
 func TestEvalLenBuiltin(t *testing.T) {
 	val := mustEval(t, `
 let m = map()
@@ -246,6 +265,25 @@ out
 		&Integer{Value: 2},
 	}}
 	assertEquivalent(t, val, expected)
+}
+
+func captureStdout(t *testing.T) (restore func(), output func() string) {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stdout = w
+
+	return func() {
+			_ = w.Close()
+			os.Stdout = old
+		}, func() string {
+			b, _ := io.ReadAll(r)
+			_ = r.Close()
+			return string(b)
+		}
 }
 
 func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
