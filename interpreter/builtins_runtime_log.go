@@ -6,23 +6,27 @@ import (
 	"time"
 )
 
-func builtinLog(_ *Evaluator, args []Value) (Value, error) {
+func builtinLog(e *Evaluator, args []Value) (Value, error) {
 	parts := make([]string, len(args))
 	for i, arg := range args {
 		parts[i] = formatLogValue(arg)
 	}
-	fmt.Println(strings.Join(parts, " "))
+	if err := writeLogLine(e, strings.Join(parts, " ")); err != nil {
+		return nil, &RuntimeError{Message: "log write failed: " + err.Error()}
+	}
 	return UnitValue, nil
 }
 
-func builtinLogt(_ *Evaluator, args []Value) (Value, error) {
+func builtinLogt(e *Evaluator, args []Value) (Value, error) {
 	prefix := "[" + time.Now().UTC().Format(time.RFC3339) + "]"
 	parts := make([]string, 0, len(args)+1)
 	parts = append(parts, prefix)
 	for _, arg := range args {
 		parts = append(parts, formatLogValue(arg))
 	}
-	fmt.Println(strings.Join(parts, " "))
+	if err := writeLogLine(e, strings.Join(parts, " ")); err != nil {
+		return nil, &RuntimeError{Message: "log write failed: " + err.Error()}
+	}
 	return UnitValue, nil
 }
 
@@ -46,4 +50,12 @@ func formatLogValue(val Value) string {
 	default:
 		return val.Inspect()
 	}
+}
+
+func writeLogLine(e *Evaluator, line string) error {
+	if e == nil || e.runtime == nil {
+		fmt.Println(line)
+		return nil
+	}
+	return e.runtime.writeOutputLine(line)
 }

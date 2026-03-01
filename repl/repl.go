@@ -109,6 +109,8 @@ func start(in io.Reader, out io.Writer, opts startOptions) {
 		fmt.Fprintf(sessionOut, "See repl/EXAMPLES.md for ideas!\n\n")
 	}
 
+	eval.SetOutput(sessionOut)
+
 	var inputBuffer strings.Builder
 	multiline := false
 

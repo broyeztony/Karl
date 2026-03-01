@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -25,6 +26,8 @@ type runtimeState struct {
 	input             io.Reader
 	inputReader       *bufio.Reader
 	inputMu           sync.Mutex
+	output            io.Writer
+	outputMu          sync.Mutex
 	sqlDriver         string
 }
 
@@ -39,6 +42,7 @@ func newRuntimeState() *runtimeState {
 		environ:           cloneStrings(envSnapshot),
 		envMap:            makeEnvMap(envSnapshot),
 		input:             os.Stdin,
+		output:            os.Stdout,
 		sqlDriver:         "pgx",
 	}
 }
@@ -165,6 +169,33 @@ func (r *runtimeState) setInput(input io.Reader) {
 	r.input = input
 	r.inputReader = nil
 	r.mu.Unlock()
+}
+
+func (r *runtimeState) setOutput(output io.Writer) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.output = output
+	r.mu.Unlock()
+}
+
+func (r *runtimeState) writeOutputLine(line string) error {
+	if r == nil {
+		_, err := fmt.Fprintln(os.Stdout, line)
+		return err
+	}
+	r.outputMu.Lock()
+	defer r.outputMu.Unlock()
+
+	r.mu.Lock()
+	out := r.output
+	r.mu.Unlock()
+	if out == nil {
+		out = os.Stdout
+	}
+	_, err := fmt.Fprintln(out, line)
+	return err
 }
 
 func (r *runtimeState) readLine() (string, bool, error) {
