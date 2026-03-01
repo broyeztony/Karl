@@ -19,6 +19,8 @@ let p = proc({
     stdErr: "pipe",
 })
 
+logt("pid", p.pid)
+
 let events = channel()
 let outCh = stdOut(p)
 let errCh = stdErr(p)
