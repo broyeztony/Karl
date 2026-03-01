@@ -77,15 +77,7 @@ let report = (() -> {
 
     // Fan-out: one kubectl pod scan per namespace.
     let tasks = namespaces.map(ns -> & inspectNamespace(ns))
-    let perNs = tasks.map(t -> wait t ? {
-        {
-            namespace: "<error>",
-            podCount: 0,
-            problematicPods: 0,
-            topProblems: [],
-            error: error.message,
-        }
-    })
+    let perNs = tasks.map(t -> wait t ? { namespace: "<error>", podCount: 0, problematicPods: 0, topProblems: [], error: error.message, })
 
     let ranked = perNs.sort((a, b) -> b.problematicPods - a.problematicPods)
 
@@ -99,11 +91,6 @@ let report = (() -> {
         busiest: ranked[..10],
         rolloutCheck: optionalRollout(),
     }
-})() ? {
-    {
-        generatedAt: timeFormatRFC3339(now()),
-        error: { kind: error.kind, message: error.message, },
-    }
-}
+})() ? { generatedAt: timeFormatRFC3339(now()), error: { kind: error.kind, message: error.message, }, }
 
 log(jsonEncode(report))
