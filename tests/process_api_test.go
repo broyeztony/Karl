@@ -280,6 +280,48 @@ let st = wait p
 	assertString(t, arr.Elements[1], "CAP|alpha\nbeta\n")
 }
 
+func TestProcPipelineCompositionRepeatedRuns(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let plan = cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], })
+    | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], })
+
+let once = () -> {
+    let p = proc({
+        plan: plan,
+        env: { KARL_PROCESS_HELPER: "1", },
+        inheritEnv: true,
+        stdOut: "pipe",
+        stdErr: "pipe",
+        stdIn: "null",
+    })
+
+    let collect = ch -> for true with r = ch.recv(), acc = "" {
+        let [chunk, closed] = r
+        if closed { break acc }
+        acc = acc + chunk
+        r = ch.recv()
+    } then acc
+
+    let out = collect(stdOut(p))
+    let st = wait p
+    if !st.ok { fail("pipeline failed") }
+    out
+}
+
+for i < 20 with i = 0, last = "" {
+    last = once()
+    i++
+} then last
+`, bin, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "CAP|alpha\nbeta\n")
+}
+
 func TestStdOutRequiresPipeMode(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`

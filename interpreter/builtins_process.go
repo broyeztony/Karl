@@ -1021,12 +1021,27 @@ func processForwardOutput(p *Process, reader io.ReadCloser, out *Channel, closeO
 		if err == nil {
 			continue
 		}
-		if errors.Is(err, io.EOF) {
+		if processStreamEnded(err) {
 			return
 		}
 		p.setIOError(err)
 		return
 	}
+}
+
+func processStreamEnded(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed) {
+		return true
+	}
+	if errors.Is(err, syscall.EBADF) {
+		return true
+	}
+	// Some runtimes wrap closed descriptors in path errors without preserving sentinels.
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "file already closed") || strings.Contains(msg, "bad file descriptor")
 }
 
 func processForwardMergedErrors(p *Process, readers []io.ReadCloser, out *Channel) {
