@@ -220,6 +220,7 @@ Ordering requires comparable keys; otherwise runtime error.
   - Reads one line from stdin and strips trailing newline.
   - Returns `null` on EOF.
   - I/O read failures are recoverable (`kind = "readLine"`).
+- Process execution/pipeline semantics are specified in `SPECS/process.md`.
 - `cmd(command, args?) -> <cmd>`
   - Creates one process stage for pipeline composition.
   - `cmd({ command, args })` object form is also supported.

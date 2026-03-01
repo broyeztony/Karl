@@ -194,6 +194,10 @@ if user == null { exit("user not found") }
 // 3.5 SYSTEM PRIMITIVES (PHASE 1)
 // ============================================
 
+// Process model reference:
+// - SPECS/process.md is the normative source for cmd/proc/run/stdIn/stdOut/stdErr,
+//   process status objects, and pipeline (`|`) semantics.
+
 // Program args (only values passed after `--` in `karl run`)
 let args = argv()           // [string]
 let first = env("HOME")     // string | null
