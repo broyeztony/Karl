@@ -29,6 +29,7 @@ Each example demonstrates one specific capability.
 - `examples/features/concurrency/advanced.k` - rendezvous/channel send/recv
 - `examples/features/concurrency/buffered_channels.k` - buffered channel basics
 - `examples/features/concurrency/` - deeper dive: join/race semantics, cancellation, and failure recovery
+- `examples/features/processes/` - process orchestration with `cmd`/`proc`/`run`, pipelines, and stream control
 - `examples/features/import_module.k` - module to import
 - `examples/features/import_use.k` - import factory usage
 - `examples/features/import_instances_module.k` - module with per-instance state
