@@ -29,6 +29,17 @@ Recoverable errors in unsupported runtimes use:
 
 ## Built-ins
 
+### Process constants
+
+Prebound string aliases are available in base environment:
+- `PIPE = "pipe"`
+- `INHERIT = "inherit"`
+- `NULL = "null"`
+- `TEXT = "text"`
+- `BYTES = "bytes"`
+
+These are convenience aliases; explicit string literals remain valid.
+
 ### `cmd`
 
 Signature:
@@ -214,7 +225,7 @@ log(st.output)
 ### Managed process with pipes
 
 ```karl
-let p = proc(cmd({ command: "cat", }), { stdIn: "pipe", stdOut: "pipe", stdErr: "pipe", })
+let p = proc(cmd({ command: "cat", }), { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, })
 let inCh = p.stdin
 inCh.send("hello\n")
 inCh.done()
@@ -227,7 +238,7 @@ let st = wait p
 
 ```karl
 let plan = cmd({ command: "printf", args: ["alpha\nbeta\n"], }) | cmd({ command: "wc", args: ["-l"], })
-let p = proc(plan, { stdOut: "pipe", stdErr: "pipe", stdIn: "null", })
+let p = proc(plan, { stdOut: PIPE, stdErr: PIPE, stdIn: NULL, })
 let [count, _] = p.stdout.recv()
 log(count)
 wait p

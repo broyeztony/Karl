@@ -2,6 +2,14 @@ package interpreter
 
 var builtins = map[string]*Builtin{}
 
+var builtinConstants = map[string]string{
+	"PIPE":    "pipe",
+	"INHERIT": "inherit",
+	"NULL":    "null",
+	"TEXT":    "text",
+	"BYTES":   "bytes",
+}
+
 func RegisterBuiltins() {
 	builtins = map[string]*Builtin{}
 	registerRuntimeBuiltins()
@@ -32,6 +40,9 @@ func NewBaseEnvironment() *Environment {
 	env := NewEnvironment()
 	for name, builtin := range builtins {
 		env.Define(name, builtin)
+	}
+	for name, value := range builtinConstants {
+		env.Define(name, &String{Value: value})
 	}
 	return env
 }

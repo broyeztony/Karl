@@ -225,6 +225,18 @@ func TestEvalStrBuiltin(t *testing.T) {
 	assertString(t, val, "123")
 }
 
+func TestEvalBuiltinConstants(t *testing.T) {
+	val := mustEval(t, `[PIPE, INHERIT, NULL, TEXT, BYTES]`)
+	expected := &Array{Elements: []Value{
+		&String{Value: "pipe"},
+		&String{Value: "inherit"},
+		&String{Value: "null"},
+		&String{Value: "text"},
+		&String{Value: "bytes"},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
 func TestEvalLogtBuiltin(t *testing.T) {
 	restore, output := captureStdout(t)
 

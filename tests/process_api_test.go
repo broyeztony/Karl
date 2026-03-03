@@ -229,6 +229,61 @@ let st = wait p
 	}
 }
 
+func TestProcModeConstantsWork(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let stage = cmd({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
+    env: {
+        KARL_PROCESS_HELPER: "1",
+        KARL_PROCESS_TEST_ENV: "const",
+    },
+    inheritEnv: true,
+})
+let p = proc(stage, {
+    stdIn: PIPE,
+    stdOut: PIPE,
+    stdErr: NULL,
+})
+
+let inCh = p.stdin
+inCh.send("ping")
+inCh.done()
+
+let [out, _closedOut] = p.stdout.recv()
+let st = wait p
+;
+[st.ok, out, PIPE, INHERIT, NULL, TEXT, BYTES]
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	assertBoolean(t, arr.Elements[0], true)
+	output, ok := arr.Elements[1].(*String)
+	if !ok {
+		t.Fatalf("expected output string, got %T", arr.Elements[1])
+	}
+	parts := strings.SplitN(output.Value, "|", 4)
+	if len(parts) != 4 {
+		t.Fatalf("unexpected output format: %q", output.Value)
+	}
+	if parts[0] != "OUT" || parts[1] != "const" || parts[3] != "ping" {
+		t.Fatalf("unexpected output segments: %#v", parts)
+	}
+	assertString(t, arr.Elements[2], "pipe")
+	assertString(t, arr.Elements[3], "inherit")
+	assertString(t, arr.Elements[4], "null")
+	assertString(t, arr.Elements[5], "text")
+	assertString(t, arr.Elements[6], "bytes")
+}
+
 func TestProcTimeoutReturnsStatus(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`

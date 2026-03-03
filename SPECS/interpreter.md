@@ -553,6 +553,12 @@ Implementation details (current runtime):
 - `cmd({ command, args?, cwd?, env?, inheritEnv? })` -> Cmd
 - `proc(cmdOrPipeline, opts?)` -> Process
 - `run(cmdOrPipeline, opts?)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
+- process/string constants:
+  - `PIPE = "pipe"`
+  - `INHERIT = "inherit"`
+  - `NULL = "null"`
+  - `TEXT = "text"`
+  - `BYTES = "bytes"`
 - `http({ method, url, headers, body, })` -> { status, headers, body, }
 - `httpServe({ addr, routes, })` -> Server
 - `httpServerStop(server)` -> Unit

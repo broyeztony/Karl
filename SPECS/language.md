@@ -214,7 +214,8 @@ if !st.ok { exit("command failed: " + str(st.code)) }
 log(st.output)
 
 // proc() starts a waitable/abortable process handle.
-let p = proc(cmd({ command: "cat", }), { stdIn: "pipe", stdOut: "pipe", stdErr: "pipe", })
+// mode constants are available: PIPE, INHERIT, NULL (plus TEXT/BYTES aliases)
+let p = proc(cmd({ command: "cat", }), { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, })
 let inCh = p.stdin
 inCh.send("hello\\n")
 inCh.done()
@@ -224,7 +225,7 @@ wait p
 
 // cmd(...) + `|` builds process pipelines.
 let plan = cmd({ command: "printf", args: ["alpha\\nbeta\\n"], }) | cmd({ command: "wc", args: ["-l"], })
-let p2 = proc(plan, { stdOut: "pipe", })
+let p2 = proc(plan, { stdOut: PIPE, })
 let [count, _] = p2.stdout.recv()
 log(count)
 wait p2
