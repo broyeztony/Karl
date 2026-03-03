@@ -26,6 +26,16 @@ func TestParserErrors(t *testing.T) {
 			input: "spawn foo",
 		},
 		{
+			name:         "spawn_operator_for_expr_rejected",
+			input:        "& for i < 3 with i = 0 { i++ } then i",
+			errorContain: "spawn target must be a call expression",
+		},
+		{
+			name:         "spawn_keyword_for_expr_rejected",
+			input:        "spawn (for i < 3 with i = 0 { i++ } then i)",
+			errorContain: "spawn target must be a call expression",
+		},
+		{
 			name:  "object_shorthand_requires_trailing_comma",
 			input: "let o = { x, y }",
 		},
