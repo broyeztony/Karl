@@ -128,6 +128,38 @@ func builtinPipe(_ *Evaluator, args []Value) (Value, error) {
 		}
 	}
 
+	src.mu.Lock()
+	srcClosed := src.closed
+	srcReader := src.reader
+	src.mu.Unlock()
+	dst.mu.Lock()
+	dstClosed := dst.closed
+	dstWriter := dst.writer
+	dst.mu.Unlock()
+
+	if dstClosed || dstWriter == nil {
+		return nil, recoverableError("stream_write", "stream write error: stream writer unavailable")
+	}
+	if srcClosed || srcReader == nil {
+		return &Object{Pairs: map[string]Value{
+			"bytes":  &Integer{Value: 0},
+			"chunks": &Integer{Value: 0},
+		}}, nil
+	}
+
+	if total, chunks, used, err := streamPipeTryFastCopy(srcReader, dstWriter, int(bufferSize)); used {
+		if err != nil {
+			return nil, recoverableError("stream_write", "stream write error: "+err.Error())
+		}
+		if total > 0 && chunks == 0 {
+			chunks = 1
+		}
+		return &Object{Pairs: map[string]Value{
+			"bytes":  &Integer{Value: total},
+			"chunks": &Integer{Value: chunks},
+		}}, nil
+	}
+
 	buf := make([]byte, int(bufferSize))
 	var total int64
 	var chunks int64
