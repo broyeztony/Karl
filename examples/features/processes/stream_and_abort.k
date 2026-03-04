@@ -15,14 +15,14 @@ let takeBytes = (s, limit) -> for true with r = s.read(), acc = "", n = 0 {
     r = s.read()
 } then { bytes: n, sample: acc[..200], }
 
-let stage = cmd({
+let p = proc(cmd({
     command: "yes",
     args: ["karl"],
-})
-
-let p = proc(stage, {
-    stdOut: "pipe",
-    stdErr: "pipe",
+}), {
+    stdOut: PIPE,
+    stdErr: PIPE,
+    stdoutType: TEXT,
+    stderrType: TEXT,
 }) ? {
     fail("cannot start long-running command: " + error.message)
 }
@@ -51,12 +51,10 @@ let st = wait p ? {
 
 let out = wait outTask ? { { bytes: 0, sample: "", } }
 
-let output = {
+{
     pid: p.pid,
-    runningBeforeAbort: runningBeforeAbort,
+    runningBeforeAbort,
     runningAfterWait: p.running,
     status: st,
-    stdoutPreview: out,
+    stdout: out,
 }
-
-output

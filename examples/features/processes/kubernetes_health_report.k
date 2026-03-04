@@ -11,7 +11,7 @@
 
 let kRun = args -> run(cmd({
     command: "kubectl",
-    args: args,
+    args,
 }), {
     maxOutputBytes: 8000000,
     overflow: "truncate",

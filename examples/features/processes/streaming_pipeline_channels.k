@@ -13,32 +13,27 @@ let plan =
     cmd({ command: "awk", args: ["{ print toupper($0); fflush() }"], })
 
 let p = proc(plan, {
-    stdIn: "null",
-    stdOut: "pipe",
-    stdErr: "pipe",
+    stdIn: NULL,
+    stdOut: PIPE,
+    stdErr: PIPE,
+    stdoutType: TEXT,
+    stderrType: TEXT,
 })
 
 logt("pid", p.pid)
 
 let events = channel()
-let outStream = p.stdout
-let errStream = p.stderr
 
-let outTask = & (() -> for true with r = outStream.read(), n = 0 {
+let pump = (kind, stream) -> for true with r = stream.read(), n = 0 {
     let [chunk, eof] = r
     if eof { break n }
     n++
-    events.send({ kind: "out", n: n, line: chunk.trim(), at: now(), })
-    r = outStream.read()
-} then n)()
+    events.send({ kind, n, line: chunk.trim(), at: now(), })
+    r = stream.read()
+} then n
 
-let errTask = & (() -> for true with r = errStream.read(), n = 0 {
-    let [chunk, eof] = r
-    if eof { break n }
-    n++
-    events.send({ kind: "err", n: n, line: chunk.trim(), at: now(), })
-    r = errStream.read()
-} then n)()
+let outTask = & (() -> pump("out", p.stdout))()
+let errTask = & (() -> pump("err", p.stderr))()
 
 & (() -> {
     let status = wait p

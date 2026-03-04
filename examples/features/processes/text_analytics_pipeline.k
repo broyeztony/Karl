@@ -26,9 +26,12 @@ let plan =
     cmd({ command: "head", args: ["-n", "8"], })
 
 let p = proc(plan, {
-    stdIn: "pipe",
-    stdOut: "pipe",
-    stdErr: "pipe",
+    stdIn: PIPE,
+    stdOut: PIPE,
+    stdErr: PIPE,
+    stdinType: TEXT,
+    stdoutType: TEXT,
+    stderrType: TEXT,
 })
 
 let outTask = & (() -> collect(p.stdout))()
