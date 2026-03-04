@@ -3,7 +3,6 @@
 package interpreter
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -74,9 +73,13 @@ type Process struct {
 	stdoutMode string
 	stderrMode string
 
-	stdinCh  *Channel
-	stdoutCh *Channel
-	stderrCh *Channel
+	stdinType  string
+	stdoutType string
+	stderrType string
+
+	stdinStream  *StreamWriter
+	stdoutStream *StreamReader
+	stderrStream *StreamReader
 
 	ioErr error
 }
@@ -250,40 +253,40 @@ func (p *Process) Signal(name string) error {
 	return p.signalAll(sig)
 }
 
-func (p *Process) inputChannel() (*Channel, bool) {
+func (p *Process) inputStream() (*StreamWriter, bool) {
 	if p == nil {
 		return nil, false
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.stdinMode != processModePipe || p.stdinCh == nil {
+	if p.stdinMode != processModePipe || p.stdinStream == nil {
 		return nil, false
 	}
-	return p.stdinCh, true
+	return p.stdinStream, true
 }
 
-func (p *Process) outputChannel() (*Channel, bool) {
+func (p *Process) outputStream() (*StreamReader, bool) {
 	if p == nil {
 		return nil, false
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.stdoutMode != processModePipe || p.stdoutCh == nil {
+	if p.stdoutMode != processModePipe || p.stdoutStream == nil {
 		return nil, false
 	}
-	return p.stdoutCh, true
+	return p.stdoutStream, true
 }
 
-func (p *Process) errorChannel() (*Channel, bool) {
+func (p *Process) errorStream() (*StreamReader, bool) {
 	if p == nil {
 		return nil, false
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.stderrMode != processModePipe || p.stderrCh == nil {
+	if p.stderrMode != processModePipe || p.stderrStream == nil {
 		return nil, false
 	}
-	return p.stderrCh, true
+	return p.stderrStream, true
 }
 
 type processWaitResult struct {
@@ -299,6 +302,10 @@ type processSpec struct {
 	stdinMode  string
 	stdoutMode string
 	stderrMode string
+
+	stdinType  string
+	stdoutType string
+	stderrType string
 
 	stdinText *string
 
@@ -356,11 +363,11 @@ func builtinRun(e *Evaluator, args []Value) (Value, error) {
 		return nil, err
 	}
 
-	stdout, ok := process.outputChannel()
+	stdout, ok := process.outputStream()
 	if !ok {
 		return nil, recoverableError("process_state", "run capture unavailable: stdOut is not piped")
 	}
-	stderr, ok := process.errorChannel()
+	stderr, ok := process.errorStream()
 	if !ok {
 		return nil, recoverableError("process_state", "run capture unavailable: stdErr is not piped")
 	}
@@ -373,11 +380,11 @@ func builtinRun(e *Evaluator, args []Value) (Value, error) {
 	errCh := make(chan captureResult, 1)
 
 	go func() {
-		value, truncated := collectProcessChannel(stdout, spec.maxOutputBytes, spec.overflow)
+		value, truncated := collectProcessStream(stdout, spec.maxOutputBytes, spec.overflow)
 		outCh <- captureResult{value: value, truncated: truncated}
 	}()
 	go func() {
-		value, truncated := collectProcessChannel(stderr, spec.maxOutputBytes, spec.overflow)
+		value, truncated := collectProcessStream(stderr, spec.maxOutputBytes, spec.overflow)
 		errCh <- captureResult{value: value, truncated: truncated}
 	}()
 
@@ -413,6 +420,9 @@ func parseProcSpec(args []Value) (processSpec, error) {
 		stdinMode:  processModeInherit,
 		stdoutMode: processModeInherit,
 		stderrMode: processModeInherit,
+		stdinType:  streamTypeText,
+		stdoutType: streamTypeText,
+		stderrType: streamTypeText,
 	}
 	stages, err := parseProcessPlanStages(args[0])
 	if err != nil {
@@ -438,26 +448,47 @@ func parseProcSpec(args []Value) (processSpec, error) {
 		}
 		spec.timeoutMs = timeout.Value
 	}
-	if modeVal, ok := pairs["stdIn"]; ok && !Equivalent(modeVal, NullValue) {
-		mode, err := parseProcessMode(modeVal, "stdIn")
+	if modeVal, ok := firstDefinedValue(pairs, "stdIn", "stdin"); ok && !Equivalent(modeVal, NullValue) {
+		mode, err := parseProcessMode(modeVal, "stdin")
 		if err != nil {
 			return processSpec{}, err
 		}
 		spec.stdinMode = mode
 	}
-	if modeVal, ok := pairs["stdOut"]; ok && !Equivalent(modeVal, NullValue) {
-		mode, err := parseProcessMode(modeVal, "stdOut")
+	if modeVal, ok := firstDefinedValue(pairs, "stdOut", "stdout"); ok && !Equivalent(modeVal, NullValue) {
+		mode, err := parseProcessMode(modeVal, "stdout")
 		if err != nil {
 			return processSpec{}, err
 		}
 		spec.stdoutMode = mode
 	}
-	if modeVal, ok := pairs["stdErr"]; ok && !Equivalent(modeVal, NullValue) {
-		mode, err := parseProcessMode(modeVal, "stdErr")
+	if modeVal, ok := firstDefinedValue(pairs, "stdErr", "stderr"); ok && !Equivalent(modeVal, NullValue) {
+		mode, err := parseProcessMode(modeVal, "stderr")
 		if err != nil {
 			return processSpec{}, err
 		}
 		spec.stderrMode = mode
+	}
+	if typeVal, ok := firstDefinedValue(pairs, "stdinType", "stdInType"); ok && !Equivalent(typeVal, NullValue) {
+		mode, err := parseStreamType(typeVal, "stdinType")
+		if err != nil {
+			return processSpec{}, err
+		}
+		spec.stdinType = mode
+	}
+	if typeVal, ok := firstDefinedValue(pairs, "stdoutType", "stdOutType"); ok && !Equivalent(typeVal, NullValue) {
+		mode, err := parseStreamType(typeVal, "stdoutType")
+		if err != nil {
+			return processSpec{}, err
+		}
+		spec.stdoutType = mode
+	}
+	if typeVal, ok := firstDefinedValue(pairs, "stderrType", "stdErrType"); ok && !Equivalent(typeVal, NullValue) {
+		mode, err := parseStreamType(typeVal, "stderrType")
+		if err != nil {
+			return processSpec{}, err
+		}
+		spec.stderrType = mode
 	}
 	return spec, nil
 }
@@ -467,6 +498,9 @@ func parseRunSpec(args []Value) (processSpec, error) {
 		stdinMode:      processModeNull,
 		stdoutMode:     processModePipe,
 		stderrMode:     processModePipe,
+		stdinType:      streamTypeText,
+		stdoutType:     streamTypeText,
+		stderrType:     streamTypeText,
 		maxOutputBytes: defaultProcessCaptureBytes,
 		overflow:       processOverflowTruncate,
 	}
@@ -651,6 +685,29 @@ func parseProcessMode(val Value, field string) (string, error) {
 	}
 }
 
+func parseStreamType(val Value, field string) (string, error) {
+	mode, ok := stringArg(val)
+	if !ok {
+		return "", &RuntimeError{Message: "process " + field + " must be string"}
+	}
+	mode = strings.TrimSpace(strings.ToLower(mode))
+	switch mode {
+	case streamTypeText, streamTypeBytes:
+		return mode, nil
+	default:
+		return "", &RuntimeError{Message: "process " + field + " must be \"text\" or \"bytes\""}
+	}
+}
+
+func firstDefinedValue(pairs map[string]Value, keys ...string) (Value, bool) {
+	for _, key := range keys {
+		if val, ok := pairs[key]; ok {
+			return val, true
+		}
+	}
+	return nil, false
+}
+
 func processPipeInfix(left Value, right Value) (Value, error) {
 	leftStages, err := processStagesFromValue(left)
 	if err != nil {
@@ -745,6 +802,9 @@ func startProcess(e *Evaluator, spec processSpec) (*Process, error) {
 		stdinMode:  spec.stdinMode,
 		stdoutMode: spec.stdoutMode,
 		stderrMode: spec.stderrMode,
+		stdinType:  spec.stdinType,
+		stdoutType: spec.stdoutType,
+		stderrType: spec.stderrType,
 	}
 
 	last := len(cmds) - 1
@@ -827,19 +887,26 @@ func startProcess(e *Evaluator, spec processSpec) (*Process, error) {
 	}
 
 	if stdinWriter != nil {
-		input := &Channel{Ch: make(chan Value, 32)}
-		process.stdinCh = input
-		go processForwardInput(process, input, stdinWriter)
+		process.stdinStream = &StreamWriter{
+			writer: stdinWriter,
+			closer: stdinWriter,
+			mode:   spec.stdinType,
+		}
 	}
 	if stdoutReader != nil {
-		out := &Channel{Ch: make(chan Value, 128)}
-		process.stdoutCh = out
-		go processForwardOutput(process, stdoutReader, out, true)
+		process.stdoutStream = &StreamReader{
+			reader: stdoutReader,
+			closer: stdoutReader,
+			mode:   spec.stdoutType,
+		}
 	}
 	if len(stderrReaders) > 0 {
-		errCh := &Channel{Ch: make(chan Value, 128)}
-		process.stderrCh = errCh
-		go processForwardMergedErrors(process, stderrReaders, errCh)
+		merged := processMergeReaders(stderrReaders)
+		process.stderrStream = &StreamReader{
+			reader: merged,
+			closer: merged,
+			mode:   spec.stderrType,
+		}
 	}
 
 	go func() {
@@ -905,53 +972,6 @@ func processStatusValue(ok bool, code int64, signal string, timedOut bool, abort
 	}}
 }
 
-func processForwardInput(p *Process, ch *Channel, writer io.WriteCloser) {
-	defer func() {
-		_ = writer.Close()
-	}()
-	for {
-		value, ok := <-ch.Ch
-		if !ok {
-			return
-		}
-		s, ok := stringArg(value)
-		if !ok {
-			p.setIOError(fmt.Errorf("stdIn expects string payloads"))
-			continue
-		}
-		if _, err := io.WriteString(writer, s); err != nil {
-			p.setIOError(err)
-			return
-		}
-	}
-}
-
-func processForwardOutput(p *Process, reader io.ReadCloser, out *Channel, closeOut bool) {
-	defer func() {
-		_ = reader.Close()
-		if closeOut {
-			out.Close()
-		}
-	}()
-	r := bufio.NewReader(reader)
-	for {
-		chunk, err := r.ReadString('\n')
-		if len(chunk) > 0 {
-			if !channelTrySend(out, &String{Value: chunk}) {
-				return
-			}
-		}
-		if err == nil {
-			continue
-		}
-		if processStreamEnded(err) {
-			return
-		}
-		p.setIOError(err)
-		return
-	}
-}
-
 func processStreamEnded(err error) bool {
 	if err == nil {
 		return false
@@ -967,31 +987,45 @@ func processStreamEnded(err error) bool {
 	return strings.Contains(msg, "file already closed") || strings.Contains(msg, "bad file descriptor")
 }
 
-func processForwardMergedErrors(p *Process, readers []io.ReadCloser, out *Channel) {
+func processMergeReaders(readers []io.ReadCloser) io.ReadCloser {
+	pipeReader, pipeWriter := io.Pipe()
+
 	var wg sync.WaitGroup
 	for _, reader := range readers {
 		r := reader
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			processForwardOutput(p, r, out, false)
+			defer func() { _ = r.Close() }()
+			_, err := io.Copy(pipeWriter, r)
+			if err != nil && !processStreamEnded(err) {
+				_ = pipeWriter.CloseWithError(err)
+			}
 		}()
 	}
-	wg.Wait()
-	out.Close()
+
+	go func() {
+		wg.Wait()
+		_ = pipeWriter.Close()
+	}()
+	return pipeReader
 }
 
-func collectProcessChannel(ch *Channel, limit int64, overflow string) (string, bool) {
-	if ch == nil {
+func collectProcessStream(stream *StreamReader, limit int64, overflow string) (string, bool) {
+	if stream == nil {
 		return "", false
 	}
 	var builder strings.Builder
 	truncated := false
-	for value := range ch.Ch {
-		s, ok := stringArg(value)
-		if !ok {
-			continue
+	for {
+		chunk, eof, err := stream.ReadChunk(defaultStreamReadSize)
+		if err != nil {
+			break
 		}
+		if eof {
+			break
+		}
+		s := string(chunk)
 		if limit <= 0 {
 			truncated = true
 			continue

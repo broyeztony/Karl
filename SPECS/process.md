@@ -1,13 +1,14 @@
 # Karl Process and Pipeline Specification
 
-This document is the normative specification for Karl process execution, process pipelines, and process control.
+This document is the normative specification for Karl process execution, process pipelines, process streams, and process control.
 
 ## Scope
 
 This specification defines:
 - process value types (`<cmd>`, `<pipeline>`, `<process>`)
 - process built-ins (`cmd`, `proc`, `run`)
-- process channel properties (`p.stdin`, `p.stdout`, `p.stderr`)
+- stream built-ins (`reader`, `writer`, `pipe`)
+- process stream properties (`p.stdin`, `p.stdout`, `p.stderr`)
 - pipeline composition via `|`
 - process lifecycle and waiting semantics
 - process status objects and recoverable error kinds
@@ -19,7 +20,8 @@ This specification defines:
 
 Recoverable errors in unsupported runtimes use:
 - `kind = "process_spawn"` for `cmd` / `proc` / `run`
-- `kind = "process_state"` for process channel properties / `wait <process>`
+- `kind = "stream_open"` / `kind = "stream_state"` for stream APIs
+- `kind = "process_state"` for process stream properties / `wait <process>`
 
 ## Value types
 
@@ -84,6 +86,31 @@ Accepted input:
 
 `run` is blocking convenience API: equivalent behavior to launching and waiting, with captured output/error.
 
+### `reader`
+
+Signature:
+- `reader(path, opts?) -> <stream-reader>`
+
+Options:
+- `type: "bytes" | "text"` (optional, default `"bytes"`)
+
+### `writer`
+
+Signature:
+- `writer(path, opts?) -> <stream-writer>`
+
+Options:
+- `type: "bytes" | "text"` (optional, default `"bytes"`)
+- `append: Bool` (optional, default `false`)
+
+### `pipe`
+
+Signature:
+- `pipe(srcReader, dstWriter, opts?) -> { bytes, chunks }`
+
+Options:
+- `bufferSize: Int` (optional, default `32768`)
+
 ### `wait`
 
 `wait` accepts both `<task>` and `<process>`.
@@ -97,9 +124,9 @@ For process values:
 For `p: <process>`, supported members are:
 - `p.pid -> Int`
 - `p.running -> Bool`
-- `p.stdin -> Channel<String>`
-- `p.stdout -> Channel<String>`
-- `p.stderr -> Channel<String>`
+- `p.stdin -> <stream-writer>`
+- `p.stdout -> <stream-reader>`
+- `p.stderr -> <stream-reader>`
 - `p.abort() -> Unit`
 - `p.kill() -> Unit`
 - `p.signal(name) -> Unit`
@@ -108,6 +135,16 @@ Rules:
 - `stdin/stdout/stderr` are available only when corresponding stdio mode is `"pipe"`.
 - `abort/kill/signal` on non-running process raise recoverable `process_state`.
 - `signal(name)` requires string signal name; unknown name raises recoverable `process_state`.
+
+## Stream members
+
+For `s: <stream-reader>`:
+- `s.read(size?) -> [chunk, eof]`
+- `s.close() -> Unit`
+
+For `s: <stream-writer>`:
+- `s.write(chunk) -> Int` (bytes written)
+- `s.close() -> Unit`
 
 ## Object fields
 
@@ -121,9 +158,12 @@ Rules:
 
 ### `proc` options
 
-- `stdIn: "pipe" | "inherit" | "null"` (default `"inherit"`)
-- `stdOut: "pipe" | "inherit" | "null"` (default `"inherit"`)
-- `stdErr: "pipe" | "inherit" | "null"` (default `"inherit"`)
+- `stdIn` / `stdin`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
+- `stdOut` / `stdout`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
+- `stdErr` / `stderr`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
+- `stdinType` / `stdInType`: `"text" | "bytes"` (optional, default `"text"`)
+- `stdoutType` / `stdOutType`: `"text" | "bytes"` (optional, default `"text"`)
+- `stderrType` / `stdErrType`: `"text" | "bytes"` (optional, default `"text"`)
 - `timeoutMs: Int` (optional, default `0` = no timeout)
 
 ### `run` options
@@ -146,12 +186,12 @@ For `stage1 | stage2 | ... | stageN`:
 - exposed `p.stderr` merges stderr from all stages.
 - exposed `p.stdin` writes to stage `1` stdin.
 
-## Channels and data shape
+## Stream data shape
 
-- `p.stdin` expects string chunks sent through channel.
-- `p.stdout` / `p.stderr` yield string chunks.
-- Standard channel receive shape applies: `[value, is_closed]`.
-- Closing stdin channel closes underlying process stdin pipe.
+- `read(...)` returns `[chunk, eof]` where `eof` is `Bool`.
+- On `eof = true`, `chunk` is `null`.
+- In current runtime, stream chunks are represented as string values.
+- Closing `p.stdin` stream closes underlying process stdin pipe.
 
 ## Status objects
 
@@ -201,6 +241,11 @@ Kinds used by process APIs:
 - `process_io`: stream forwarding or I/O failures after spawn
 - `process_output_limit`: `run(... overflow: "error")` exceeded capture limit
 - `canceled`: waiting task was canceled while awaiting process completion
+- `stream_open`: reader/writer open failure
+- `stream_read`: stream read failure
+- `stream_write`: stream write failure
+- `stream_close`: stream close failure
+- `stream_state`: invalid stream state or unsupported stream runtime
 
 ## Parser constraints
 
@@ -226,11 +271,13 @@ log(st.output)
 
 ```karl
 let p = proc(cmd({ command: "cat", }), { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, })
-let inCh = p.stdin
-inCh.send("hello\n")
-inCh.done()
-let [line, _closed] = p.stdout.recv()
-log(line)
+let inStream = p.stdin
+inStream.write("hello\n")
+inStream.close()
+let [line, eof] = p.stdout.read()
+if !eof { log(line) }
+let [errChunk, _] = p.stderr.read()
+if errChunk != null { log(errChunk) }
 let st = wait p
 ```
 
@@ -239,7 +286,18 @@ let st = wait p
 ```karl
 let plan = cmd({ command: "printf", args: ["alpha\nbeta\n"], }) | cmd({ command: "wc", args: ["-l"], })
 let p = proc(plan, { stdOut: PIPE, stdErr: PIPE, stdIn: NULL, })
-let [count, _] = p.stdout.recv()
+let [count, _] = p.stdout.read()
 log(count)
 wait p
+```
+
+### File stream transfer
+
+```karl
+let src = reader("input.log", { type: BYTES, })
+let dst = writer("copy.log", { type: BYTES, })
+let stats = pipe(src, dst, { bufferSize: 65536, })
+src.close()
+dst.close()
+log(stats)
 ```

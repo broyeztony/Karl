@@ -34,9 +34,11 @@ func (p *Process) Kill() error     { return fmt.Errorf("process API is not suppo
 func (p *Process) Signal(string) error {
 	return fmt.Errorf("process API is not supported in this runtime")
 }
-func (p *Process) inputChannel() (*Channel, bool)  { return nil, false }
-func (p *Process) outputChannel() (*Channel, bool) { return nil, false }
-func (p *Process) errorChannel() (*Channel, bool)  { return nil, false }
+func (p *Process) inputStream() (*StreamWriter, bool) { return nil, false }
+func (p *Process) outputStream() (*StreamReader, bool) {
+	return nil, false
+}
+func (p *Process) errorStream() (*StreamReader, bool) { return nil, false }
 
 func registerProcessBuiltins() {
 	builtins["cmd"] = &Builtin{Name: "cmd", Fn: builtinCmd}

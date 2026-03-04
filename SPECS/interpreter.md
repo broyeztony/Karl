@@ -242,11 +242,18 @@ Ordering requires comparable keys; otherwise runtime error.
     - `overflow` (`"truncate"` or `"error"`)
   - Captures `output`/`error` with bounded memory (default `maxOutputBytes = 1048576`).
   - Overflow mode defaults to `"truncate"`; `"error"` raises recoverable `process_output_limit`.
-- Process channel properties:
-  - `process.stdin -> Channel<String>`
-  - `process.stdout -> Channel<String>`
-  - `process.stderr -> Channel<String>`
+- `reader(path, opts?) -> <stream-reader>`
+- `writer(path, opts?) -> <stream-writer>`
+- `pipe(srcReader, dstWriter, opts?) -> { bytes, chunks }`
+- Process stream properties:
+  - `process.stdin -> <stream-writer>`
+  - `process.stdout -> <stream-reader>`
+  - `process.stderr -> <stream-reader>`
   - Available only when corresponding stdio mode is `"pipe"`; otherwise recoverable `process_state`.
+- Stream members:
+  - `stream.read(size?) -> [chunk, eof]`
+  - `stream.write(chunk) -> Int`
+  - `stream.close() -> Unit`
 - `wait process -> ProcessStatus`
   - `wait` now accepts both task and process handles.
 
@@ -553,6 +560,9 @@ Implementation details (current runtime):
 - `cmd({ command, args?, cwd?, env?, inheritEnv? })` -> Cmd
 - `proc(cmdOrPipeline, opts?)` -> Process
 - `run(cmdOrPipeline, opts?)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
+- `reader(path, opts?)` -> StreamReader
+- `writer(path, opts?)` -> StreamWriter
+- `pipe(srcReader, dstWriter, opts?)` -> `{ bytes, chunks }`
 - process/string constants:
   - `PIPE = "pipe"`
   - `INHERIT = "inherit"`

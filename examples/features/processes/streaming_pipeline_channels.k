@@ -1,8 +1,8 @@
-// Streaming demo: 2-command pipeline + Karl channels.
+// Streaming demo: 2-command pipeline + stream reads + event channel.
 //
 // What this shows:
 // - OS pipeline: producer command | transformer command
-// - Karl consumes stdout/stderr incrementally through channels
+// - Karl consumes stdout/stderr incrementally through streams
 // - A separate task waits process completion and closes the event stream
 //
 // Run:
@@ -21,23 +21,23 @@ let p = proc(plan, {
 logt("pid", p.pid)
 
 let events = channel()
-let outCh = p.stdout
-let errCh = p.stderr
+let outStream = p.stdout
+let errStream = p.stderr
 
-let outTask = & (() -> for true with r = outCh.recv(), n = 0 {
-    let [chunk, closed] = r
-    if closed { break n }
+let outTask = & (() -> for true with r = outStream.read(), n = 0 {
+    let [chunk, eof] = r
+    if eof { break n }
     n++
     events.send({ kind: "out", n: n, line: chunk.trim(), at: now(), })
-    r = outCh.recv()
+    r = outStream.read()
 } then n)()
 
-let errTask = & (() -> for true with r = errCh.recv(), n = 0 {
-    let [chunk, closed] = r
-    if closed { break n }
+let errTask = & (() -> for true with r = errStream.read(), n = 0 {
+    let [chunk, eof] = r
+    if eof { break n }
     n++
     events.send({ kind: "err", n: n, line: chunk.trim(), at: now(), })
-    r = errCh.recv()
+    r = errStream.read()
 } then n)()
 
 & (() -> {

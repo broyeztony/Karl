@@ -107,23 +107,23 @@ func (e *Evaluator) processMethod(p *Process, name string) (Value, *Signal, erro
 	case "running":
 		return &Boolean{Value: p.Running()}, nil, nil
 	case "stdin":
-		ch, ok := p.inputChannel()
+		stream, ok := p.inputStream()
 		if !ok {
 			return nil, nil, recoverableError("process_state", "stdin is only available when stdIn mode is \"pipe\"")
 		}
-		return ch, nil, nil
+		return stream, nil, nil
 	case "stdout":
-		ch, ok := p.outputChannel()
+		stream, ok := p.outputStream()
 		if !ok {
 			return nil, nil, recoverableError("process_state", "stdout is only available when stdOut mode is \"pipe\"")
 		}
-		return ch, nil, nil
+		return stream, nil, nil
 	case "stderr":
-		ch, ok := p.errorChannel()
+		stream, ok := p.errorStream()
 		if !ok {
 			return nil, nil, recoverableError("process_state", "stderr is only available when stdErr mode is \"pipe\"")
 		}
-		return ch, nil, nil
+		return stream, nil, nil
 	case "abort":
 		return &Builtin{
 			Name: "abort",
@@ -169,5 +169,92 @@ func (e *Evaluator) processMethod(p *Process, name string) (Value, *Signal, erro
 		}, nil, nil
 	default:
 		return nil, nil, &RuntimeError{Message: "unknown process member: " + name}
+	}
+}
+
+func (e *Evaluator) streamReaderMethod(s *StreamReader, name string) (Value, *Signal, error) {
+	switch name {
+	case "read":
+		return &Builtin{
+			Name: "read",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) > 1 {
+					return nil, &RuntimeError{Message: "read expects optional size"}
+				}
+				size := int64(defaultStreamReadSize)
+				if len(args) == 1 {
+					i, ok := args[0].(*Integer)
+					if !ok {
+						return nil, &RuntimeError{Message: "read size must be integer"}
+					}
+					if i.Value <= 0 {
+						return nil, &RuntimeError{Message: "read size must be > 0"}
+					}
+					size = i.Value
+				}
+
+				chunk, eof, err := s.ReadChunk(int(size))
+				if err != nil {
+					return nil, recoverableError("stream_read", "stream read error: "+err.Error())
+				}
+				if eof {
+					return &Array{Elements: []Value{NullValue, &Boolean{Value: true}}}, nil
+				}
+				return &Array{Elements: []Value{&String{Value: string(chunk)}, &Boolean{Value: false}}}, nil
+			},
+		}, nil, nil
+	case "close":
+		return &Builtin{
+			Name: "close",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "close expects no arguments"}
+				}
+				if err := s.Close(); err != nil {
+					return nil, recoverableError("stream_close", "stream close error: "+err.Error())
+				}
+				return UnitValue, nil
+			},
+		}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "unknown stream reader member: " + name}
+	}
+}
+
+func (e *Evaluator) streamWriterMethod(s *StreamWriter, name string) (Value, *Signal, error) {
+	switch name {
+	case "write":
+		return &Builtin{
+			Name: "write",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "write expects 1 argument"}
+				}
+				payload, ok := stringArg(args[0])
+				if !ok {
+					return nil, &RuntimeError{Message: "write expects string payload"}
+				}
+				n, err := s.WriteChunk([]byte(payload))
+				if err != nil {
+					return nil, recoverableError("stream_write", "stream write error: "+err.Error())
+				}
+				return &Integer{Value: int64(n)}, nil
+			},
+		}, nil, nil
+	case "close":
+		return &Builtin{
+			Name: "close",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "close expects no arguments"}
+				}
+				if err := s.Close(); err != nil {
+					return nil, recoverableError("stream_close", "stream close error: "+err.Error())
+				}
+				return UnitValue, nil
+			},
+		}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "unknown stream writer member: " + name}
 	}
 }

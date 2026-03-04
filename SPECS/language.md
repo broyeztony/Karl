@@ -195,8 +195,8 @@ if user == null { exit("user not found") }
 // ============================================
 
 // Process model reference:
-// - SPECS/process.md is the normative source for cmd/proc/run and process channels
-//   (p.stdin/p.stdout/p.stderr),
+// - SPECS/process.md is the normative source for cmd/proc/run, stream built-ins
+//   (reader/writer/pipe) and process streams (p.stdin/p.stdout/p.stderr),
 //   process status objects, and pipeline (`|`) semantics.
 
 // Program args (only values passed after `--` in `karl run`)
@@ -216,17 +216,17 @@ log(st.output)
 // proc() starts a waitable/abortable process handle.
 // mode constants are available: PIPE, INHERIT, NULL (plus TEXT/BYTES aliases)
 let p = proc(cmd({ command: "cat", }), { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, })
-let inCh = p.stdin
-inCh.send("hello\\n")
-inCh.done()
-let [line, _closed] = p.stdout.recv()
-log(line)
+let inStream = p.stdin
+inStream.write("hello\\n")
+inStream.close()
+let [line, eof] = p.stdout.read()
+if !eof { log(line) }
 wait p
 
 // cmd(...) + `|` builds process pipelines.
 let plan = cmd({ command: "printf", args: ["alpha\\nbeta\\n"], }) | cmd({ command: "wc", args: ["-l"], })
 let p2 = proc(plan, { stdOut: PIPE, })
-let [count, _] = p2.stdout.recv()
+let [count, _] = p2.stdout.read()
 log(count)
 wait p2
 

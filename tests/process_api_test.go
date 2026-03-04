@@ -181,7 +181,7 @@ run(stage, {
 	assertString(t, val, "process_output_limit")
 }
 
-func TestProcWaitAndPipeChannels(t *testing.T) {
+func TestProcWaitAndPipeStreams(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
 let stage = cmd({
@@ -199,16 +199,23 @@ let p = proc(stage, {
     stdErr: "pipe",
 })
 
-let inCh = p.stdin
-inCh.send("ping")
-inCh.done()
+let collect = s -> for true with r = s.read(), acc = "" {
+    let [chunk, eof] = r
+    if eof { break acc }
+    acc = acc + chunk
+    r = s.read()
+} then acc
 
-let [out, _closedOut] = p.stdout.recv()
-let [err, _closedErr] = p.stderr.recv()
+let inStream = p.stdin
+let n = inStream.write("ping")
+inStream.close()
+
+let out = collect(p.stdout)
+let err = collect(p.stderr)
 let st = wait p
 ;
 
-{ ok: st.ok, code: st.code, out: out, err: err, pid: p.pid, running: p.running, }
+{ ok: st.ok, code: st.code, out: out, err: err, pid: p.pid, running: p.running, written: n, }
 `, bin)
 
 	val, err := evalInput(t, input)
@@ -223,6 +230,7 @@ let st = wait p
 	assertInteger(t, obj.Pairs["code"], 0)
 	assertString(t, obj.Pairs["err"], "ERR")
 	assertBoolean(t, obj.Pairs["running"], false)
+	assertInteger(t, obj.Pairs["written"], 4)
 	pid, ok := obj.Pairs["pid"].(*Integer)
 	if !ok || pid.Value <= 0 {
 		t.Fatalf("expected pid > 0, got %v", obj.Pairs["pid"])
@@ -247,14 +255,21 @@ let p = proc(stage, {
     stdErr: NULL,
 })
 
-let inCh = p.stdin
-inCh.send("ping")
-inCh.done()
+let collect = s -> for true with r = s.read(), acc = "" {
+    let [chunk, eof] = r
+    if eof { break acc }
+    acc = acc + chunk
+    r = s.read()
+} then acc
 
-let [out, _closedOut] = p.stdout.recv()
+let inStream = p.stdin
+let n = inStream.write("ping")
+inStream.close()
+
+let out = collect(p.stdout)
 let st = wait p
 ;
-[st.ok, out, PIPE, INHERIT, NULL, TEXT, BYTES]
+[st.ok, out, n, PIPE, INHERIT, NULL, TEXT, BYTES]
 `, bin)
 
 	val, err := evalInput(t, input)
@@ -277,11 +292,12 @@ let st = wait p
 	if parts[0] != "OUT" || parts[1] != "const" || parts[3] != "ping" {
 		t.Fatalf("unexpected output segments: %#v", parts)
 	}
-	assertString(t, arr.Elements[2], "pipe")
-	assertString(t, arr.Elements[3], "inherit")
-	assertString(t, arr.Elements[4], "null")
-	assertString(t, arr.Elements[5], "text")
-	assertString(t, arr.Elements[6], "bytes")
+	assertInteger(t, arr.Elements[2], 4)
+	assertString(t, arr.Elements[3], "pipe")
+	assertString(t, arr.Elements[4], "inherit")
+	assertString(t, arr.Elements[5], "null")
+	assertString(t, arr.Elements[6], "text")
+	assertString(t, arr.Elements[7], "bytes")
 }
 
 func TestProcTimeoutReturnsStatus(t *testing.T) {
@@ -323,11 +339,11 @@ let p = proc(plan, {
     stdIn: "null",
 })
 
-let collect = ch -> for true with r = ch.recv(), acc = "" {
-    let [chunk, closed] = r
-    if closed { break acc }
+let collect = s -> for true with r = s.read(), acc = "" {
+    let [chunk, eof] = r
+    if eof { break acc }
     acc = acc + chunk
-    r = ch.recv()
+    r = s.read()
 } then acc
 
 let out = collect(p.stdout)
@@ -359,11 +375,11 @@ let once = () -> {
         stdIn: "null",
     })
 
-    let collect = ch -> for true with r = ch.recv(), acc = "" {
-        let [chunk, closed] = r
-        if closed { break acc }
+    let collect = s -> for true with r = s.read(), acc = "" {
+        let [chunk, eof] = r
+        if eof { break acc }
         acc = acc + chunk
-        r = ch.recv()
+        r = s.read()
     } then acc
 
     let out = collect(p.stdout)

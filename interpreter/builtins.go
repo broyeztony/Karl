@@ -14,6 +14,7 @@ func RegisterBuiltins() {
 	builtins = map[string]*Builtin{}
 	registerRuntimeBuiltins()
 	registerFSBuiltins()
+	registerStreamBuiltins()
 	registerHTTPBuiltins()
 	registerJSONBuiltins()
 	registerSQLBuiltins()

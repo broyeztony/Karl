@@ -3,16 +3,16 @@
 // Run:
 //   karl run examples/features/processes/stream_and_abort.k
 
-let takeBytes = (ch, limit) -> for true with r = ch.recv(), acc = "", n = 0 {
-    let [chunk, closed] = r
-    if closed { break { bytes: n, sample: acc[..200], } }
+let takeBytes = (s, limit) -> for true with r = s.read(), acc = "", n = 0 {
+    let [chunk, eof] = r
+    if eof { break { bytes: n, sample: acc[..200], } }
 
     let next = acc + chunk
     n = next.length
     if n >= limit { break { bytes: limit, sample: next[..200], } }
 
     acc = next
-    r = ch.recv()
+    r = s.read()
 } then { bytes: n, sample: acc[..200], }
 
 let stage = cmd({

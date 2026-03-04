@@ -3,11 +3,11 @@
 // Run:
 //   karl run examples/features/processes/text_analytics_pipeline.k
 
-let collect = ch -> for true with r = ch.recv(), acc = "" {
-    let [chunk, closed] = r
-    if closed { break acc }
+let collect = s -> for true with r = s.read(), acc = "" {
+    let [chunk, eof] = r
+    if eof { break acc }
     acc = acc + chunk
-    r = ch.recv()
+    r = s.read()
 } then acc
 
 let corpus =
@@ -34,9 +34,9 @@ let p = proc(plan, {
 let outTask = & (() -> collect(p.stdout))()
 let errTask = & (() -> collect(p.stderr))()
 
-let inCh = p.stdin
-inCh.send(corpus)
-inCh.done()
+let inStream = p.stdin
+inStream.write(corpus)
+inStream.close()
 
 let st = wait p
 let out = wait outTask ? { "" }
