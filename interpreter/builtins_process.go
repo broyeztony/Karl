@@ -414,9 +414,9 @@ func parseProcSpec(args []Value) (processSpec, error) {
 		stdinMode:  processModeInherit,
 		stdoutMode: processModeInherit,
 		stderrMode: processModeInherit,
-		stdinType:  streamTypeText,
-		stdoutType: streamTypeText,
-		stderrType: streamTypeText,
+		stdinType:  streamTypeBytes,
+		stdoutType: streamTypeBytes,
+		stderrType: streamTypeBytes,
 	}
 	stages, err := parseProcessPlanStages(args[0])
 	if err != nil {

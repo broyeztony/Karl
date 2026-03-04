@@ -38,6 +38,11 @@ func (e *Evaluator) evalMemberExpression(node *ast.MemberExpression, env *Enviro
 			return &Integer{Value: int64(utf8.RuneCountInString(obj.Value))}, nil, nil
 		}
 		return e.stringMethod(obj, node.Property.Value)
+	case *Bytes:
+		if node.Property.Value == "length" {
+			return &Integer{Value: int64(len(obj.Value))}, nil, nil
+		}
+		return nil, nil, &RuntimeError{Message: "unknown bytes member: " + node.Property.Value}
 	case *Map:
 		return e.mapMethod(obj, node.Property.Value)
 	case *Set:

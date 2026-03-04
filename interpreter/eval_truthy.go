@@ -13,6 +13,8 @@ func isTruthy(val Value) bool {
 		return v.Value != 0.0
 	case *String:
 		return v.Value != ""
+	case *Bytes:
+		return len(v.Value) > 0
 	case *Array:
 		return len(v.Elements) > 0
 	case *Object:

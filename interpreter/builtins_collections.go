@@ -21,6 +21,8 @@ func builtinLen(_ *Evaluator, args []Value) (Value, error) {
 	switch arg := args[0].(type) {
 	case *String:
 		return &Integer{Value: int64(utf8.RuneCountInString(arg.Value))}, nil
+	case *Bytes:
+		return &Integer{Value: int64(len(arg.Value))}, nil
 	case *Array:
 		return &Integer{Value: int64(len(arg.Elements))}, nil
 	case *Map:
@@ -30,6 +32,6 @@ func builtinLen(_ *Evaluator, args []Value) (Value, error) {
 	case *Object:
 		return &Integer{Value: int64(len(arg.Pairs))}, nil
 	default:
-		return nil, &RuntimeError{Message: "len expects string, array, map, set, or object"}
+		return nil, &RuntimeError{Message: "len expects string, bytes, array, map, set, or object"}
 	}
 }

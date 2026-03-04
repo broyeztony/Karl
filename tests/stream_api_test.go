@@ -80,3 +80,40 @@ r.close()
 	}
 	assertBoolean(t, arr.Elements[7], true)
 }
+
+func TestStreamBytesModeUsesBytesValues(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "stream-bytes.bin")
+
+	input := fmt.Sprintf(`
+let w = writer(%q)
+let n = w.write(encodeUtf8("hé"))
+w.close()
+
+let r = reader(%q)
+let [chunk, eofA] = r.read(8)
+let [tail, eofB] = r.read(8)
+r.close()
+
+;
+[n, len(chunk), chunk.length, decodeUtf8(chunk), eofA, tail, eofB]
+`, path, path)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	assertInteger(t, arr.Elements[0], 3)
+	assertInteger(t, arr.Elements[1], 3)
+	assertInteger(t, arr.Elements[2], 3)
+	assertString(t, arr.Elements[3], "hé")
+	assertBoolean(t, arr.Elements[4], false)
+	if !Equivalent(arr.Elements[5], NullValue) {
+		t.Fatalf("expected null on eof chunk, got %v", arr.Elements[5])
+	}
+	assertBoolean(t, arr.Elements[6], true)
+}

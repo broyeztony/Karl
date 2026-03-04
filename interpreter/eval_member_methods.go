@@ -200,6 +200,10 @@ func (e *Evaluator) streamReaderMethod(s *StreamReader, name string) (Value, *Si
 				if eof {
 					return &Array{Elements: []Value{NullValue, &Boolean{Value: true}}}, nil
 				}
+				if s.Mode() == streamTypeBytes {
+					copied := append([]byte{}, chunk...)
+					return &Array{Elements: []Value{&Bytes{Value: copied}, &Boolean{Value: false}}}, nil
+				}
 				return &Array{Elements: []Value{&String{Value: string(chunk)}, &Boolean{Value: false}}}, nil
 			},
 		}, nil, nil
@@ -230,11 +234,22 @@ func (e *Evaluator) streamWriterMethod(s *StreamWriter, name string) (Value, *Si
 				if len(args) != 1 {
 					return nil, &RuntimeError{Message: "write expects 1 argument"}
 				}
-				payload, ok := stringArg(args[0])
-				if !ok {
-					return nil, &RuntimeError{Message: "write expects string payload"}
+				mode := s.Mode()
+				var payload []byte
+				if mode == streamTypeBytes {
+					bytesPayload, ok := bytesArg(args[0])
+					if !ok {
+						return nil, &RuntimeError{Message: "write expects bytes payload in BYTES mode"}
+					}
+					payload = bytesPayload
+				} else {
+					textPayload, ok := stringArg(args[0])
+					if !ok {
+						return nil, &RuntimeError{Message: "write expects string payload in TEXT mode"}
+					}
+					payload = []byte(textPayload)
 				}
-				n, err := s.WriteChunk([]byte(payload))
+				n, err := s.WriteChunk(payload)
 				if err != nil {
 					return nil, recoverableError("stream_write", "stream write error: "+err.Error())
 				}

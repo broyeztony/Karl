@@ -217,17 +217,17 @@ log(st.output)
 // mode constants are available: PIPE, INHERIT, NULL (plus TEXT/BYTES aliases)
 let p = proc(cmd({ command: "cat", }), { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, })
 let inStream = p.stdin
-inStream.write("hello\\n")
+inStream.write(encodeUtf8("hello\\n"))
 inStream.close()
 let [line, eof] = p.stdout.read()
-if !eof { log(line) }
+if !eof { log(decodeUtf8(line)) }
 wait p
 
 // cmd(...) + `|` builds process pipelines.
 let plan = cmd({ command: "printf", args: ["alpha\\nbeta\\n"], }) | cmd({ command: "wc", args: ["-l"], })
 let p2 = proc(plan, { stdOut: PIPE, })
 let [count, _] = p2.stdout.read()
-log(count)
+log(decodeUtf8(count))
 wait p2
 
 // recoverable process error kinds:

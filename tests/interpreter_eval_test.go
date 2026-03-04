@@ -262,15 +262,17 @@ let s = set([1, 2, 2])
 let o = { x: 1, y: 2, }
 let arr = [1, 2]
 let a = len("hé")
-let b = len(arr)
-let c = len(m)
-let d = len(s)
-let e = len(o)
-let out = [a, b, c, d, e]
+let b = len(encodeUtf8("hé"))
+let c = len(arr)
+let d = len(m)
+let e = len(s)
+let f = len(o)
+let out = [a, b, c, d, e, f]
 out
 `)
 	expected := &Array{Elements: []Value{
 		&Integer{Value: 2},
+		&Integer{Value: 3},
 		&Integer{Value: 2},
 		&Integer{Value: 1},
 		&Integer{Value: 2},
@@ -303,9 +305,14 @@ func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "len expects string, array, map, set, or object") {
+	if !strings.Contains(err.Error(), "len expects string, bytes, array, map, set, or object") {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestEvalUtf8EncodeDecodeHelpers(t *testing.T) {
+	val := mustEval(t, `decodeUtf8(encodeUtf8("karl"))`)
+	assertString(t, val, "karl")
 }
 
 func TestEvalEncodeDecodeJSON(t *testing.T) {

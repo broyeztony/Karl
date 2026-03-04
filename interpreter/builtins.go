@@ -23,6 +23,7 @@ func RegisterBuiltins() {
 	registerTimeBuiltins()
 	registerSignalBuiltins()
 	registerAsyncBuiltins()
+	registerEncodingBuiltins()
 	registerStringBuiltins()
 	registerCollectionBuiltins()
 	registerListBuiltins()

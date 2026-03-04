@@ -23,6 +23,8 @@ Status: implementation contract for first stream-native process/runtime pass.
 - `reader(path, opts?) -> <stream-reader>`
 - `writer(path, opts?) -> <stream-writer>`
 - `pipe(srcReader, dstWriter, opts?) -> { bytes, chunks }`
+- `encodeUtf8(text) -> Bytes`
+- `decodeUtf8(bytes) -> String`
 
 ## Process members
 
@@ -39,9 +41,13 @@ Status: implementation contract for first stream-native process/runtime pass.
 
 - `stream.read(size?) -> [chunk, eof]`
   - `size` optional integer > 0
+  - `chunk` type:
+    - `BYTES` mode -> `Bytes`
+    - `TEXT` mode -> `String`
   - on EOF: `[null, true]`
 - `stream.write(chunk) -> Int`
   - returns written byte count
+  - accepts `Bytes` in `BYTES` mode, `String` in `TEXT` mode
 - `stream.close() -> Unit`
 
 ## Constants
@@ -57,9 +63,9 @@ Status: implementation contract for first stream-native process/runtime pass.
 ### `proc(..., opts)`
 
 - `stdIn`, `stdOut`, `stdErr` in `"pipe" | "inherit" | "null"`
-- `stdinType` / `stdInType` in `"text" | "bytes"` (default `"text"`)
-- `stdoutType` / `stdOutType` in `"text" | "bytes"` (default `"text"`)
-- `stderrType` / `stdErrType` in `"text" | "bytes"` (default `"text"`)
+- `stdinType` / `stdInType` in `"text" | "bytes"` (default `"bytes"`)
+- `stdoutType` / `stdOutType` in `"text" | "bytes"` (default `"bytes"`)
+- `stderrType` / `stdErrType` in `"text" | "bytes"` (default `"bytes"`)
 - `timeoutMs`
 
 ### `run(..., opts)`
@@ -96,7 +102,4 @@ Status: implementation contract for first stream-native process/runtime pass.
 
 ## M1 notes
 
-- Stream chunks are represented as Karl strings in this phase.
-- `BYTES`/`TEXT` mode is accepted at API level; true dedicated bytes value semantics can be expanded in M2.
 - `readLine()` remains stdin-terminal helper and is not stream-member sugar.
-

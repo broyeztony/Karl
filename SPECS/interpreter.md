@@ -231,6 +231,7 @@ Ordering requires comparable keys; otherwise runtime error.
   - First argument: `<cmd>` or `<pipeline>`.
   - Optional `opts` supports:
     - stdio modes: `stdIn`, `stdOut`, `stdErr` in `"pipe" | "inherit" | "null"`
+    - stream types: `stdinType`, `stdoutType`, `stderrType` in `"text" | "bytes"` (default `"bytes"`)
     - `timeoutMs`
 - `run(cmdOrPipeline, opts?) -> RunStatus`
   - Blocking convenience API.
@@ -544,6 +545,8 @@ Implementation details (current runtime):
 - `log(...values)` -> Unit
 - `logt(...values)` -> Unit (prefixes output with current UTC RFC3339 timestamp)
 - `str(value)` -> String
+- `encodeUtf8(text)` -> Bytes
+- `decodeUtf8(bytes)` -> String
 - `parseInt(string)` -> Int
 - `sha256(text)` -> String (hex digest)
 - `uuidNew()` -> String

@@ -177,5 +177,8 @@ func readIntoBuffer(src *StreamReader, buf []byte) (int, error) {
 	if err == nil {
 		return 0, nil
 	}
+	if streamReadEnded(err) {
+		return 0, io.EOF
+	}
 	return 0, err
 }

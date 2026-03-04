@@ -45,6 +45,9 @@ func TestProcessAPIHelperProcess(t *testing.T) {
 		stdin, _ := io.ReadAll(os.Stdin)
 		_, _ = fmt.Fprintf(os.Stdout, "CAP|%s", string(stdin))
 		os.Exit(0)
+	case "badutf8":
+		_, _ = os.Stdout.Write([]byte{0xff, 0xfe, 0xfd})
+		os.Exit(0)
 	default:
 		_, _ = os.Stderr.WriteString("unknown mode")
 		os.Exit(2)
@@ -197,6 +200,9 @@ let p = proc(stage, {
     stdIn: "pipe",
     stdOut: "pipe",
     stdErr: "pipe",
+    stdinType: "text",
+    stdoutType: "text",
+    stderrType: "text",
 })
 
 let collect = s -> for true with acc = "" {
@@ -252,6 +258,8 @@ let p = proc(stage, {
     stdIn: PIPE,
     stdOut: PIPE,
     stdErr: NULL,
+    stdinType: TEXT,
+    stdoutType: TEXT,
 })
 
 let collect = s -> for true with acc = "" {
@@ -324,6 +332,83 @@ let st = wait p
 	assertBoolean(t, arr.Elements[1], true)
 }
 
+func TestProcStreamsDefaultToBytes(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let stage = cmd({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
+    env: {
+        KARL_PROCESS_HELPER: "1",
+        KARL_PROCESS_TEST_ENV: "bytes-default",
+    },
+    inheritEnv: true,
+})
+let p = proc(stage, {
+    stdIn: PIPE,
+    stdOut: PIPE,
+    stdErr: NULL,
+})
+
+let collect = s -> for true with acc = "" {
+    let [chunk, eof] = s.read()
+    if eof { break acc }
+    acc = acc + decodeUtf8(chunk)
+} then acc
+
+let n = p.stdin.write(encodeUtf8("ping"))
+p.stdin.close()
+let out = collect(p.stdout)
+let st = wait p
+;
+[st.ok, out, n]
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr := val.(*Array)
+	assertBoolean(t, arr.Elements[0], true)
+	output, ok := arr.Elements[1].(*String)
+	if !ok {
+		t.Fatalf("expected output string, got %T", arr.Elements[1])
+	}
+	parts := strings.SplitN(output.Value, "|", 4)
+	if len(parts) != 4 {
+		t.Fatalf("unexpected output format: %q", output.Value)
+	}
+	if parts[0] != "OUT" || parts[1] != "bytes-default" || parts[3] != "ping" {
+		t.Fatalf("unexpected output segments: %#v", parts)
+	}
+	assertInteger(t, arr.Elements[2], 4)
+}
+
+func TestDecodeUtf8InvalidBytesRecoverable(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let stage = cmd({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "badutf8"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+})
+let p = proc(stage, {
+    stdOut: PIPE,
+    stdErr: NULL,
+})
+let [chunk, _] = p.stdout.read()
+let _ = wait p
+decodeUtf8(chunk) ? { error.kind }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "utf8_decode")
+}
+
 func TestProcPipelineComposition(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
@@ -335,6 +420,8 @@ let p = proc(plan, {
     stdOut: "pipe",
     stdErr: "pipe",
     stdIn: "null",
+    stdoutType: "text",
+    stderrType: "text",
 })
 
 let collect = s -> for true with acc = "" {
@@ -370,6 +457,8 @@ let once = () -> {
         stdOut: "pipe",
         stdErr: "pipe",
         stdIn: "null",
+        stdoutType: "text",
+        stderrType: "text",
     })
 
     let collect = s -> for true with acc = "" {

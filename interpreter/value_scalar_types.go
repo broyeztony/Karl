@@ -9,6 +9,7 @@ const (
 	FLOAT         ValueType = "FLOAT"
 	BOOLEAN       ValueType = "BOOLEAN"
 	STRING        ValueType = "STRING"
+	BYTES_VALUE   ValueType = "BYTES"
 	CHAR          ValueType = "CHAR"
 	NULL          ValueType = "NULL"
 	UNIT          ValueType = "UNIT"
@@ -68,6 +69,13 @@ type String struct {
 
 func (s *String) Type() ValueType { return STRING }
 func (s *String) Inspect() string { return fmt.Sprintf("%q", s.Value) }
+
+type Bytes struct {
+	Value []byte
+}
+
+func (b *Bytes) Type() ValueType { return BYTES_VALUE }
+func (b *Bytes) Inspect() string { return fmt.Sprintf("bytes(%x)", b.Value) }
 
 type Char struct {
 	Value string

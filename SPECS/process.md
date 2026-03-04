@@ -107,6 +107,8 @@ Options:
 
 Signature:
 - `pipe(srcReader, dstWriter, opts?) -> { bytes, chunks }`
+- `encodeUtf8(text) -> Bytes`
+- `decodeUtf8(bytes) -> String`
 
 Options:
 - `bufferSize: Int` (optional, default `32768`)
@@ -141,10 +143,16 @@ Rules:
 For `s: <stream-reader>`:
 - `s.read(size?) -> [chunk, eof]`
 - `s.close() -> Unit`
+  - `chunk` type depends on stream mode:
+    - `BYTES` mode -> `Bytes`
+    - `TEXT` mode -> `String`
 
 For `s: <stream-writer>`:
 - `s.write(chunk) -> Int` (bytes written)
 - `s.close() -> Unit`
+  - `chunk` type depends on stream mode:
+    - `BYTES` mode -> `Bytes`
+    - `TEXT` mode -> `String`
 
 ## Object fields
 
@@ -161,9 +169,9 @@ For `s: <stream-writer>`:
 - `stdIn` / `stdin`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
 - `stdOut` / `stdout`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
 - `stdErr` / `stderr`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
-- `stdinType` / `stdInType`: `"text" | "bytes"` (optional, default `"text"`)
-- `stdoutType` / `stdOutType`: `"text" | "bytes"` (optional, default `"text"`)
-- `stderrType` / `stdErrType`: `"text" | "bytes"` (optional, default `"text"`)
+- `stdinType` / `stdInType`: `"text" | "bytes"` (optional, default `"bytes"`)
+- `stdoutType` / `stdOutType`: `"text" | "bytes"` (optional, default `"bytes"`)
+- `stderrType` / `stdErrType`: `"text" | "bytes"` (optional, default `"bytes"`)
 - `timeoutMs: Int` (optional, default `0` = no timeout)
 
 ### `run` options
@@ -190,7 +198,8 @@ For `stage1 | stage2 | ... | stageN`:
 
 - `read(...)` returns `[chunk, eof]` where `eof` is `Bool`.
 - On `eof = true`, `chunk` is `null`.
-- In current runtime, stream chunks are represented as string values.
+- In `BYTES` mode, `chunk` is a `Bytes` value.
+- In `TEXT` mode, `chunk` is a `String`.
 - Closing `p.stdin` stream closes underlying process stdin pipe.
 
 ## Status objects
