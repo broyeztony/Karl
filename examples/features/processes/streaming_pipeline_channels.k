@@ -24,12 +24,11 @@ logt("pid", p.pid)
 
 let events = channel()
 
-let pump = (kind, stream) -> for true with r = stream.read(), n = 0 {
-    let [chunk, eof] = r
+let pump = (kind, stream) -> for true with n = 0 {
+    let [chunk, eof] = stream.read() ? { break n }
     if eof { break n }
     n++
     events.send({ kind, n, line: chunk.trim(), at: now(), })
-    r = stream.read()
 } then n
 
 let outTask = & (() -> pump("out", p.stdout))()

@@ -3,11 +3,10 @@
 // Run:
 //   karl run examples/features/processes/text_analytics_pipeline.k
 
-let collect = s -> for true with r = s.read(), acc = "" {
-    let [chunk, eof] = r
+let collect = s -> for true with acc = "" {
+    let [chunk, eof] = s.read() ? { break acc }
     if eof { break acc }
     acc = acc + chunk
-    r = s.read()
 } then acc
 
 let corpus =

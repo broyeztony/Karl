@@ -1,11 +1,10 @@
 // stdout/stderr streams carry STRING chunks.
 // For binary data, encode in the child process (hex/base64) before reading in Karl.
 
-let readAll = s -> for true with r = s.read(), acc = "" {
-    let [chunk, eof] = r
+let readAll = s -> for true with acc = "" {
+    let [chunk, eof] = s.read() ? { break acc }
     if eof { break acc }
     acc = acc + chunk
-    r = s.read()
 } then acc
 
 let p = proc(

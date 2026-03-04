@@ -3,8 +3,8 @@
 // Run:
 //   karl run examples/features/processes/stream_and_abort.k
 
-let takeBytes = (s, limit) -> for true with r = s.read(), acc = "", n = 0 {
-    let [chunk, eof] = r
+let takeBytes = (s, limit) -> for true with acc = "", n = 0 {
+    let [chunk, eof] = s.read() ? { break { bytes: n, sample: acc[..200], } }
     if eof { break { bytes: n, sample: acc[..200], } }
 
     let next = acc + chunk
@@ -12,7 +12,6 @@ let takeBytes = (s, limit) -> for true with r = s.read(), acc = "", n = 0 {
     if n >= limit { break { bytes: limit, sample: next[..200], } }
 
     acc = next
-    r = s.read()
 } then { bytes: n, sample: acc[..200], }
 
 let p = proc(cmd({
