@@ -17,11 +17,13 @@ let kRun = args -> run(cmd({
     overflow: "truncate",
 }) ? { fail("kubectl spawn error: " + error.message) }
 
+// Fail-fast wrapper for kubectl non-zero exits.
 let kMust = args -> {
     let st = kRun(args)
     if st.ok { st } else { fail("kubectl failed: " + st.error) }
 }
 
+// Parse kubectl JSON responses with recoverable error context.
 let kJson = args -> decodeJson(kMust(args).output) ? {
     fail("kubectl returned invalid JSON: " + error.message)
 }

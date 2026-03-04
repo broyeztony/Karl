@@ -3,6 +3,7 @@
 // Run:
 //   karl run examples/features/processes/stream_and_abort.k
 
+// Read up to `limit` bytes from a TEXT stream for preview/logging.
 let takeBytes = (s, limit) -> for true with acc = "", n = 0 {
     let [chunk, eof] = s.read() ? { break { bytes: n, sample: acc[..200], } }
     if eof { break { bytes: n, sample: acc[..200], } }
@@ -18,6 +19,7 @@ let p = proc(cmd({
     command: "yes",
     args: ["karl"],
 }), {
+    // Use TEXT mode to keep output preview logic simple in this demo.
     stdOut: PIPE,
     stdErr: PIPE,
     stdoutType: TEXT,
@@ -31,6 +33,7 @@ let runningBeforeAbort = p.running
 
 sleep(120)
 
+// Abort the process, then wait to collect final status.
 p.abort() ? {
     // If already stopped, keep going; wait will still return final status.
     ()

@@ -6,6 +6,7 @@
 let srcPath = "/tmp/karl-bin-loop-src.bin"
 let dstPath = "/tmp/karl-bin-loop-dst.bin"
 
+// Build a realistic binary payload: PNG signature + random bytes.
 let seed = run(cmd({
     command: "sh",
     args: [
@@ -21,12 +22,17 @@ let seed = run(cmd({
 
 if !seed.ok { fail("seed failed") }
 
+// Stream BYTES from process stdout.
 let p = proc(cmd({ command: "cat", args: [srcPath], }), {
     stdOut: PIPE,
     stdErr: NULL,
     stdoutType: BYTES,
 })
 
+// Manual BYTES read loop without pipe():
+// - read fixed-size chunks
+// - keep chunk values for reconstruction
+// - keep chunk sizes for quick diagnostics
 let collected = for true with chunks = [], sizes = [] {
     let [chunk, eof] = p.stdout.read(700)
     if eof { break { chunks, sizes, } }
@@ -37,11 +43,13 @@ let collected = for true with chunks = [], sizes = [] {
 let st = wait p
 if !st.ok { fail("cat failed") }
 
+// Rebuild full payload from chunk list.
 let payload = bytesJoin(collected.chunks)
 let w = writer(dstPath, { type: BYTES, })
 let written = w.write(payload)
 w.close()
 
+// Validate output equals input.
 let cmp = run(cmd({
     command: "sh",
     args: ["-c", "cmp -s \"$1\" \"$2\"", "sh", srcPath, dstPath],
@@ -55,5 +63,5 @@ let cmp = run(cmd({
     chunks: len(collected.chunks),
     bytes: written,
     firstChunkBytes: if len(collected.sizes) > 0 { collected.sizes[0] } else { 0 },
-    identical: cmp.ok,
+     identical: cmp.ok,
 }

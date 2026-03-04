@@ -7,6 +7,7 @@ let readAll = s -> for true with acc = "" {
     acc = acc + chunk
 } then acc
 
+// Force TEXT mode because this demo aggregates string output.
 let p = proc(
     cmd({
         command: "sh",

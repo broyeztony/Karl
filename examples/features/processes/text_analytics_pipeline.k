@@ -24,6 +24,7 @@ let plan =
     cmd({ command: "sort", args: ["-nr"], }) |
     cmd({ command: "head", args: ["-n", "8"], })
 
+// Force TEXT mode: this pipeline is textual analytics.
 let p = proc(plan, {
     stdIn: PIPE,
     stdOut: PIPE,
@@ -36,6 +37,7 @@ let p = proc(plan, {
 let outTask = & (() -> collect(p.stdout))()
 let errTask = & (() -> collect(p.stderr))()
 
+// Feed input corpus, then close stdin so the pipeline can complete.
 let inStream = p.stdin
 inStream.write(corpus)
 inStream.close()

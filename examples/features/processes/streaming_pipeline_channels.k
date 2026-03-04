@@ -24,6 +24,7 @@ logt("pid", p.pid)
 
 let events = channel()
 
+// Convert a stream into structured events.
 let pump = (kind, stream) -> for true with n = 0 {
     let [chunk, eof] = stream.read() ? { break n }
     if eof { break n }
@@ -34,6 +35,7 @@ let pump = (kind, stream) -> for true with n = 0 {
 let outTask = & (() -> pump("out", p.stdout))()
 let errTask = & (() -> pump("err", p.stderr))()
 
+// Wait process completion in background and emit final summary event.
 & (() -> {
     let status = wait p
     let outCount = wait outTask ? { 0 }
@@ -43,6 +45,7 @@ let errTask = & (() -> pump("err", p.stderr))()
 })()
 
 let startedAt = now()
+// Single consumer loop over mixed stdout/stderr/done events.
 let summary = for true with r = events.recv(), seen = [], done = null {
     let [event, closed] = r
     if closed { break { lines: seen, done: done, elapsedMs: now() - startedAt, } }
