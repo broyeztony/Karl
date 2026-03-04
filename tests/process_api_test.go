@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -47,6 +48,10 @@ func TestProcessAPIHelperProcess(t *testing.T) {
 		os.Exit(0)
 	case "badutf8":
 		_, _ = os.Stdout.Write([]byte{0xff, 0xfe, 0xfd})
+		os.Exit(0)
+	case "blob":
+		payload := append([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}, bytes.Repeat([]byte{0x7f}, 12*1024)...)
+		_, _ = os.Stdout.Write(payload)
 		os.Exit(0)
 	default:
 		_, _ = os.Stderr.WriteString("unknown mode")
@@ -426,6 +431,46 @@ let first = decodeUtf8(r[0])
 	assertBoolean(t, obj.Pairs["ok"], true)
 	assertInteger(t, obj.Pairs["count"], 1)
 	assertString(t, obj.Pairs["first"], "CAP|hello\n")
+}
+
+func TestProcSlowBytesReadBeforeWaitDoesNotTruncate(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let p = proc(cmd({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "blob"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+}), {
+    stdOut: PIPE,
+    stdErr: NULL,
+})
+
+let collected = for true with total = 0, chunks = 0 {
+    let [chunk, eof] = p.stdout.read(700)
+    if eof { break { total, chunks, } }
+    // Intentionally slow consumer to stress process/stdout lifecycle.
+    sleep(1)
+    chunks += 1
+    total += len(chunk)
+} then ()
+
+let st = wait p
+;
+{ ok: st.ok, total: collected.total, chunks: collected.chunks, }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	obj, ok := val.(*Object)
+	if !ok {
+		t.Fatalf("expected object, got %T", val)
+	}
+	assertBoolean(t, obj.Pairs["ok"], true)
+	assertInteger(t, obj.Pairs["total"], 12296)
+	assertInteger(t, obj.Pairs["chunks"], 18)
 }
 
 func TestDecodeUtf8InvalidBytesRecoverable(t *testing.T) {

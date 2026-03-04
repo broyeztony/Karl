@@ -57,6 +57,9 @@ type Process struct {
 
 	cancel context.CancelFunc
 
+	waitStart    sync.Once
+	waitLoopFunc func()
+
 	waitCh       chan processWaitResult
 	completeOnce sync.Once
 
@@ -99,6 +102,17 @@ func (p *Process) markDone(status Value, err error) {
 		p.waitErr = err
 		p.mu.Unlock()
 		p.waitCh <- processWaitResult{status: status, err: err}
+	})
+}
+
+func (p *Process) ensureWaitLoop() {
+	if p == nil {
+		return
+	}
+	p.waitStart.Do(func() {
+		if p.waitLoopFunc != nil {
+			p.waitLoopFunc()
+		}
 	})
 }
 
@@ -738,6 +752,7 @@ func processAwaitWithCancel(p *Process, cancelCh <-chan struct{}, runtime *runti
 		}
 		return snapshot.status, nil, nil
 	}
+	p.ensureWaitLoop()
 
 	fatalCh := runtime.fatalSignal()
 	var out processWaitResult
@@ -903,38 +918,48 @@ func startProcess(e *Evaluator, spec processSpec) (*Process, error) {
 		}
 	}
 
-	go func() {
-		defer cleanup()
-		for _, cmd := range cmds {
-			if err := cmd.Wait(); err != nil {
-				var exitErr *exec.ExitError
-				if !errors.As(err, &exitErr) && !errors.Is(err, context.Canceled) {
-					process.setIOError(err)
-				}
-			}
-		}
-
-		durationMs := time.Since(process.startedAt).Milliseconds()
-		if durationMs < 0 {
-			durationMs = 0
-		}
-
-		timedOut := errors.Is(ctx.Err(), context.DeadlineExceeded)
-		aborted := process.abortedState()
-		ioErr := process.getIOError()
-
-		code, signalName := processExitState(cmds[last])
-		ok := code == 0 && signalName == "" && !timedOut && !aborted
-		status := processStatusValue(ok, code, signalName, timedOut, aborted, durationMs)
-
-		if ioErr != nil {
-			process.markDone(nil, recoverableError("process_io", "process I/O error: "+ioErr.Error()))
-			return
-		}
-		process.markDone(status, nil)
-	}()
+	process.waitLoopFunc = func() {
+		go processWaitLoop(process, cmds, ctx, last, cleanup)
+	}
+	// For inherited/null stdio, waiting immediately is safe.
+	// For piped stdout/stderr, defer wait-loop start until explicit `wait p`
+	// so slow consumers do not lose unread bytes due early Wait pipe closure.
+	if spec.stdoutMode != processModePipe && spec.stderrMode != processModePipe {
+		process.ensureWaitLoop()
+	}
 
 	return process, nil
+}
+
+func processWaitLoop(process *Process, cmds []*exec.Cmd, ctx context.Context, last int, cleanup func()) {
+	defer cleanup()
+	for _, cmd := range cmds {
+		if err := cmd.Wait(); err != nil {
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) && !errors.Is(err, context.Canceled) {
+				process.setIOError(err)
+			}
+		}
+	}
+
+	durationMs := time.Since(process.startedAt).Milliseconds()
+	if durationMs < 0 {
+		durationMs = 0
+	}
+
+	timedOut := errors.Is(ctx.Err(), context.DeadlineExceeded)
+	aborted := process.abortedState()
+	ioErr := process.getIOError()
+
+	code, signalName := processExitState(cmds[last])
+	ok := code == 0 && signalName == "" && !timedOut && !aborted
+	status := processStatusValue(ok, code, signalName, timedOut, aborted, durationMs)
+
+	if ioErr != nil {
+		process.markDone(nil, recoverableError("process_io", "process I/O error: "+ioErr.Error()))
+		return
+	}
+	process.markDone(status, nil)
 }
 
 func processExitState(cmd *exec.Cmd) (int64, string) {
