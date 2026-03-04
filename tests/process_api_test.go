@@ -200,7 +200,7 @@ let p = proc(stage, {
 })
 
 let collect = s -> for true with acc = "" {
-    let [chunk, eof] = s.read() ? { break acc }
+    let [chunk, eof] = s.read()
     if eof { break acc }
     acc = acc + chunk
 } then acc
@@ -255,7 +255,7 @@ let p = proc(stage, {
 })
 
 let collect = s -> for true with acc = "" {
-    let [chunk, eof] = s.read() ? { break acc }
+    let [chunk, eof] = s.read()
     if eof { break acc }
     acc = acc + chunk
 } then acc
@@ -338,7 +338,7 @@ let p = proc(plan, {
 })
 
 let collect = s -> for true with acc = "" {
-    let [chunk, eof] = s.read() ? { break acc }
+    let [chunk, eof] = s.read()
     if eof { break acc }
     acc = acc + chunk
 } then acc
@@ -373,7 +373,7 @@ let once = () -> {
     })
 
     let collect = s -> for true with acc = "" {
-        let [chunk, eof] = s.read() ? { break acc }
+        let [chunk, eof] = s.read()
         if eof { break acc }
         acc = acc + chunk
     } then acc

@@ -972,21 +972,6 @@ func processStatusValue(ok bool, code int64, signal string, timedOut bool, abort
 	}}
 }
 
-func processStreamEnded(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed) {
-		return true
-	}
-	if errors.Is(err, syscall.EBADF) {
-		return true
-	}
-	// Some runtimes wrap closed descriptors in path errors without preserving sentinels.
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "file already closed") || strings.Contains(msg, "bad file descriptor")
-}
-
 func processMergeReaders(readers []io.ReadCloser) io.ReadCloser {
 	pipeReader, pipeWriter := io.Pipe()
 
@@ -998,7 +983,7 @@ func processMergeReaders(readers []io.ReadCloser) io.ReadCloser {
 			defer wg.Done()
 			defer func() { _ = r.Close() }()
 			_, err := io.Copy(pipeWriter, r)
-			if err != nil && !processStreamEnded(err) {
+			if err != nil && !streamReadEnded(err) {
 				_ = pipeWriter.CloseWithError(err)
 			}
 		}()

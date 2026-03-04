@@ -3,7 +3,10 @@ package interpreter
 import (
 	"errors"
 	"io"
+	"os"
+	"strings"
 	"sync"
+	"syscall"
 )
 
 const (
@@ -66,13 +69,28 @@ func (s *StreamReader) ReadChunk(size int) ([]byte, bool, error) {
 	if n > 0 {
 		return buf[:n], false, nil
 	}
-	if errors.Is(err, io.EOF) {
+	if streamReadEnded(err) {
 		return nil, true, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
 	return nil, false, nil
+}
+
+func streamReadEnded(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed) {
+		return true
+	}
+	if errors.Is(err, syscall.EBADF) {
+		return true
+	}
+	// Some runtimes wrap closed descriptors in path errors without preserving sentinels.
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "file already closed") || strings.Contains(msg, "bad file descriptor")
 }
 
 func (s *StreamReader) Close() error {
