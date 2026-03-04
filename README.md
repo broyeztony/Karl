@@ -5,17 +5,18 @@
 [![CI](https://github.com/broyeztony/Karl/actions/workflows/ci.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/ci.yml)
 [![Workflow Tests](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml/badge.svg)](https://github.com/broyeztony/Karl/actions/workflows/workflow-tests.yml)
 
-Karl is a functional-first, expression-based programming language built on top of Go.
-It is co-designed with AI.
+A modern language for building command-line tools, pipelines, and infrastructure automation.
 
-Notably, it features:
-- Functions as first-class entities
-- Composable expression-first style
-- Pattern matching with guards
-- Property destructuring
-- Expression-based control flow (`if`/`match`/`for` all return values)
-- Recover operator (`?`)
-- Concurrency model inspired by Go
+Karl is a programming language designed for:
+- CLI tools
+- pipelines
+- infrastructure scripting
+- process orchestration
+- DevOps automation
+
+Karl aims to occupy the space between:
+- Bash
+- Go
 
 Website: [karl-lang.org](https://karl-lang.org)
 
