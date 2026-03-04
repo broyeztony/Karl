@@ -8,6 +8,8 @@ These examples show how `cmd`/`proc`/`run` + streams make Karl a practical syste
 - `text_analytics_pipeline.k`: Unix pipeline composed in Karl with `cmd(...) | cmd(...)`.
 - `stream_and_abort.k`: long-running process control (`pid`, `running`, `abort`, `wait`).
 - `streaming_pipeline_channels.k`: live pipeline streaming with stream reads + channel event fan-in.
+- `binary_stream_copy.k`: binary file streaming with `reader`/`writer`/`pipe` in `BYTES` mode.
+- `binary_process_passthrough.k`: binary bytes passthrough through `proc` using `p.stdin`/`p.stdout`.
 
 ## Run
 
@@ -15,6 +17,8 @@ These examples show how `cmd`/`proc`/`run` + streams make Karl a practical syste
 karl run examples/features/processes/text_analytics_pipeline.k
 karl run examples/features/processes/stream_and_abort.k
 karl run examples/features/processes/streaming_pipeline_channels.k
+karl run examples/features/processes/binary_stream_copy.k
+karl run examples/features/processes/binary_process_passthrough.k
 
 # requires kubectl + access to a cluster
 karl run examples/features/processes/kubernetes_health_report.k
