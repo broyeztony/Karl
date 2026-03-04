@@ -22,6 +22,11 @@ func builtinThen(e *Evaluator, args []Value) (Value, error) {
 	thenTask := e.newTask(e.currentTask, false)
 	thenEval := e.cloneForTask(thenTask)
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				thenEval.handleAsyncError(thenTask, panicToError("then", recovered))
+			}
+		}()
 		val, sig, err := taskAwaitWithCancel(task, thenTask.cancelCh, e.runtime)
 		if err != nil {
 			thenEval.handleAsyncError(thenTask, err)

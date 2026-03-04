@@ -53,7 +53,7 @@ func builtinHTTP(e *Evaluator, args []Value) (Value, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelCh := runtimeCancelSignal(e)
 	fatalCh := runtimeFatalSignal(e)
-	go func() {
+	runGuarded(e.runtime, "http cancel watcher", func() {
 		select {
 		case <-cancelCh:
 			cancel()
@@ -62,7 +62,7 @@ func builtinHTTP(e *Evaluator, args []Value) (Value, error) {
 		case <-reqDone:
 			cancel()
 		}
-	}()
+	})
 
 	req, err := http.NewRequestWithContext(ctx, method, urlStr, body)
 	if err != nil {

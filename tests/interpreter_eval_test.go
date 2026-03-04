@@ -1109,3 +1109,64 @@ let replaced = trimmed.replace("l", "x");
 	}}
 	assertEquivalent(t, val, expected)
 }
+
+func TestChannelDeadlockRecvReturnsRuntimeError(t *testing.T) {
+	done := make(chan struct{})
+	var err error
+	go func() {
+		_, err = evalInput(t, `
+let c = channel()
+c.recv()
+`)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("evaluation timed out")
+	}
+	if err == nil {
+		t.Fatalf("expected deadlock error")
+	}
+	msg := interpreter.FormatRuntimeError(err, "", "<test>")
+	if !strings.Contains(msg, "deadlock: recv would block with no runnable tasks") {
+		t.Fatalf("unexpected error: %s", msg)
+	}
+}
+
+func TestChannelDeadlockSendReturnsRuntimeError(t *testing.T) {
+	done := make(chan struct{})
+	var err error
+	go func() {
+		_, err = evalInput(t, `
+let c = channel()
+c.send(1)
+`)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("evaluation timed out")
+	}
+	if err == nil {
+		t.Fatalf("expected deadlock error")
+	}
+	msg := interpreter.FormatRuntimeError(err, "", "<test>")
+	if !strings.Contains(msg, "deadlock: send would block with no runnable tasks") {
+		t.Fatalf("unexpected error: %s", msg)
+	}
+}
+
+func TestSendOnClosedChannelIsKarlErrorNotGoPanic(t *testing.T) {
+	val := mustEval(t, `
+let c = channel()
+let t = & (() -> c.send("x"))()
+sleep(20)
+c.done()
+(wait t) ? { error.message }
+`)
+	assertString(t, val, "send on closed channel")
+}

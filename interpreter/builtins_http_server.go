@@ -54,7 +54,7 @@ func builtinHTTPServe(e *Evaluator, args []Value) (Value, error) {
 	server := &http.Server{Addr: addr, Handler: mux}
 	serverValue.Server = server
 
-	go func() {
+	runGuarded(e.runtime, "httpServe loop", func() {
 		err := server.Serve(listener)
 		if err == nil || errors.Is(err, http.ErrServerClosed) {
 			return
@@ -62,12 +62,12 @@ func builtinHTTPServe(e *Evaluator, args []Value) (Value, error) {
 		if e != nil && e.runtime != nil {
 			e.runtime.setFatalTaskFailure(&RuntimeError{Message: "httpServe error: " + err.Error()})
 		}
-	}()
+	})
 
 	cancelCh := runtimeCancelSignal(e)
 	fatalCh := runtimeFatalSignal(e)
 	if cancelCh != nil || fatalCh != nil {
-		go func() {
+		runGuarded(e.runtime, "httpServe cancel watcher", func() {
 			select {
 			case <-cancelCh:
 			case <-fatalCh:
@@ -75,7 +75,7 @@ func builtinHTTPServe(e *Evaluator, args []Value) (Value, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			_ = serverValue.Stop(ctx)
-		}()
+		})
 	}
 
 	return serverValue, nil

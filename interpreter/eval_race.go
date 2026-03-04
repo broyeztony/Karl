@@ -18,6 +18,13 @@ func (e *Evaluator) evalRaceExpression(node *ast.RaceExpression, env *Environmen
 	}
 
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				reportRuntimePanic(e.runtime, "race", recovered)
+				raceTask.complete(nil, panicToError("race", recovered))
+			}
+		}()
+
 		type result struct {
 			value Value
 			sig   *Signal
@@ -26,6 +33,11 @@ func (e *Evaluator) evalRaceExpression(node *ast.RaceExpression, env *Environmen
 		results := make(chan result, len(children))
 		for _, child := range children {
 			go func(t *Task) {
+				defer func() {
+					if recovered := recover(); recovered != nil {
+						results <- result{err: panicToError("race wait", recovered)}
+					}
+				}()
 				val, sig, err := taskAwaitWithCancel(t, raceTask.cancelCh, e.runtime)
 				results <- result{value: val, sig: sig, err: err}
 			}(child)

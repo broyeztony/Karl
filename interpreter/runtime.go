@@ -80,6 +80,21 @@ func (r *runtimeState) snapshotTasks() []*Task {
 	return out
 }
 
+func (r *runtimeState) hasUndoneTasks() bool {
+	for _, t := range r.snapshotTasks() {
+		if t == nil {
+			continue
+		}
+		t.mu.Lock()
+		done := t.done
+		t.mu.Unlock()
+		if !done {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *runtimeState) setProgramArgs(args []string) {
 	if r == nil {
 		return

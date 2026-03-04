@@ -388,10 +388,22 @@ func builtinRun(e *Evaluator, args []Value) (Value, error) {
 	errCh := make(chan captureResult, 1)
 
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				reportRuntimePanic(e.runtime, "run stdout capture", recovered)
+				outCh <- captureResult{}
+			}
+		}()
 		value, truncated := collectProcessStream(stdout, spec.maxOutputBytes, spec.overflow)
 		outCh <- captureResult{value: value, truncated: truncated}
 	}()
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				reportRuntimePanic(e.runtime, "run stderr capture", recovered)
+				errCh <- captureResult{}
+			}
+		}()
 		value, truncated := collectProcessStream(stderr, spec.maxOutputBytes, spec.overflow)
 		errCh <- captureResult{value: value, truncated: truncated}
 	}()
@@ -756,11 +768,12 @@ func processAwaitWithCancel(p *Process, cancelCh <-chan struct{}, runtime *runti
 
 	fatalCh := runtime.fatalSignal()
 	var out processWaitResult
-	if cancelCh == nil && fatalCh == nil {
-		out = <-p.waitCh
-	} else {
+	probe := time.NewTicker(runtimeBlockProbeInterval)
+	defer probe.Stop()
+	for {
 		select {
 		case out = <-p.waitCh:
+			goto done
 		case <-cancelCh:
 			return nil, nil, canceledError()
 		case <-fatalCh:
@@ -768,9 +781,11 @@ func processAwaitWithCancel(p *Process, cancelCh <-chan struct{}, runtime *runti
 				return nil, nil, err
 			}
 			return nil, nil, &RuntimeError{Message: "runtime terminated"}
+		case <-probe.C:
 		}
 	}
 
+done:
 	if out.err != nil {
 		return nil, nil, out.err
 	}
@@ -910,7 +925,11 @@ func startProcess(e *Evaluator, spec processSpec) (*Process, error) {
 		}
 	}
 	if len(stderrReaders) > 0 {
-		merged := processMergeReaders(stderrReaders)
+		var runtime *runtimeState
+		if e != nil {
+			runtime = e.runtime
+		}
+		merged := processMergeReaders(stderrReaders, runtime)
 		process.stderrStream = &StreamReader{
 			reader: merged,
 			closer: merged,
@@ -919,7 +938,13 @@ func startProcess(e *Evaluator, spec processSpec) (*Process, error) {
 	}
 
 	process.waitLoopFunc = func() {
-		go processWaitLoop(process, cmds, ctx, last, cleanup)
+		var runtime *runtimeState
+		if e != nil {
+			runtime = e.runtime
+		}
+		runGuarded(runtime, "process wait", func() {
+			processWaitLoop(process, cmds, ctx, last, cleanup)
+		})
 	}
 
 	return process, nil
@@ -985,27 +1010,27 @@ func processStatusValue(ok bool, code int64, signal string, timedOut bool, abort
 	}}
 }
 
-func processMergeReaders(readers []io.ReadCloser) io.ReadCloser {
+func processMergeReaders(readers []io.ReadCloser, runtime *runtimeState) io.ReadCloser {
 	pipeReader, pipeWriter := io.Pipe()
 
 	var wg sync.WaitGroup
 	for _, reader := range readers {
 		r := reader
 		wg.Add(1)
-		go func() {
+		runGuarded(runtime, "process stderr merge copy", func() {
 			defer wg.Done()
 			defer func() { _ = r.Close() }()
 			_, err := io.Copy(pipeWriter, r)
 			if err != nil && !streamReadEnded(err) {
 				_ = pipeWriter.CloseWithError(err)
 			}
-		}()
+		})
 	}
 
-	go func() {
+	runGuarded(runtime, "process stderr merge finalize", func() {
 		wg.Wait()
 		_ = pipeWriter.Close()
-	}()
+	})
 	return pipeReader
 }
 
@@ -1119,7 +1144,11 @@ func runtimeProcessContext(e *Evaluator, timeoutMs int64) (context.Context, cont
 	cancelCh := runtimeCancelSignal(e)
 	fatalCh := runtimeFatalSignal(e)
 	if cancelCh != nil || fatalCh != nil {
-		go func() {
+		var runtime *runtimeState
+		if e != nil {
+			runtime = e.runtime
+		}
+		runGuarded(runtime, "process cancel watcher", func() {
 			select {
 			case <-cancelCh:
 				cancel()
@@ -1127,7 +1156,7 @@ func runtimeProcessContext(e *Evaluator, timeoutMs int64) (context.Context, cont
 				cancel()
 			case <-done:
 			}
-		}()
+		})
 	}
 
 	cleanup := func() {

@@ -1,5 +1,7 @@
 package interpreter
 
+import "time"
+
 func newTask() *Task {
 	return &Task{
 		ResultCh: make(chan taskResult, 1),
@@ -42,12 +44,13 @@ func taskAwaitWithCancel(t *Task, cancelCh <-chan struct{}, runtime *runtimeStat
 
 	var out taskResult
 	fatalCh := runtime.fatalSignal()
+	probe := time.NewTicker(runtimeBlockProbeInterval)
+	defer probe.Stop()
 
-	if cancelCh == nil && fatalCh == nil {
-		out = <-t.ResultCh
-	} else {
+	for {
 		select {
 		case out = <-t.ResultCh:
+			goto done
 		case <-cancelCh:
 			return nil, nil, canceledError()
 		case <-fatalCh:
@@ -55,9 +58,11 @@ func taskAwaitWithCancel(t *Task, cancelCh <-chan struct{}, runtime *runtimeStat
 				return nil, nil, err
 			}
 			return nil, nil, &RuntimeError{Message: "runtime terminated"}
+		case <-probe.C:
 		}
 	}
 
+done:
 	t.mu.Lock()
 	t.done = true
 	t.result = out.value

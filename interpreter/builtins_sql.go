@@ -388,7 +388,11 @@ func runtimeCancelableContext(e *Evaluator) (context.Context, func()) {
 		return ctx, cancel
 	}
 	done := make(chan struct{})
-	go func() {
+	var runtime *runtimeState
+	if e != nil {
+		runtime = e.runtime
+	}
+	runGuarded(runtime, "sql cancel watcher", func() {
 		select {
 		case <-cancelCh:
 			cancel()
@@ -397,7 +401,7 @@ func runtimeCancelableContext(e *Evaluator) (context.Context, func()) {
 		case <-done:
 			cancel()
 		}
-	}()
+	})
 	return ctx, func() {
 		close(done)
 		cancel()
