@@ -384,6 +384,50 @@ let st = wait p
 	assertInteger(t, arr.Elements[2], 4)
 }
 
+func TestProcBytesReadLoopThenWait(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let p = proc(cmd({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "capture"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+}), {
+    stdIn: PIPE,
+    stdOut: PIPE,
+    stdErr: NULL,
+})
+
+p.stdin.write(encodeUtf8("hello\n"))
+p.stdin.close()
+
+let r = for true with data = [] {
+    let [chunk, eof] = p.stdout.read()
+    if eof { break data }
+    data += [chunk]
+} then data
+
+let st = wait p
+
+let ok = st.ok
+let count = len(r)
+let first = decodeUtf8(r[0])
+{ ok, count, first, }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	obj, ok := val.(*Object)
+	if !ok {
+		t.Fatalf("expected object, got %T", val)
+	}
+	assertBoolean(t, obj.Pairs["ok"], true)
+	assertInteger(t, obj.Pairs["count"], 1)
+	assertString(t, obj.Pairs["first"], "CAP|hello\n")
+}
+
 func TestDecodeUtf8InvalidBytesRecoverable(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`

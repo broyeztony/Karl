@@ -161,7 +161,7 @@ let srv = httpServe({
             path: "/health",
             handler: req -> {
                 status: 200,
-                body: jsonEncode({ status: "ok", method: req.method, q: req.query.q, }),
+                body: encodeJson({ status: "ok", method: req.method, q: req.query.q, }),
             }
         }
     ]
@@ -169,7 +169,7 @@ let srv = httpServe({
 
 sleep(80)
 let resp = http({ method: "GET", url: "http://%s/health?q=test" })
-let payload = jsonDecode(resp.body)
+let payload = decodeJson(resp.body)
 httpServerStop(srv)
 ;
 [resp.status, payload.status, payload.method, payload.q]

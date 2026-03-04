@@ -22,7 +22,7 @@ let kMust = args -> {
     if st.ok { st } else { fail("kubectl failed: " + st.error) }
 }
 
-let kJson = args -> jsonDecode(kMust(args).output) ? {
+let kJson = args -> decodeJson(kMust(args).output) ? {
     fail("kubectl returned invalid JSON: " + error.message)
 }
 
@@ -94,4 +94,4 @@ let report = (() -> {
     }
 })() ? { generatedAt: timeFormatRFC3339(now()), error: { kind: error.kind, message: error.message, }, }
 
-log(jsonEncode(report))
+log(encodeJson(report))

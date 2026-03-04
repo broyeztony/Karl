@@ -281,7 +281,7 @@ Snapshot semantics:
   the fallback block runs and its value is returned.
 - Inside the fallback block, `error` is bound to `{ kind: String, message: String }`.
   - Runtime errors use `kind = "runtime"`.
-  - Builtin recoverable errors keep their specific `kind` (for example `jsonDecode`, `http`, `fail`).
+  - Builtin recoverable errors keep their specific `kind` (for example `decodeJson`, `http`, `fail`).
 
 Errors not catchable by `?`:
 - `exit(...)` (explicit hard stop)
@@ -291,7 +291,7 @@ Errors not catchable by `?`:
 Example:
 
 ```
-let parsed = jsonDecode(raw) ? {
+let parsed = decodeJson(raw) ? {
     log("bad json:", error.message)
     { foo: "default" }
 }
@@ -552,8 +552,8 @@ Implementation details (current runtime):
 - `uuidNew()` -> String
 - `uuidValid(text)` -> Bool
 - `uuidParse(text)` -> String (canonical)
-- `jsonEncode(value)` -> String
-- `jsonDecode(text)` -> Value
+- `encodeJson(value)` -> String
+- `decodeJson(text)` -> Value
 - `readFile(path)` -> String
 - `writeFile(path, data)` -> Unit
 - `appendFile(path, data)` -> Unit

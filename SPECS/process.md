@@ -109,6 +109,7 @@ Signature:
 - `pipe(srcReader, dstWriter, opts?) -> { bytes, chunks }`
 - `encodeUtf8(text) -> Bytes`
 - `decodeUtf8(bytes) -> String`
+- `bytesJoin(arrayOfBytes) -> Bytes`
 
 Options:
 - `bufferSize: Int` (optional, default `32768`)

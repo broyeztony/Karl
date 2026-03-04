@@ -25,6 +25,7 @@ Status: implementation contract for first stream-native process/runtime pass.
 - `pipe(srcReader, dstWriter, opts?) -> { bytes, chunks }`
 - `encodeUtf8(text) -> Bytes`
 - `decodeUtf8(bytes) -> String`
+- `bytesJoin(arrayOfBytes) -> Bytes`
 
 ## Process members
 
