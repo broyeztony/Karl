@@ -921,12 +921,6 @@ func startProcess(e *Evaluator, spec processSpec) (*Process, error) {
 	process.waitLoopFunc = func() {
 		go processWaitLoop(process, cmds, ctx, last, cleanup)
 	}
-	// For inherited/null stdio, waiting immediately is safe.
-	// For piped stdout/stderr, defer wait-loop start until explicit `wait p`
-	// so slow consumers do not lose unread bytes due early Wait pipe closure.
-	if spec.stdoutMode != processModePipe && spec.stderrMode != processModePipe {
-		process.ensureWaitLoop()
-	}
 
 	return process, nil
 }
