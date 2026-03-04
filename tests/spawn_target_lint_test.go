@@ -15,6 +15,16 @@ func TestNoSpawnDirectForInSnippets(t *testing.T) {
 
 	var files []string
 	for _, root := range roots {
+		info, err := os.Stat(root)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			t.Fatalf("stat %s: %v", root, err)
+		}
+		if !info.IsDir() {
+			continue
+		}
 		files = append(files, listKarlFiles(t, root)...)
 	}
 

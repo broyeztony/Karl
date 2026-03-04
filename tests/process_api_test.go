@@ -199,11 +199,10 @@ let p = proc(stage, {
     stdErr: "pipe",
 })
 
-let collect = s -> for true with r = s.read(), acc = "" {
-    let [chunk, eof] = r
+let collect = s -> for true with acc = "" {
+    let [chunk, eof] = s.read() ? { break acc }
     if eof { break acc }
     acc = acc + chunk
-    r = s.read()
 } then acc
 
 let inStream = p.stdin
@@ -255,11 +254,10 @@ let p = proc(stage, {
     stdErr: NULL,
 })
 
-let collect = s -> for true with r = s.read(), acc = "" {
-    let [chunk, eof] = r
+let collect = s -> for true with acc = "" {
+    let [chunk, eof] = s.read() ? { break acc }
     if eof { break acc }
     acc = acc + chunk
-    r = s.read()
 } then acc
 
 let inStream = p.stdin
@@ -339,11 +337,10 @@ let p = proc(plan, {
     stdIn: "null",
 })
 
-let collect = s -> for true with r = s.read(), acc = "" {
-    let [chunk, eof] = r
+let collect = s -> for true with acc = "" {
+    let [chunk, eof] = s.read() ? { break acc }
     if eof { break acc }
     acc = acc + chunk
-    r = s.read()
 } then acc
 
 let out = collect(p.stdout)
@@ -375,11 +372,10 @@ let once = () -> {
         stdIn: "null",
     })
 
-    let collect = s -> for true with r = s.read(), acc = "" {
-        let [chunk, eof] = r
+    let collect = s -> for true with acc = "" {
+        let [chunk, eof] = s.read() ? { break acc }
         if eof { break acc }
         acc = acc + chunk
-        r = s.read()
     } then acc
 
     let out = collect(p.stdout)
