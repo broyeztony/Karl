@@ -257,8 +257,6 @@ func (p *Process) inputStream() (*StreamWriter, bool) {
 	if p == nil {
 		return nil, false
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	if p.stdinMode != processModePipe || p.stdinStream == nil {
 		return nil, false
 	}
@@ -269,8 +267,6 @@ func (p *Process) outputStream() (*StreamReader, bool) {
 	if p == nil {
 		return nil, false
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	if p.stdoutMode != processModePipe || p.stdoutStream == nil {
 		return nil, false
 	}
@@ -281,8 +277,6 @@ func (p *Process) errorStream() (*StreamReader, bool) {
 	if p == nil {
 		return nil, false
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	if p.stderrMode != processModePipe || p.stderrStream == nil {
 		return nil, false
 	}

@@ -34,9 +34,7 @@ func (s *StreamReader) Mode() string {
 	if s == nil {
 		return streamTypeText
 	}
-	s.mu.Lock()
 	mode := s.mode
-	s.mu.Unlock()
 	if mode == "" {
 		return streamTypeText
 	}
@@ -129,9 +127,7 @@ func (s *StreamWriter) Mode() string {
 	if s == nil {
 		return streamTypeText
 	}
-	s.mu.Lock()
 	mode := s.mode
-	s.mu.Unlock()
 	if mode == "" {
 		return streamTypeText
 	}
