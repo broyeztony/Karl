@@ -271,7 +271,7 @@ func (p *Parser) parseIdentifier() ast.Expression {
 		return p.finishLambda([]ast.Pattern{param})
 	}
 	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	if p.peekTokenIs(token.LBRACE) && p.braceLooksLikeObject() {
+	if p.peekTokenIs(token.LBRACE) && p.curToken.Line == p.peekToken.Line && p.braceLooksLikeObject() {
 		p.nextToken()
 		obj := p.parseObjectLiteral().(*ast.ObjectLiteral)
 		return &ast.StructInitExpression{Token: ident.Token, TypeName: ident, Value: obj}

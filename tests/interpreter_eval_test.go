@@ -451,6 +451,22 @@ func TestEvalObjectStringIndexRead(t *testing.T) {
 	assertInteger(t, val, 42)
 }
 
+func TestEvalObjectLiteralAfterWaitOnNewLine(t *testing.T) {
+	val := mustEval(t, `
+let f = () -> {
+    let t = & (() -> 1)()
+    let v = wait t
+    { value: v, }
+}
+f()
+`)
+	obj, ok := val.(*Object)
+	if !ok {
+		t.Fatalf("expected Object, got %T", val)
+	}
+	assertInteger(t, obj.Pairs["value"], 1)
+}
+
 func TestEvalObjectStringIndexAssignment(t *testing.T) {
 	val := mustEval(t, `let obj = {}; obj["a-field"] = 3; obj["a-field"] += 4; obj["a-field"]`)
 	assertInteger(t, val, 7)
