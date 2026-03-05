@@ -1,4 +1,4 @@
-// Binary chunk loop + reconstruction without pipe().
+// Binary chunk loop + reconstruction without copy().
 //
 // Run:
 //   karl run examples/features/processes/binary_chunk_loop_reconstruct.k
@@ -29,7 +29,7 @@ let p = proc(cmd({ command: "cat", args: [srcPath], }), {
     stdoutType: BYTES,
 })
 
-// Manual BYTES read loop without pipe():
+// Manual BYTES read loop without copy():
 // - read fixed-size chunks
 // - keep chunk values for reconstruction
 // - keep chunk sizes for quick diagnostics

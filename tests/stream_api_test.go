@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestStreamPipeFileRoundTrip(t *testing.T) {
+func TestStreamCopyFileRoundTrip(t *testing.T) {
 	tempDir := t.TempDir()
 	inPath := filepath.Join(tempDir, "in.txt")
 	outPath := filepath.Join(tempDir, "out.txt")
@@ -19,7 +19,7 @@ func TestStreamPipeFileRoundTrip(t *testing.T) {
 	input := fmt.Sprintf(`
 let src = reader(%q, { type: BYTES, })
 let dst = writer(%q, { type: BYTES, })
-let st = pipe(src, dst, { bufferSize: 3, })
+let st = copy(src, dst, { bufferSize: 3, })
 src.close()
 dst.close()
 { bytes: st.bytes, chunks: st.chunks, out: readFile(%q), }

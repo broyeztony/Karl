@@ -10,7 +10,7 @@ import (
 func registerStreamBuiltins() {
 	builtins["reader"] = &Builtin{Name: "reader", Fn: builtinReader}
 	builtins["writer"] = &Builtin{Name: "writer", Fn: builtinWriter}
-	builtins["pipe"] = &Builtin{Name: "pipe", Fn: builtinPipe}
+	builtins["copy"] = &Builtin{Name: "copy", Fn: builtinCopy}
 }
 
 func builtinReader(_ *Evaluator, args []Value) (Value, error) {
@@ -97,32 +97,32 @@ func builtinWriter(_ *Evaluator, args []Value) (Value, error) {
 	}, nil
 }
 
-func builtinPipe(_ *Evaluator, args []Value) (Value, error) {
+func builtinCopy(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) < 2 || len(args) > 3 {
-		return nil, &RuntimeError{Message: "pipe expects (srcReader, dstWriter, opts?)"}
+		return nil, &RuntimeError{Message: "copy expects (srcReader, dstWriter, opts?)"}
 	}
 	src, ok := args[0].(*StreamReader)
 	if !ok {
-		return nil, &RuntimeError{Message: "pipe src must be stream reader"}
+		return nil, &RuntimeError{Message: "copy src must be stream reader"}
 	}
 	dst, ok := args[1].(*StreamWriter)
 	if !ok {
-		return nil, &RuntimeError{Message: "pipe dst must be stream writer"}
+		return nil, &RuntimeError{Message: "copy dst must be stream writer"}
 	}
 
-	bufferSize := int64(defaultPipeBufferSize)
+	bufferSize := int64(defaultStreamCopyBuffer)
 	if len(args) == 3 && !Equivalent(args[2], NullValue) {
 		pairs, ok := objectPairs(args[2])
 		if !ok {
-			return nil, &RuntimeError{Message: "pipe opts must be object"}
+			return nil, &RuntimeError{Message: "copy opts must be object"}
 		}
 		if sizeVal, ok := pairs["bufferSize"]; ok && !Equivalent(sizeVal, NullValue) {
 			size, ok := sizeVal.(*Integer)
 			if !ok {
-				return nil, &RuntimeError{Message: "pipe bufferSize must be integer"}
+				return nil, &RuntimeError{Message: "copy bufferSize must be integer"}
 			}
 			if size.Value <= 0 {
-				return nil, &RuntimeError{Message: "pipe bufferSize must be > 0"}
+				return nil, &RuntimeError{Message: "copy bufferSize must be > 0"}
 			}
 			bufferSize = size.Value
 		}
@@ -147,7 +147,7 @@ func builtinPipe(_ *Evaluator, args []Value) (Value, error) {
 		}}, nil
 	}
 
-	if total, chunks, used, err := streamPipeTryFastCopy(srcReader, dstWriter, int(bufferSize)); used {
+	if total, chunks, used, err := streamCopyTryFastPath(srcReader, dstWriter, int(bufferSize)); used {
 		if err != nil {
 			return nil, recoverableError("stream_write", "stream write error: "+err.Error())
 		}

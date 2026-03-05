@@ -18,7 +18,7 @@ let seed = run(cmd({
 if !seed.ok { fail("seed failed") }
 
 // Byte-for-byte copy using stream handles.
-let copied = pipe(
+let copied = copy(
     reader(srcPath, { type: BYTES, }),
     writer(dstPath, { type: BYTES, }),
     { bufferSize: 3, }

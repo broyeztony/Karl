@@ -14,22 +14,22 @@ import (
 )
 
 const (
-	pipeBenchPayloadBytes = int64(64 * 1024 * 1024) // 64 MiB
-	pipeBenchBufferBytes  = int64(128 * 1024)       // 128 KiB
+	copyBenchPayloadBytes = int64(64 * 1024 * 1024) // 64 MiB
+	copyBenchBufferBytes  = int64(128 * 1024)       // 128 KiB
 )
 
-func BenchmarkPipeFileToFile64MiB(b *testing.B) {
-	benchPipeFileToFile(b, pipeBenchPayloadBytes)
+func BenchmarkCopyFileToFile64MiB(b *testing.B) {
+	benchCopyFileToFile(b, copyBenchPayloadBytes)
 }
 
-func BenchmarkPipeProcessStdoutToFile64MiB(b *testing.B) {
+func BenchmarkCopyProcessStdoutToFile64MiB(b *testing.B) {
 	if _, err := exec.LookPath("cat"); err != nil {
 		b.Skip("cat not found in PATH")
 	}
-	benchPipeProcessStdoutToFile(b, pipeBenchPayloadBytes)
+	benchCopyProcessStdoutToFile(b, copyBenchPayloadBytes)
 }
 
-func benchPipeFileToFile(b *testing.B, payloadBytes int64) {
+func benchCopyFileToFile(b *testing.B, payloadBytes int64) {
 	tempDir := b.TempDir()
 	inPath := filepath.Join(tempDir, "in.bin")
 	outPath := filepath.Join(tempDir, "out.bin")
@@ -38,11 +38,11 @@ func benchPipeFileToFile(b *testing.B, payloadBytes int64) {
 	source := fmt.Sprintf(`
 let src = reader(%q, { type: BYTES, })
 let dst = writer(%q, { type: BYTES, })
-let st = pipe(src, dst, { bufferSize: %d, })
+let st = copy(src, dst, { bufferSize: %d, })
 src.close()
 dst.close()
 st.bytes
-`, inPath, outPath, pipeBenchBufferBytes)
+`, inPath, outPath, copyBenchBufferBytes)
 	program := mustParseBenchProgram(b, source)
 
 	b.ReportAllocs()
@@ -60,7 +60,7 @@ st.bytes
 	}
 }
 
-func benchPipeProcessStdoutToFile(b *testing.B, payloadBytes int64) {
+func benchCopyProcessStdoutToFile(b *testing.B, payloadBytes int64) {
 	tempDir := b.TempDir()
 	inPath := filepath.Join(tempDir, "in.bin")
 	outPath := filepath.Join(tempDir, "out.bin")
@@ -69,12 +69,12 @@ func benchPipeProcessStdoutToFile(b *testing.B, payloadBytes int64) {
 	source := fmt.Sprintf(`
 let p = proc(cmd({ command: "cat", args: [%q], }), { stdOut: PIPE, stdErr: NULL, })
 let dst = writer(%q, { type: BYTES, })
-let st = pipe(p.stdout, dst, { bufferSize: %d, })
+let st = copy(p.stdout, dst, { bufferSize: %d, })
 dst.close()
 let ps = wait p
 if !ps.ok { fail("cat failed") }
 st.bytes
-`, inPath, outPath, pipeBenchBufferBytes)
+`, inPath, outPath, copyBenchBufferBytes)
 	program := mustParseBenchProgram(b, source)
 
 	b.ReportAllocs()

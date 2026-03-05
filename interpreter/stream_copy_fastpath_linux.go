@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func streamPipeTryFastCopy(src io.Reader, dst io.Writer, bufferSize int) (int64, int64, bool, error) {
+func streamCopyTryFastPath(src io.Reader, dst io.Writer, bufferSize int) (int64, int64, bool, error) {
 	srcFD, ok := streamFD(src)
 	if !ok {
 		return 0, 0, false, nil
@@ -19,7 +19,7 @@ func streamPipeTryFastCopy(src io.Reader, dst io.Writer, bufferSize int) (int64,
 		return 0, 0, false, nil
 	}
 	if bufferSize <= 0 {
-		bufferSize = defaultPipeBufferSize
+		bufferSize = defaultStreamCopyBuffer
 	}
 
 	srcPipe, srcRegular, ok := streamFDKinds(srcFD)

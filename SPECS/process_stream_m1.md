@@ -22,7 +22,7 @@ Status: implementation contract for first stream-native process/runtime pass.
 - `run(cmdOrPipeline, opts?) -> RunStatus`
 - `reader(path, opts?) -> <stream-reader>`
 - `writer(path, opts?) -> <stream-writer>`
-- `pipe(srcReader, dstWriter, opts?) -> { bytes, chunks }`
+- `copy(srcReader, dstWriter, opts?) -> { bytes, chunks }`
 - `encodeUtf8(text) -> Bytes`
 - `decodeUtf8(bytes) -> String`
 - `bytesJoin(arrayOfBytes) -> Bytes`
@@ -85,7 +85,7 @@ Status: implementation contract for first stream-native process/runtime pass.
 - `type` in `"bytes" | "text"` (default `"bytes"`)
 - `append` bool (default `false`)
 
-### `pipe(src, dst, opts)`
+### `copy(src, dst, opts)`
 
 - `bufferSize` integer > 0 (default `32768`)
 

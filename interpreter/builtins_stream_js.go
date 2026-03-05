@@ -5,7 +5,7 @@ package interpreter
 func registerStreamBuiltins() {
 	builtins["reader"] = &Builtin{Name: "reader", Fn: builtinReader}
 	builtins["writer"] = &Builtin{Name: "writer", Fn: builtinWriter}
-	builtins["pipe"] = &Builtin{Name: "pipe", Fn: builtinPipe}
+	builtins["copy"] = &Builtin{Name: "copy", Fn: builtinCopy}
 }
 
 func builtinReader(_ *Evaluator, args []Value) (Value, error) {
@@ -22,9 +22,9 @@ func builtinWriter(_ *Evaluator, args []Value) (Value, error) {
 	return nil, recoverableError("stream_open", "stream API is not supported in this runtime")
 }
 
-func builtinPipe(_ *Evaluator, args []Value) (Value, error) {
+func builtinCopy(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) < 2 || len(args) > 3 {
-		return nil, &RuntimeError{Message: "pipe expects (srcReader, dstWriter, opts?)"}
+		return nil, &RuntimeError{Message: "copy expects (srcReader, dstWriter, opts?)"}
 	}
 	return nil, recoverableError("stream_state", "stream API is not supported in this runtime")
 }

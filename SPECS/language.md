@@ -196,7 +196,7 @@ if user == null { exit("user not found") }
 
 // Process model reference:
 // - SPECS/process.md is the normative source for cmd/proc/run, stream built-ins
-//   (reader/writer/pipe) and process streams (p.stdin/p.stdout/p.stderr),
+//   (reader/writer/copy) and process streams (p.stdin/p.stdout/p.stderr),
 //   process status objects, and pipeline (`|`) semantics.
 
 // Program args (only values passed after `--` in `karl run`)

@@ -13,8 +13,8 @@ const (
 	streamTypeText  = "text"
 	streamTypeBytes = "bytes"
 
-	defaultStreamReadSize = 4096
-	defaultPipeBufferSize = 32768
+	defaultStreamReadSize   = 4096
+	defaultStreamCopyBuffer = 32768
 )
 
 type StreamReader struct {

@@ -7,7 +7,7 @@ This document is the normative specification for Karl process execution, process
 This specification defines:
 - process value types (`<cmd>`, `<pipeline>`, `<process>`)
 - process built-ins (`cmd`, `proc`, `run`)
-- stream built-ins (`reader`, `writer`, `pipe`)
+- stream built-ins (`reader`, `writer`, `copy`)
 - process stream properties (`p.stdin`, `p.stdout`, `p.stderr`)
 - pipeline composition via `|`
 - process lifecycle and waiting semantics
@@ -103,10 +103,10 @@ Options:
 - `type: "bytes" | "text"` (optional, default `"bytes"`)
 - `append: Bool` (optional, default `false`)
 
-### `pipe`
+### `copy`
 
 Signature:
-- `pipe(srcReader, dstWriter, opts?) -> { bytes, chunks }`
+- `copy(srcReader, dstWriter, opts?) -> { bytes, chunks }`
 - `encodeUtf8(text) -> Bytes`
 - `decodeUtf8(bytes) -> String`
 - `bytesJoin(arrayOfBytes) -> Bytes`
@@ -306,7 +306,7 @@ wait p
 ```karl
 let src = reader("input.log", { type: BYTES, })
 let dst = writer("copy.log", { type: BYTES, })
-let stats = pipe(src, dst, { bufferSize: 65536, })
+let stats = copy(src, dst, { bufferSize: 65536, })
 src.close()
 dst.close()
 log(stats)

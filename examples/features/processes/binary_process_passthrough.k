@@ -27,8 +27,8 @@ let p = proc(cmd({ command: "cat", }), {
 })
 
 // Run input and output transfer concurrently to avoid pipe deadlocks.
-let inTask = & (() -> pipe(reader(srcPath, { type: BYTES, }), p.stdin, { bufferSize: 4, }))()
-let outTask = & (() -> pipe(p.stdout, writer(dstPath, { type: BYTES, }), { bufferSize: 4, }))()
+let inTask = & copy(reader(srcPath, { type: BYTES, }), p.stdin, { bufferSize: 4, })
+let outTask = & copy(p.stdout, writer(dstPath, { type: BYTES, }), { bufferSize: 4, })
 
 // Once input transfer is done, close stdin to let cat exit cleanly.
 let inStats = wait inTask
