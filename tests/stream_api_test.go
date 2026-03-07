@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestStreamCopyFileRoundTrip(t *testing.T) {
+func TestStreamReadWritePipelineRoundTrip(t *testing.T) {
 	tempDir := t.TempDir()
 	inPath := filepath.Join(tempDir, "in.txt")
 	outPath := filepath.Join(tempDir, "out.txt")
@@ -17,28 +17,23 @@ func TestStreamCopyFileRoundTrip(t *testing.T) {
 	}
 
 	input := fmt.Sprintf(`
-let src = reader(%q, { type: BYTES, })
-let dst = writer(%q, { type: BYTES, })
-let st = copy(src, dst, { bufferSize: 3, })
-src.close()
-dst.close()
-{ bytes: st.bytes, chunks: st.chunks, out: readFile(%q), }
+let result = read(%q, { type: BYTES, }) | write(%q, { type: BYTES, })
+;
+[result, readFile(%q)]
 `, inPath, outPath, outPath)
 
 	val, err := evalInput(t, input)
 	if err != nil {
 		t.Fatalf("eval error: %v", err)
 	}
-	obj, ok := val.(*Object)
+	arr, ok := val.(*Array)
 	if !ok {
-		t.Fatalf("expected object, got %T", val)
+		t.Fatalf("expected array, got %T", val)
 	}
-	assertInteger(t, obj.Pairs["bytes"], int64(len(content)))
-	chunks, ok := obj.Pairs["chunks"].(*Integer)
-	if !ok || chunks.Value <= 0 {
-		t.Fatalf("expected chunks > 0, got %v", obj.Pairs["chunks"])
+	if arr.Elements[0] == nil || arr.Elements[0].Inspect() != "()" {
+		t.Fatalf("expected Unit pipeline result, got %v", arr.Elements[0])
 	}
-	assertString(t, obj.Pairs["out"], content)
+	assertString(t, arr.Elements[1], content)
 }
 
 func TestStreamReadWriteAndEOF(t *testing.T) {

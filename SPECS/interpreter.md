@@ -241,7 +241,6 @@ Ordering requires comparable keys; otherwise runtime error.
   - Overflow mode defaults to `"truncate"`; `"error"` raises recoverable `process_output_limit`.
 - `reader(path, opts?) -> <stream-reader>`
 - `writer(path, opts?) -> <stream-writer>`
-- `copy(srcReader, dstWriter, opts?) -> { bytes, chunks }`
 - `read(path, opts?) -> <stream-source>`
 - `lines() -> <stream-stage>`
 - `stdout() | write(path, opts?) | collect() -> <stream-sink>`
@@ -563,7 +562,6 @@ Implementation details (current runtime):
 - `run(spec, opts?)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
 - `reader(path, opts?)` -> StreamReader
 - `writer(path, opts?)` -> StreamWriter
-- `copy(srcReader, dstWriter, opts?)` -> `{ bytes, chunks }`
 - process/string constants:
   - `PIPE = "pipe"`
   - `INHERIT = "inherit"`

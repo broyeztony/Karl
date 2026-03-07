@@ -26,15 +26,27 @@ let p = proc({ command: "cat", }, {
     stdoutType: BYTES,
 })
 
-// Run input and output transfer concurrently to avoid copy deadlocks.
-let inTask = & copy(reader(srcPath, { type: BYTES, }), p.stdin, { bufferSize: 4, })
-let outTask = & copy(p.stdout, writer(dstPath, { type: BYTES, }), { bufferSize: 4, })
+let pump = (src, dst, chunkSize) -> for true with bytes = 0, chunks = 0 {
+    let [chunk, eof] = src.read(chunkSize)
+    if eof { break { bytes: bytes, chunks: chunks, } }
+    bytes += dst.write(chunk)
+    chunks += 1
+} then ()
+
+let srcReader = reader(srcPath, { type: BYTES, })
+let dstWriter = writer(dstPath, { type: BYTES, })
+
+// Run input and output transfer concurrently to avoid stdin/stdout deadlocks.
+let inTask = & pump(srcReader, p.stdin, 4)
+let outTask = & pump(p.stdout, dstWriter, 4)
 
 // Once input transfer is done, close stdin to let cat exit cleanly.
 let inStats = wait inTask
+srcReader.close() ? {}
 p.stdin.close() ? {}
 let status = wait p
 let outStats = wait outTask
+dstWriter.close() ? {}
 
 // Validate payload identity.
 let cmp = run({

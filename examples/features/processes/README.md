@@ -1,6 +1,6 @@
 # Karl Process API Examples
 
-These examples show how `cmd`/`proc`/`run` + streams make Karl a practical systems language.
+These examples show how `proc`/`run` + streams make Karl a practical systems language.
 
 ## Files
 
@@ -8,9 +8,9 @@ These examples show how `cmd`/`proc`/`run` + streams make Karl a practical syste
 - `text_analytics_pipeline.k`: Unix text analytics pipeline executed via a single process stage.
 - `stream_and_abort.k`: long-running process control (`pid`, `running`, `abort`, `wait`).
 - `streaming_pipeline_channels.k`: live pipeline streaming with stream reads + channel event fan-in.
-- `binary_stream_copy.k`: binary file streaming with `reader`/`writer`/`copy` in `BYTES` mode.
+- `binary_stream_copy.k`: binary file streaming with `read(...) | write(...)` in `BYTES` mode.
 - `binary_process_passthrough.k`: binary bytes passthrough through `proc` using `p.stdin`/`p.stdout`.
-- `binary_chunk_loop_reconstruct.k`: manual `read()` chunk loop in `BYTES` mode + `bytesJoin(...)` reconstruction (no `copy`).
+- `binary_chunk_loop_reconstruct.k`: manual `read()` chunk loop in `BYTES` mode + `bytesJoin(...)` reconstruction.
 - `infinite_random_even_filter.k`: fast producer vs slow consumers, sequential baseline vs concurrent filter+writer pipeline on BYTES streams.
 
 ## Run

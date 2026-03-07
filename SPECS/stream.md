@@ -98,14 +98,10 @@ buffering that violates backpressure guarantees.
 
 - `reader(path, opts?) -> <stream-reader>`
 - `writer(path, opts?) -> <stream-writer>`
-- `copy(srcReader, dstWriter, opts?) -> { bytes, chunks }`
 
 `reader`/`writer` options:
 - `type: "bytes" | "text"` (optional, default `"bytes"`)
 - `writer.append: Bool` (optional)
-
-`copy` options:
-- `bufferSize: Int` (optional, default `32768`)
 
 ## Stream members
 
@@ -182,13 +178,8 @@ let rows = read("events.log") | lines() | collect()
 log(rows.length)
 ```
 
-File copy:
+File write pipeline:
 
 ```karl
-let src = reader("in.bin", { type: BYTES, })
-let dst = writer("out.bin", { type: BYTES, })
-let st = copy(src, dst, { bufferSize: 65536, })
-src.close()
-dst.close()
-log(st)
+read("in.bin", { type: BYTES, }) | write("out.bin", { type: BYTES, })
 ```

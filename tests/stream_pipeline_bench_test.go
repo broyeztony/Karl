@@ -14,35 +14,29 @@ import (
 )
 
 const (
-	copyBenchPayloadBytes = int64(64 * 1024 * 1024) // 64 MiB
-	copyBenchBufferBytes  = int64(128 * 1024)       // 128 KiB
+	streamBenchPayloadBytes = int64(64 * 1024 * 1024) // 64 MiB
 )
 
-func BenchmarkCopyFileToFile64MiB(b *testing.B) {
-	benchCopyFileToFile(b, copyBenchPayloadBytes)
+func BenchmarkPipelineFileToFile64MiB(b *testing.B) {
+	benchPipelineFileToFile(b, streamBenchPayloadBytes)
 }
 
-func BenchmarkCopyProcessStdoutToFile64MiB(b *testing.B) {
+func BenchmarkPipelineProcessStdoutToFile64MiB(b *testing.B) {
 	if _, err := exec.LookPath("cat"); err != nil {
 		b.Skip("cat not found in PATH")
 	}
-	benchCopyProcessStdoutToFile(b, copyBenchPayloadBytes)
+	benchPipelineProcessStdoutToFile(b, streamBenchPayloadBytes)
 }
 
-func benchCopyFileToFile(b *testing.B, payloadBytes int64) {
+func benchPipelineFileToFile(b *testing.B, payloadBytes int64) {
 	tempDir := b.TempDir()
 	inPath := filepath.Join(tempDir, "in.bin")
 	outPath := filepath.Join(tempDir, "out.bin")
 	mustWriteBenchFixture(b, inPath, payloadBytes)
 
 	source := fmt.Sprintf(`
-let src = reader(%q, { type: BYTES, })
-let dst = writer(%q, { type: BYTES, })
-let st = copy(src, dst, { bufferSize: %d, })
-src.close()
-dst.close()
-st.bytes
-`, inPath, outPath, copyBenchBufferBytes)
+read(%q, { type: BYTES, }) | write(%q, { type: BYTES, })
+`, inPath, outPath)
 	program := mustParseBenchProgram(b, source)
 
 	b.ReportAllocs()
@@ -50,17 +44,20 @@ st.bytes
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		val := mustEvalBenchProgram(b, source, program)
-		n, ok := val.(*interpreter.Integer)
-		if !ok {
-			b.Fatalf("expected integer bytes result, got %T", val)
+		if val == nil || val.Inspect() != "()" {
+			b.Fatalf("expected unit result, got %v", val)
 		}
-		if n.Value != payloadBytes {
-			b.Fatalf("expected %d bytes, got %d", payloadBytes, n.Value)
+		info, err := os.Stat(outPath)
+		if err != nil {
+			b.Fatalf("stat output: %v", err)
+		}
+		if info.Size() != payloadBytes {
+			b.Fatalf("expected %d bytes, got %d", payloadBytes, info.Size())
 		}
 	}
 }
 
-func benchCopyProcessStdoutToFile(b *testing.B, payloadBytes int64) {
+func benchPipelineProcessStdoutToFile(b *testing.B, payloadBytes int64) {
 	tempDir := b.TempDir()
 	inPath := filepath.Join(tempDir, "in.bin")
 	outPath := filepath.Join(tempDir, "out.bin")
@@ -68,13 +65,11 @@ func benchCopyProcessStdoutToFile(b *testing.B, payloadBytes int64) {
 
 	source := fmt.Sprintf(`
 let p = proc({ command: "cat", args: [%q], }, { stdout: PIPE, stderr: NULL, })
-let dst = writer(%q, { type: BYTES, })
-let st = copy(p.stdout, dst, { bufferSize: %d, })
-dst.close()
+let _ = p.stdout | write(%q, { type: BYTES, })
 let ps = wait p
 if !ps.ok { fail("cat failed") }
-st.bytes
-`, inPath, outPath, copyBenchBufferBytes)
+()
+`, inPath, outPath)
 	program := mustParseBenchProgram(b, source)
 
 	b.ReportAllocs()
@@ -82,12 +77,15 @@ st.bytes
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		val := mustEvalBenchProgram(b, source, program)
-		n, ok := val.(*interpreter.Integer)
-		if !ok {
-			b.Fatalf("expected integer bytes result, got %T", val)
+		if val == nil || val.Inspect() != "()" {
+			b.Fatalf("expected unit result, got %v", val)
 		}
-		if n.Value != payloadBytes {
-			b.Fatalf("expected %d bytes, got %d", payloadBytes, n.Value)
+		info, err := os.Stat(outPath)
+		if err != nil {
+			b.Fatalf("stat output: %v", err)
+		}
+		if info.Size() != payloadBytes {
+			b.Fatalf("expected %d bytes, got %d", payloadBytes, info.Size())
 		}
 	}
 }

@@ -17,12 +17,8 @@ let seed = run({
 
 if !seed.ok { fail("seed failed") }
 
-// Byte-for-byte copy using stream handles.
-let copied = copy(
-    reader(srcPath, { type: BYTES, }),
-    writer(dstPath, { type: BYTES, }),
-    { bufferSize: 3, }
-)
+// Byte-for-byte copy using a stream pipeline.
+let _ = read(srcPath, { type: BYTES, }) | write(dstPath, { type: BYTES, })
 
 // Validate payload identity.
 let cmp = run({
@@ -43,7 +39,6 @@ let hex = run({
 })
 
 {
-    copied,
     identical: cmp.ok,
     hex: hex.output,
 }
