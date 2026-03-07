@@ -4,6 +4,7 @@ import (
 	"karl/ast"
 	"karl/lexer"
 	"karl/parser"
+	"strings"
 	"testing"
 )
 
@@ -97,15 +98,19 @@ let fastest = race { taskA(), taskB() }`
 func TestPipelineOperatorParsing(t *testing.T) {
 	input := `let p = cmd({ command: "echo", args: ["hi"], }) | cmd({ command: "wc", args: ["-c"], })`
 	p := parser.New(lexer.New(input))
-	program := p.ParseProgram()
-	checkParserErrors(t, p)
-
-	stmt := program.Statements[0].(*ast.LetStatement)
-	infix, ok := stmt.Value.(*ast.InfixExpression)
-	if !ok {
-		t.Fatalf("expected InfixExpression, got %T", stmt.Value)
+	_ = p.ParseProgram()
+	errors := p.Errors()
+	if len(errors) == 0 {
+		t.Fatalf("expected parse error")
 	}
-	if infix.Operator != "|" {
-		t.Fatalf("expected '|', got %q", infix.Operator)
+	found := false
+	for _, err := range errors {
+		if strings.Contains(err, "command composition with '|' has been removed") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected migration parse error, got %v", errors)
 	}
 }

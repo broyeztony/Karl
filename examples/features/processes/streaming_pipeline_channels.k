@@ -8,11 +8,12 @@
 // Run:
 //   karl run examples/features/processes/streaming_pipeline_channels.k
 
-let plan =
-    cmd({ command: "sh", args: ["-c", "i=1; while [ $i -le 12 ]; do echo \"evt-$i\"; i=$((i+1)); sleep 0.15; done"], }) |
-    cmd({ command: "awk", args: ["{ print toupper($0); fflush() }"], })
+let stage = cmd({
+    command: "sh",
+    args: ["-c", "i=1; while [ $i -le 12 ]; do echo \"evt-$i\"; i=$((i+1)); sleep 0.15; done | awk '{ print toupper($0); fflush() }'"],
+})
 
-let p = proc(plan, {
+let p = proc(stage, {
     stdIn: NULL,
     stdOut: PIPE,
     stdErr: PIPE,

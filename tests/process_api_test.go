@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"karl/lexer"
+	"karl/parser"
 	"os"
 	"path/filepath"
 	"strings"
@@ -498,81 +500,31 @@ decodeUtf8(chunk) ? { error.kind }
 	assertString(t, val, "utf8_decode")
 }
 
-func TestProcPipelineComposition(t *testing.T) {
+func TestProcessPipeOperatorMigrationError(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
 let plan =
     cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
     | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
-
-let p = proc(plan, {
-    stdOut: "pipe",
-    stdErr: "pipe",
-    stdIn: "null",
-    stdoutType: "text",
-    stderrType: "text",
-})
-
-let collect = s -> for true with acc = "" {
-    let [chunk, eof] = s.read()
-    if eof { break acc }
-    acc = acc + chunk
-} then acc
-
-let out = collect(p.stdout)
-let st = wait p
-;
-[st.ok, out]
+plan
 `, bin, bin)
 
-	val, err := evalInput(t, input)
-	if err != nil {
-		t.Fatalf("eval error: %v", err)
+	p := parser.New(lexer.New(input))
+	_ = p.ParseProgram()
+	errors := p.Errors()
+	if len(errors) == 0 {
+		t.Fatalf("expected parse error")
 	}
-	arr := val.(*Array)
-	assertBoolean(t, arr.Elements[0], true)
-	assertString(t, arr.Elements[1], "CAP|alpha\nbeta\n")
-}
-
-func TestProcPipelineCompositionRepeatedRuns(t *testing.T) {
-	bin := mustExecutable(t)
-	input := fmt.Sprintf(`
-let plan =
-    cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
-    | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
-
-let once = () -> {
-    let p = proc(plan, {
-        stdOut: "pipe",
-        stdErr: "pipe",
-        stdIn: "null",
-        stdoutType: "text",
-        stderrType: "text",
-    })
-
-    let collect = s -> for true with acc = "" {
-        let [chunk, eof] = s.read()
-        if eof { break acc }
-        acc = acc + chunk
-    } then acc
-
-    let out = collect(p.stdout)
-    let st = wait p
-    if !st.ok { fail("pipeline failed") }
-    out
-}
-
-for i < 20 with i = 0, last = "" {
-    last = once()
-    i++
-} then last
-`, bin, bin)
-
-	val, err := evalInput(t, input)
-	if err != nil {
-		t.Fatalf("eval error: %v", err)
+	found := false
+	for _, err := range errors {
+		if strings.Contains(err, "command composition with '|' has been removed") {
+			found = true
+			break
+		}
 	}
-	assertString(t, val, "CAP|alpha\nbeta\n")
+	if !found {
+		t.Fatalf("expected migration parse error, got %v", errors)
+	}
 }
 
 func TestStdOutRequiresPipeMode(t *testing.T) {

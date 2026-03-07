@@ -42,7 +42,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:         "pipe_without_left_operand",
 			input:        "wait | { fast(), slow() }",
-			errorContain: "expects command or pipeline on the left",
+			errorContain: "reserved for stream pipelines",
 		},
 		{
 			name:         "spawn_proc_is_rejected",
