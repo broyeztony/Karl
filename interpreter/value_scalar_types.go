@@ -25,8 +25,6 @@ const (
 	DB            ValueType = "DB"
 	TX            ValueType = "TX"
 	SERVER        ValueType = "SERVER"
-	CMD           ValueType = "CMD"
-	PIPELINE      ValueType = "PIPELINE"
 	PROCESS       ValueType = "PROCESS"
 	STREAM_SOURCE ValueType = "STREAM_SOURCE"
 	STREAM_STAGE  ValueType = "STREAM_STAGE"

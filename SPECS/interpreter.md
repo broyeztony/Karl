@@ -220,22 +220,18 @@ Ordering requires comparable keys; otherwise runtime error.
   - Reads one line from stdin and strips trailing newline.
   - Returns `null` on EOF.
   - I/O read failures are recoverable (`kind = "readLine"`).
-- Process execution/pipeline semantics are specified in `SPECS/process.md`.
-- `cmd({ command, args?, cwd?, env?, inheritEnv? }) -> <cmd>`
-  - Creates one process stage for pipeline composition.
-- `leftCmdOrPipeline | rightCmdOrPipeline -> <pipeline>`
-  - Composes command stages without starting any process.
-  - `|` is defined only for `<cmd>` / `<pipeline>` values.
-- `proc(cmdOrPipeline, opts?) -> <process>`
+- Process execution semantics are specified in `SPECS/process.md`.
+- Stream/pipeline semantics are specified in `SPECS/stream.md`.
+- `proc(spec, opts?) -> <process>`
   - Starts process execution immediately and returns a handle.
-  - First argument: `<cmd>` or `<pipeline>`.
+  - First argument: process spec object.
   - Optional `opts` supports:
     - stdio modes: `stdIn`, `stdOut`, `stdErr` in `"pipe" | "inherit" | "null"`
     - stream types: `stdinType`, `stdoutType`, `stderrType` in `"text" | "bytes"` (default `"bytes"`)
     - `timeoutMs`
-- `run(cmdOrPipeline, opts?) -> RunStatus`
+- `run(spec, opts?) -> RunStatus`
   - Blocking convenience API.
-  - First argument: `<cmd>` or `<pipeline>`.
+  - First argument: process spec object.
   - Optional `opts` supports:
     - `stdin` (string sent to stdin)
     - `timeoutMs`
@@ -246,6 +242,9 @@ Ordering requires comparable keys; otherwise runtime error.
 - `reader(path, opts?) -> <stream-reader>`
 - `writer(path, opts?) -> <stream-writer>`
 - `copy(srcReader, dstWriter, opts?) -> { bytes, chunks }`
+- `read(path, opts?) -> <stream-source>`
+- `lines() -> <stream-stage>`
+- `stdout() | write(path, opts?) | collect() -> <stream-sink>`
 - Process stream properties:
   - `process.stdin -> <stream-writer>`
   - `process.stdout -> <stream-reader>`

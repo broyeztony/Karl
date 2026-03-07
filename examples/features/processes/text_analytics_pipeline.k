@@ -16,10 +16,10 @@ let corpus =
     "Composable APIs matter for production automation.\n" +
     "Production automation benefits from clear syntax.\n"
 
-let stage = cmd({
+let stage = {
     command: "sh",
     args: ["-c", "tr A-Z a-z | tr -cs 'a-z' '\\n' | sort | uniq -c | sort -nr | head -n 8"],
-})
+}
 
 // Force TEXT mode: this pipeline is textual analytics.
 let p = proc(stage, {

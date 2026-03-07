@@ -85,12 +85,12 @@ func TestStreamPipeRejectsInvalidRightOperand(t *testing.T) {
 func TestProcessStdoutAsPipelineSource(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let p = proc(cmd({
+let p = proc({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "emit"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
-}), {
+}, {
     stdOut: PIPE,
     stdErr: NULL,
     stdoutType: TEXT,

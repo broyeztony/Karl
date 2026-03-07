@@ -64,7 +64,7 @@ func TestRunReturnsCapturedStatus(t *testing.T) {
 	tempDir := t.TempDir()
 
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
     cwd: %q,
@@ -73,7 +73,7 @@ let stage = cmd({
         KARL_PROCESS_TEST_ENV: "karl-env",
     },
     inheritEnv: true,
-})
+}
 
 let st = run(stage, {
     stdin: "ping",
@@ -116,12 +116,12 @@ st
 func TestRunNonZeroExitReturnsStatus(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "exit7"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
-})
+}
 let st = run(stage)
 ;
 [st.ok, st.code, st.output, st.error]
@@ -144,12 +144,12 @@ let st = run(stage)
 func TestRunTruncatesByDefault(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "bigout"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
-})
+}
 let st = run(stage, {
     maxOutputBytes: 64,
 })
@@ -170,12 +170,12 @@ let st = run(stage, {
 func TestRunOverflowErrorMode(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "bigout"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
-})
+}
 run(stage, {
     maxOutputBytes: 64,
     overflow: "error",
@@ -192,7 +192,7 @@ run(stage, {
 func TestProcWaitAndPipeStreams(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
     env: {
@@ -200,7 +200,7 @@ let stage = cmd({
         KARL_PROCESS_TEST_ENV: "chan",
     },
     inheritEnv: true,
-})
+}
 let p = proc(stage, {
     stdIn: "pipe",
     stdOut: "pipe",
@@ -250,7 +250,7 @@ let st = wait p
 func TestProcModeConstantsWork(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
     env: {
@@ -258,7 +258,7 @@ let stage = cmd({
         KARL_PROCESS_TEST_ENV: "const",
     },
     inheritEnv: true,
-})
+}
 let p = proc(stage, {
     stdIn: PIPE,
     stdOut: PIPE,
@@ -314,12 +314,12 @@ let st = wait p
 func TestProcTimeoutReturnsStatus(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "sleep"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
-})
+}
 let p = proc(stage, {
     timeoutMs: 20,
 })
@@ -340,7 +340,7 @@ let st = wait p
 func TestProcStreamsDefaultToBytes(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
     env: {
@@ -348,7 +348,7 @@ let stage = cmd({
         KARL_PROCESS_TEST_ENV: "bytes-default",
     },
     inheritEnv: true,
-})
+}
 let p = proc(stage, {
     stdIn: PIPE,
     stdOut: PIPE,
@@ -392,12 +392,12 @@ let st = wait p
 func TestProcBytesReadLoopThenWait(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let p = proc(cmd({
+let p = proc({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "capture"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
-}), {
+}, {
     stdIn: PIPE,
     stdOut: PIPE,
     stdErr: NULL,
@@ -436,12 +436,12 @@ let first = decodeUtf8(r[0])
 func TestProcSlowBytesReadBeforeWaitDoesNotTruncate(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let p = proc(cmd({
+let p = proc({
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "blob"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
-}), {
+}, {
     stdOut: PIPE,
     stdErr: NULL,
 })
@@ -476,12 +476,12 @@ let st = wait p
 func TestDecodeUtf8InvalidBytesRecoverable(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "badutf8"],
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
-})
+}
 let p = proc(stage, {
     stdOut: PIPE,
     stdErr: NULL,
@@ -501,8 +501,8 @@ decodeUtf8(chunk) ? { error.kind }
 func TestProcessPipeOperatorRuntimeError(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
-| cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
+{ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, }
+| { command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, }
 `, bin, bin)
 
 	_, err := evalInput(t, input)
@@ -517,12 +517,12 @@ cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env:
 func TestStdOutRequiresPipeMode(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let stage = cmd({
+let stage = {
     command: %q,
     args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
     env: { KARL_PROCESS_HELPER: "1", KARL_PROCESS_TEST_ENV: "state", },
     inheritEnv: true,
-})
+}
 let p = proc(stage, {
     stdOut: "null",
     stdErr: "null",

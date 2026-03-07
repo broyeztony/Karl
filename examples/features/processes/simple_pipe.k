@@ -9,11 +9,10 @@ let readAll = s -> for true with acc = "" {
 
 // Force TEXT mode because this demo aggregates string output.
 let p = proc(
-    cmd({
+    {
         command: "sh",
         args: ["-c", "printf '\\000\\001\\377\\020' | od -An -t x1 | tr -d ' \\n'; echo 'warn: sample stderr' 1>&2"],
-    }),
-    { stdOut: PIPE, stdErr: PIPE, stdIn: NULL, stdoutType: TEXT, stderrType: TEXT, }
+    }, { stdOut: PIPE, stdErr: PIPE, stdIn: NULL, stdoutType: TEXT, stderrType: TEXT, }
 )
 
 let outTask = & (() -> readAll(p.stdout))()

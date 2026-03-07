@@ -15,10 +15,10 @@ let takeBytes = (s, limit) -> for true with acc = "", n = 0 {
     acc = next
 } then { bytes: n, sample: acc[..200], }
 
-let p = proc(cmd({
+let p = proc({
     command: "yes",
     args: ["karl"],
-}), {
+}, {
     // Use TEXT mode to keep output preview logic simple in this demo.
     stdOut: PIPE,
     stdErr: PIPE,

@@ -194,10 +194,9 @@ if user == null { exit("user not found") }
 // 3.5 SYSTEM PRIMITIVES (PHASE 1)
 // ============================================
 
-// Process model reference:
-// - SPECS/process.md is the normative source for cmd/proc/run, stream built-ins
-//   (reader/writer/copy) and process streams (p.stdin/p.stdout/p.stderr),
-//   process status objects, and pipeline (`|`) semantics.
+// Runtime model references:
+// - SPECS/process.md is the normative source for proc/run/wait process semantics.
+// - SPECS/stream.md is the normative source for stream built-ins and `|` pipelines.
 
 // Program args (only values passed after `--` in `karl run`)
 let args = argv()           // [string]
@@ -209,26 +208,19 @@ let path = programPath()    // "file.k" | "<stdin>" | null
 let line = readLine() ? { null }
 
 // run() is the blocking convenience API.
-let st = run(cmd({ command: "echo", args: ["hello"], }))
+let st = run({ command: "echo", args: ["hello"], })
 if !st.ok { exit("command failed: " + str(st.code)) }
 log(st.output)
 
 // proc() starts a waitable/abortable process handle.
 // mode constants are available: PIPE, INHERIT, NULL (plus TEXT/BYTES aliases)
-let p = proc(cmd({ command: "cat", }), { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, })
+let p = proc({ command: "cat", }, { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, })
 let inStream = p.stdin
 inStream.write(encodeUtf8("hello\\n"))
 inStream.close()
 let [line, eof] = p.stdout.read()
 if !eof { log(decodeUtf8(line)) }
 wait p
-
-// cmd(...) + `|` builds process pipelines.
-let plan = cmd({ command: "printf", args: ["alpha\\nbeta\\n"], }) | cmd({ command: "wc", args: ["-l"], })
-let p2 = proc(plan, { stdOut: PIPE, })
-let [count, _] = p2.stdout.read()
-log(decodeUtf8(count))
-wait p2
 
 // recoverable process error kinds:
 // process_spawn, process_state, process_io, process_output_limit

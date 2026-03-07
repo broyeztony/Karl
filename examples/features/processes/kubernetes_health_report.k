@@ -9,10 +9,10 @@
 // Optional rollout check:
 //   karl run examples/features/processes/kubernetes_health_report.k -- <namespace> <deployment>
 
-let kRun = args -> run(cmd({
+let kRun = args -> run({
     command: "kubectl",
     args,
-}), {
+}, {
     maxOutputBytes: 8000000,
     overflow: "truncate",
 }) ? { fail("kubectl spawn error: " + error.message) }

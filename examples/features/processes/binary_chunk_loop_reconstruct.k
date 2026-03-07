@@ -7,7 +7,7 @@ let srcPath = "/tmp/karl-bin-loop-src.bin"
 let dstPath = "/tmp/karl-bin-loop-dst.bin"
 
 // Build a realistic binary payload: PNG signature + random bytes.
-let seed = run(cmd({
+let seed = run({
     command: "sh",
     args: [
         "-c",
@@ -15,7 +15,7 @@ let seed = run(cmd({
         "sh",
         srcPath,
     ],
-}), {
+}, {
     maxOutputBytes: 4096,
     overflow: "truncate",
 })
@@ -23,7 +23,7 @@ let seed = run(cmd({
 if !seed.ok { fail("seed failed") }
 
 // Stream BYTES from process stdout.
-let p = proc(cmd({ command: "cat", args: [srcPath], }), {
+let p = proc({ command: "cat", args: [srcPath], }, {
     stdOut: PIPE,
     stdErr: NULL,
     stdoutType: BYTES,
@@ -50,10 +50,10 @@ let written = w.write(payload)
 w.close()
 
 // Validate output equals input.
-let cmp = run(cmd({
+let cmp = run({
     command: "sh",
     args: ["-c", "cmp -s \"$1\" \"$2\"", "sh", srcPath, dstPath],
-}), {
+}, {
     maxOutputBytes: 4096,
     overflow: "truncate",
 })

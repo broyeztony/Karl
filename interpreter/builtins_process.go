@@ -36,20 +36,6 @@ type processStageSpec struct {
 	inheritEnv bool
 }
 
-type ProcessCommand struct {
-	Stage processStageSpec
-}
-
-func (c *ProcessCommand) Type() ValueType { return CMD }
-func (c *ProcessCommand) Inspect() string { return "<cmd>" }
-
-type ProcessPipeline struct {
-	Stages []processStageSpec
-}
-
-func (p *ProcessPipeline) Type() ValueType { return PIPELINE }
-func (p *ProcessPipeline) Inspect() string { return "<pipeline>" }
-
 type Process struct {
 	mu sync.Mutex
 
@@ -322,29 +308,13 @@ type processSpec struct {
 }
 
 func registerProcessBuiltins() {
-	builtins["cmd"] = &Builtin{Name: "cmd", Fn: builtinCmd}
 	builtins["proc"] = &Builtin{Name: "proc", Fn: builtinProc}
 	builtins["run"] = &Builtin{Name: "run", Fn: builtinRun}
 }
 
-func builtinCmd(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "cmd expects 1 object argument"}
-	}
-	pairs, ok := objectPairs(args[0])
-	if !ok {
-		return nil, &RuntimeError{Message: "cmd expects object spec"}
-	}
-	stage, err := parseProcessStageFromPairs(pairs)
-	if err != nil {
-		return nil, err
-	}
-	return &ProcessCommand{Stage: stage}, nil
-}
-
 func builtinProc(e *Evaluator, args []Value) (Value, error) {
 	if len(args) < 1 || len(args) > 2 {
-		return nil, &RuntimeError{Message: "proc expects (cmdOrPipeline, opts?)"}
+		return nil, &RuntimeError{Message: "proc expects (spec, opts?)"}
 	}
 	spec, err := parseProcSpec(args)
 	if err != nil {
@@ -359,7 +329,7 @@ func builtinProc(e *Evaluator, args []Value) (Value, error) {
 
 func builtinRun(e *Evaluator, args []Value) (Value, error) {
 	if len(args) < 1 || len(args) > 2 {
-		return nil, &RuntimeError{Message: "run expects (cmdOrPipeline, opts?)"}
+		return nil, &RuntimeError{Message: "run expects (spec, opts?)"}
 	}
 	spec, err := parseRunSpec(args)
 	if err != nil {
@@ -444,11 +414,11 @@ func parseProcSpec(args []Value) (processSpec, error) {
 		stdoutType: streamTypeBytes,
 		stderrType: streamTypeBytes,
 	}
-	stages, err := parseProcessPlanStages(args[0])
+	stage, err := parseProcessStageValue(args[0])
 	if err != nil {
-		return processSpec{}, &RuntimeError{Message: "proc expects cmd or pipeline as first argument"}
+		return processSpec{}, &RuntimeError{Message: "proc first argument must be process spec object"}
 	}
-	spec.stages = stages
+	spec.stages = []processStageSpec{stage}
 
 	if len(args) == 1 || Equivalent(args[1], NullValue) {
 		return spec, nil
@@ -524,11 +494,11 @@ func parseRunSpec(args []Value) (processSpec, error) {
 		maxOutputBytes: defaultProcessCaptureBytes,
 		overflow:       processOverflowTruncate,
 	}
-	stages, err := parseProcessPlanStages(args[0])
+	stage, err := parseProcessStageValue(args[0])
 	if err != nil {
-		return processSpec{}, &RuntimeError{Message: "run expects cmd or pipeline as first argument"}
+		return processSpec{}, &RuntimeError{Message: "run first argument must be process spec object"}
 	}
-	spec.stages = stages
+	spec.stages = []processStageSpec{stage}
 
 	if len(args) == 1 || Equivalent(args[1], NullValue) {
 		return spec, nil
@@ -580,33 +550,30 @@ func parseRunSpec(args []Value) (processSpec, error) {
 	return spec, nil
 }
 
-func parseProcessPlanStages(val Value) ([]processStageSpec, error) {
-	switch v := val.(type) {
-	case *ProcessCommand:
-		return []processStageSpec{v.Stage}, nil
-	case *ProcessPipeline:
-		return append([]processStageSpec(nil), v.Stages...), nil
-	default:
-		return nil, &RuntimeError{Message: "expects cmd or pipeline"}
+func parseProcessStageValue(val Value) (processStageSpec, error) {
+	pairs, ok := objectPairs(val)
+	if !ok {
+		return processStageSpec{}, &RuntimeError{Message: "process spec must be object"}
 	}
+	return parseProcessStageFromPairs(pairs)
 }
 
 func parseProcessStageFromPairs(pairs map[string]Value) (processStageSpec, error) {
 	commandVal, ok := pairs["command"]
 	if !ok {
-		return processStageSpec{}, &RuntimeError{Message: "cmd spec expects command"}
+		return processStageSpec{}, &RuntimeError{Message: "process spec expects command"}
 	}
 	command, ok := stringArg(commandVal)
 	if !ok {
-		return processStageSpec{}, &RuntimeError{Message: "cmd command must be string"}
+		return processStageSpec{}, &RuntimeError{Message: "process command must be string"}
 	}
 	if strings.TrimSpace(command) == "" {
-		return processStageSpec{}, &RuntimeError{Message: "cmd command must not be empty"}
+		return processStageSpec{}, &RuntimeError{Message: "process command must not be empty"}
 	}
 	stage := processStageSpec{command: command, inheritEnv: true}
 
 	if argsVal, ok := pairs["args"]; ok && !Equivalent(argsVal, NullValue) {
-		args, err := parseProcessArgs(argsVal, "cmd args")
+		args, err := parseProcessArgs(argsVal, "process args")
 		if err != nil {
 			return processStageSpec{}, err
 		}
@@ -615,7 +582,7 @@ func parseProcessStageFromPairs(pairs map[string]Value) (processStageSpec, error
 	if cwdVal, ok := pairs["cwd"]; ok && !Equivalent(cwdVal, NullValue) {
 		cwd, ok := stringArg(cwdVal)
 		if !ok {
-			return processStageSpec{}, &RuntimeError{Message: "cmd cwd must be string"}
+			return processStageSpec{}, &RuntimeError{Message: "process cwd must be string"}
 		}
 		stage.cwd = cwd
 	}
@@ -629,7 +596,7 @@ func parseProcessStageFromPairs(pairs map[string]Value) (processStageSpec, error
 	if inheritVal, ok := pairs["inheritEnv"]; ok && !Equivalent(inheritVal, NullValue) {
 		inherit, ok := inheritVal.(*Boolean)
 		if !ok {
-			return processStageSpec{}, &RuntimeError{Message: "cmd inheritEnv must be bool"}
+			return processStageSpec{}, &RuntimeError{Message: "process inheritEnv must be bool"}
 		}
 		stage.inheritEnv = inherit.Value
 	}
@@ -726,32 +693,6 @@ func firstDefinedValue(pairs map[string]Value, keys ...string) (Value, bool) {
 		}
 	}
 	return nil, false
-}
-
-func processPipeInfix(left Value, right Value) (Value, error) {
-	leftStages, err := processStagesFromValue(left)
-	if err != nil {
-		return nil, err
-	}
-	rightStages, err := processStagesFromValue(right)
-	if err != nil {
-		return nil, err
-	}
-	combined := make([]processStageSpec, 0, len(leftStages)+len(rightStages))
-	combined = append(combined, leftStages...)
-	combined = append(combined, rightStages...)
-	return &ProcessPipeline{Stages: combined}, nil
-}
-
-func processStagesFromValue(v Value) ([]processStageSpec, error) {
-	switch p := v.(type) {
-	case *ProcessCommand:
-		return []processStageSpec{p.Stage}, nil
-	case *ProcessPipeline:
-		return append([]processStageSpec(nil), p.Stages...), nil
-	default:
-		return nil, &RuntimeError{Message: "operator '|' expects cmd or pipeline operands"}
-	}
 }
 
 func processAwaitWithCancel(p *Process, cancelCh <-chan struct{}, runtime *runtimeState) (Value, *Signal, error) {
