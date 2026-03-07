@@ -67,7 +67,7 @@ func benchCopyProcessStdoutToFile(b *testing.B, payloadBytes int64) {
 	mustWriteBenchFixture(b, inPath, payloadBytes)
 
 	source := fmt.Sprintf(`
-let p = proc({ command: "cat", args: [%q], }, { stdOut: PIPE, stdErr: NULL, })
+let p = proc({ command: "cat", args: [%q], }, { stdout: PIPE, stderr: NULL, })
 let dst = writer(%q, { type: BYTES, })
 let st = copy(p.stdout, dst, { bufferSize: %d, })
 dst.close()

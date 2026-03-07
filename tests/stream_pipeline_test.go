@@ -91,8 +91,8 @@ let p = proc({
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
 }, {
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdout: PIPE,
+    stderr: NULL,
     stdoutType: TEXT,
 })
 let linesOut = p.stdout | lines() | collect()

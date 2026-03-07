@@ -19,9 +19,9 @@ if !seed.ok { fail("seed failed") }
 
 // cat echoes stdin -> stdout. Keep stdio in BYTES mode.
 let p = proc({ command: "cat", }, {
-    stdIn: PIPE,
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdin: PIPE,
+    stdout: PIPE,
+    stderr: NULL,
     stdinType: BYTES,
     stdoutType: BYTES,
 })

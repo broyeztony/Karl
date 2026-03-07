@@ -343,11 +343,11 @@ func builtinRun(e *Evaluator, args []Value) (Value, error) {
 
 	stdout, ok := process.outputStream()
 	if !ok {
-		return nil, recoverableError("process_state", "run capture unavailable: stdOut is not piped")
+		return nil, recoverableError("process_state", "run capture unavailable: stdout is not piped")
 	}
 	stderr, ok := process.errorStream()
 	if !ok {
-		return nil, recoverableError("process_state", "run capture unavailable: stdErr is not piped")
+		return nil, recoverableError("process_state", "run capture unavailable: stderr is not piped")
 	}
 
 	type captureResult struct {
@@ -416,7 +416,7 @@ func parseProcSpec(args []Value) (processSpec, error) {
 	}
 	stage, err := parseProcessStageValue(args[0])
 	if err != nil {
-		return processSpec{}, &RuntimeError{Message: "proc first argument must be process spec object"}
+		return processSpec{}, err
 	}
 	spec.stages = []processStageSpec{stage}
 
@@ -426,6 +426,17 @@ func parseProcSpec(args []Value) (processSpec, error) {
 	pairs, ok := objectPairs(args[1])
 	if !ok {
 		return processSpec{}, &RuntimeError{Message: "proc options must be object"}
+	}
+	if err := rejectUnknownObjectKeys(pairs, "proc options", []string{
+		"timeoutMs",
+		"stdin",
+		"stdout",
+		"stderr",
+		"stdinType",
+		"stdoutType",
+		"stderrType",
+	}); err != nil {
+		return processSpec{}, err
 	}
 
 	if timeoutVal, ok := pairs["timeoutMs"]; ok && !Equivalent(timeoutVal, NullValue) {
@@ -438,42 +449,42 @@ func parseProcSpec(args []Value) (processSpec, error) {
 		}
 		spec.timeoutMs = timeout.Value
 	}
-	if modeVal, ok := firstDefinedValue(pairs, "stdIn", "stdin"); ok && !Equivalent(modeVal, NullValue) {
+	if modeVal, ok := pairs["stdin"]; ok && !Equivalent(modeVal, NullValue) {
 		mode, err := parseProcessMode(modeVal, "stdin")
 		if err != nil {
 			return processSpec{}, err
 		}
 		spec.stdinMode = mode
 	}
-	if modeVal, ok := firstDefinedValue(pairs, "stdOut", "stdout"); ok && !Equivalent(modeVal, NullValue) {
+	if modeVal, ok := pairs["stdout"]; ok && !Equivalent(modeVal, NullValue) {
 		mode, err := parseProcessMode(modeVal, "stdout")
 		if err != nil {
 			return processSpec{}, err
 		}
 		spec.stdoutMode = mode
 	}
-	if modeVal, ok := firstDefinedValue(pairs, "stdErr", "stderr"); ok && !Equivalent(modeVal, NullValue) {
+	if modeVal, ok := pairs["stderr"]; ok && !Equivalent(modeVal, NullValue) {
 		mode, err := parseProcessMode(modeVal, "stderr")
 		if err != nil {
 			return processSpec{}, err
 		}
 		spec.stderrMode = mode
 	}
-	if typeVal, ok := firstDefinedValue(pairs, "stdinType", "stdInType"); ok && !Equivalent(typeVal, NullValue) {
+	if typeVal, ok := pairs["stdinType"]; ok && !Equivalent(typeVal, NullValue) {
 		mode, err := parseStreamType(typeVal, "stdinType")
 		if err != nil {
 			return processSpec{}, err
 		}
 		spec.stdinType = mode
 	}
-	if typeVal, ok := firstDefinedValue(pairs, "stdoutType", "stdOutType"); ok && !Equivalent(typeVal, NullValue) {
+	if typeVal, ok := pairs["stdoutType"]; ok && !Equivalent(typeVal, NullValue) {
 		mode, err := parseStreamType(typeVal, "stdoutType")
 		if err != nil {
 			return processSpec{}, err
 		}
 		spec.stdoutType = mode
 	}
-	if typeVal, ok := firstDefinedValue(pairs, "stderrType", "stdErrType"); ok && !Equivalent(typeVal, NullValue) {
+	if typeVal, ok := pairs["stderrType"]; ok && !Equivalent(typeVal, NullValue) {
 		mode, err := parseStreamType(typeVal, "stderrType")
 		if err != nil {
 			return processSpec{}, err
@@ -496,7 +507,7 @@ func parseRunSpec(args []Value) (processSpec, error) {
 	}
 	stage, err := parseProcessStageValue(args[0])
 	if err != nil {
-		return processSpec{}, &RuntimeError{Message: "run first argument must be process spec object"}
+		return processSpec{}, err
 	}
 	spec.stages = []processStageSpec{stage}
 
@@ -506,6 +517,14 @@ func parseRunSpec(args []Value) (processSpec, error) {
 	pairs, ok := objectPairs(args[1])
 	if !ok {
 		return processSpec{}, &RuntimeError{Message: "run options must be object"}
+	}
+	if err := rejectUnknownObjectKeys(pairs, "run options", []string{
+		"stdin",
+		"timeoutMs",
+		"maxOutputBytes",
+		"overflow",
+	}); err != nil {
+		return processSpec{}, err
 	}
 
 	if timeoutVal, ok := pairs["timeoutMs"]; ok && !Equivalent(timeoutVal, NullValue) {
@@ -559,6 +578,16 @@ func parseProcessStageValue(val Value) (processStageSpec, error) {
 }
 
 func parseProcessStageFromPairs(pairs map[string]Value) (processStageSpec, error) {
+	if err := rejectUnknownObjectKeys(pairs, "process spec", []string{
+		"command",
+		"args",
+		"cwd",
+		"env",
+		"inheritEnv",
+	}); err != nil {
+		return processStageSpec{}, err
+	}
+
 	commandVal, ok := pairs["command"]
 	if !ok {
 		return processStageSpec{}, &RuntimeError{Message: "process spec expects command"}
@@ -686,13 +715,28 @@ func parseStreamType(val Value, field string) (string, error) {
 	}
 }
 
-func firstDefinedValue(pairs map[string]Value, keys ...string) (Value, bool) {
-	for _, key := range keys {
-		if val, ok := pairs[key]; ok {
-			return val, true
+func rejectUnknownObjectKeys(pairs map[string]Value, label string, allowed []string) error {
+	if len(pairs) == 0 {
+		return nil
+	}
+
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, key := range allowed {
+		allowedSet[key] = struct{}{}
+	}
+
+	unknown := make([]string, 0, len(pairs))
+	for key := range pairs {
+		if _, ok := allowedSet[key]; !ok {
+			unknown = append(unknown, key)
 		}
 	}
-	return nil, false
+	if len(unknown) == 0 {
+		return nil
+	}
+
+	sort.Strings(unknown)
+	return &RuntimeError{Message: label + " has unknown field(s): " + strings.Join(unknown, ", ")}
 }
 
 func processAwaitWithCancel(p *Process, cancelCh <-chan struct{}, runtime *runtimeState) (Value, *Signal, error) {

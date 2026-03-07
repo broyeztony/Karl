@@ -213,8 +213,8 @@ if !st.ok { exit("command failed: " + str(st.code)) }
 log(st.output)
 
 // proc() starts a waitable/abortable process handle.
-// mode constants are available: PIPE, INHERIT, NULL (plus TEXT/BYTES aliases)
-let p = proc({ command: "cat", }, { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, })
+// mode/type constants are available: PIPE, INHERIT, NULL, TEXT, BYTES
+let p = proc({ command: "cat", }, { stdin: PIPE, stdout: PIPE, stderr: PIPE, })
 let inStream = p.stdin
 inStream.write(encodeUtf8("hello\\n"))
 inStream.close()

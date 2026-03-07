@@ -20,8 +20,8 @@ let p = proc({
     args: ["karl"],
 }, {
     // Use TEXT mode to keep output preview logic simple in this demo.
-    stdOut: PIPE,
-    stdErr: PIPE,
+    stdout: PIPE,
+    stderr: PIPE,
     stdoutType: TEXT,
     stderrType: TEXT,
 }) ? {

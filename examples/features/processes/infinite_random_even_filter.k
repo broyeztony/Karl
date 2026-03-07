@@ -12,8 +12,8 @@ let mkProducer = () -> proc({
     command: "sh",
     args: ["-c", "awk 'BEGIN { srand(); while (1) { print int(rand()*101); fflush(); system(\"sleep 0.01\") } }'"],
 }, {
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdout: PIPE,
+    stderr: NULL,
     stdoutType: BYTES,
 })
 

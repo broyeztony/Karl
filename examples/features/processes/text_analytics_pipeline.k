@@ -23,9 +23,9 @@ let stage = {
 
 // Force TEXT mode: this pipeline is textual analytics.
 let p = proc(stage, {
-    stdIn: PIPE,
-    stdOut: PIPE,
-    stdErr: PIPE,
+    stdin: PIPE,
+    stdout: PIPE,
+    stderr: PIPE,
     stdinType: TEXT,
     stdoutType: TEXT,
     stderrType: TEXT,

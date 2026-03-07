@@ -226,7 +226,7 @@ Ordering requires comparable keys; otherwise runtime error.
   - Starts process execution immediately and returns a handle.
   - First argument: process spec object.
   - Optional `opts` supports:
-    - stdio modes: `stdIn`, `stdOut`, `stdErr` in `"pipe" | "inherit" | "null"`
+    - stdio modes: `stdin`, `stdout`, `stderr` in `"pipe" | "inherit" | "null"`
     - stream types: `stdinType`, `stdoutType`, `stderrType` in `"text" | "bytes"` (default `"bytes"`)
     - `timeoutMs`
 - `run(spec, opts?) -> RunStatus`

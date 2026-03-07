@@ -14,9 +14,9 @@ let stage = {
 }
 
 let p = proc(stage, {
-    stdIn: NULL,
-    stdOut: PIPE,
-    stdErr: PIPE,
+    stdin: NULL,
+    stdout: PIPE,
+    stderr: PIPE,
     stdoutType: TEXT,
     stderrType: TEXT,
 })

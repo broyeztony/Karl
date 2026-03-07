@@ -202,9 +202,9 @@ let stage = {
     inheritEnv: true,
 }
 let p = proc(stage, {
-    stdIn: "pipe",
-    stdOut: "pipe",
-    stdErr: "pipe",
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
     stdinType: "text",
     stdoutType: "text",
     stderrType: "text",
@@ -260,9 +260,9 @@ let stage = {
     inheritEnv: true,
 }
 let p = proc(stage, {
-    stdIn: PIPE,
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdin: PIPE,
+    stdout: PIPE,
+    stderr: NULL,
     stdinType: TEXT,
     stdoutType: TEXT,
 })
@@ -350,9 +350,9 @@ let stage = {
     inheritEnv: true,
 }
 let p = proc(stage, {
-    stdIn: PIPE,
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdin: PIPE,
+    stdout: PIPE,
+    stderr: NULL,
 })
 
 let collect = s -> for true with acc = "" {
@@ -398,9 +398,9 @@ let p = proc({
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
 }, {
-    stdIn: PIPE,
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdin: PIPE,
+    stdout: PIPE,
+    stderr: NULL,
 })
 
 p.stdin.write(encodeUtf8("hello\n"))
@@ -442,8 +442,8 @@ let p = proc({
     env: { KARL_PROCESS_HELPER: "1", },
     inheritEnv: true,
 }, {
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdout: PIPE,
+    stderr: NULL,
 })
 
 let collected = for true with total = 0, chunks = 0 {
@@ -483,8 +483,8 @@ let stage = {
     inheritEnv: true,
 }
 let p = proc(stage, {
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdout: PIPE,
+    stderr: NULL,
 })
 let [chunk, _] = p.stdout.read()
 let _ = wait p
@@ -524,8 +524,8 @@ let stage = {
     inheritEnv: true,
 }
 let p = proc(stage, {
-    stdOut: "null",
-    stdErr: "null",
+    stdout: "null",
+    stderr: "null",
 })
 p.stdout ? { error.kind }
 `, bin)
@@ -535,6 +535,63 @@ p.stdout ? { error.kind }
 		t.Fatalf("eval error: %v", err)
 	}
 	assertString(t, val, "process_state")
+}
+
+func TestProcRejectsUnknownOptionField(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let stage = {
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+}
+proc(stage, { stdOut: PIPE, }) ? { error.message }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "proc options has unknown field(s): stdOut")
+}
+
+func TestRunRejectsUnknownOptionField(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+let stage = {
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+}
+run(stage, { stdOut: PIPE, }) ? { error.message }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "run options has unknown field(s): stdOut")
+}
+
+func TestProcRejectsUnknownSpecField(t *testing.T) {
+	bin := mustExecutable(t)
+	input := fmt.Sprintf(`
+proc({
+    command: %q,
+    args: ["-test.run=TestProcessAPIHelperProcess", "ok"],
+    env: { KARL_PROCESS_HELPER: "1", },
+    inheritEnv: true,
+    mystery: "x",
+}) ? { error.message }
+`, bin)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "process spec has unknown field(s): mystery")
 }
 
 func mustExecutable(t *testing.T) string {

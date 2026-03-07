@@ -12,7 +12,7 @@ let p = proc(
     {
         command: "sh",
         args: ["-c", "printf '\\000\\001\\377\\020' | od -An -t x1 | tr -d ' \\n'; echo 'warn: sample stderr' 1>&2"],
-    }, { stdOut: PIPE, stdErr: PIPE, stdIn: NULL, stdoutType: TEXT, stderrType: TEXT, }
+    }, { stdout: PIPE, stderr: PIPE, stdin: NULL, stdoutType: TEXT, stderrType: TEXT, }
 )
 
 let outTask = & (() -> readAll(p.stdout))()

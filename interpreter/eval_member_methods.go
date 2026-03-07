@@ -109,19 +109,19 @@ func (e *Evaluator) processMethod(p *Process, name string) (Value, *Signal, erro
 	case "stdin":
 		stream, ok := p.inputStream()
 		if !ok {
-			return nil, nil, recoverableError("process_state", "stdin is only available when stdIn mode is \"pipe\"")
+			return nil, nil, recoverableError("process_state", "stdin is only available when stdin mode is \"pipe\"")
 		}
 		return stream, nil, nil
 	case "stdout":
 		stream, ok := p.outputStream()
 		if !ok {
-			return nil, nil, recoverableError("process_state", "stdout is only available when stdOut mode is \"pipe\"")
+			return nil, nil, recoverableError("process_state", "stdout is only available when stdout mode is \"pipe\"")
 		}
 		return stream, nil, nil
 	case "stderr":
 		stream, ok := p.errorStream()
 		if !ok {
-			return nil, nil, recoverableError("process_state", "stderr is only available when stdErr mode is \"pipe\"")
+			return nil, nil, recoverableError("process_state", "stderr is only available when stderr mode is \"pipe\"")
 		}
 		return stream, nil, nil
 	case "abort":

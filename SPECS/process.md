@@ -85,19 +85,22 @@ Validation rules:
 - `cwd` must be string when provided
 - `env` keys/values must be strings after conversion
 - `inheritEnv` must be bool when provided
+- unknown fields are rejected
 
 ## Options
 
 ### `proc(..., opts?)`
 
 Supported fields:
-- `stdIn` / `stdin`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
-- `stdOut` / `stdout`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
-- `stdErr` / `stderr`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
-- `stdinType` / `stdInType`: `"text" | "bytes"` (default `"bytes"`)
-- `stdoutType` / `stdOutType`: `"text" | "bytes"` (default `"bytes"`)
-- `stderrType` / `stdErrType`: `"text" | "bytes"` (default `"bytes"`)
+- `stdin`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
+- `stdout`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
+- `stderr`: `"pipe" | "inherit" | "null"` (default `"inherit"`)
+- `stdinType`: `"text" | "bytes"` (default `"bytes"`)
+- `stdoutType`: `"text" | "bytes"` (default `"bytes"`)
+- `stderrType`: `"text" | "bytes"` (default `"bytes"`)
 - `timeoutMs: Int` (default `0`, no timeout)
+
+Unknown fields in `opts` are rejected.
 
 ### `run(..., opts?)`
 
@@ -106,6 +109,8 @@ Supported fields:
 - `timeoutMs: Int` (default `0`)
 - `maxOutputBytes: Int` (default `1048576`)
 - `overflow: "truncate" | "error"` (default `"truncate"`)
+
+Unknown fields in `opts` are rejected.
 
 `run` effective stdio defaults:
 - stdin: `"null"` unless `stdin` provided
@@ -202,7 +207,7 @@ log(st.output)
 ```karl
 let p = proc(
   { command: "cat", },
-  { stdIn: PIPE, stdOut: PIPE, stdErr: PIPE, stdinType: BYTES, stdoutType: BYTES, stderrType: BYTES, }
+  { stdin: PIPE, stdout: PIPE, stderr: PIPE, stdinType: BYTES, stdoutType: BYTES, stderrType: BYTES, }
 )
 
 p.stdin.write(encodeUtf8("hello\n"))

@@ -24,8 +24,8 @@ if !seed.ok { fail("seed failed") }
 
 // Stream BYTES from process stdout.
 let p = proc({ command: "cat", args: [srcPath], }, {
-    stdOut: PIPE,
-    stdErr: NULL,
+    stdout: PIPE,
+    stderr: NULL,
     stdoutType: BYTES,
 })
 
