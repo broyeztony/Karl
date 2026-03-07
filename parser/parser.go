@@ -736,32 +736,10 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	precedence := p.curPrecedence()
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
-	if expression.Operator == "|" && (p.isLegacyCmdPipelineExpr(expression.Left) || p.isLegacyCmdPipelineExpr(expression.Right)) {
-		p.addError(expression.Token, "command composition with '|' has been removed; '|' is reserved for stream pipelines")
+	if expression.Operator == "|" {
+		p.addError(expression.Token, "operator '|' is reserved for stream pipelines")
 	}
 	return expression
-}
-
-func (p *Parser) isLegacyCmdPipelineExpr(expr ast.Expression) bool {
-	switch n := expr.(type) {
-	case *ast.CallExpression:
-		return p.isCmdCallExpression(n)
-	case *ast.InfixExpression:
-		if n.Operator != "|" {
-			return false
-		}
-		return p.isLegacyCmdPipelineExpr(n.Left) || p.isLegacyCmdPipelineExpr(n.Right)
-	default:
-		return false
-	}
-}
-
-func (p *Parser) isCmdCallExpression(call *ast.CallExpression) bool {
-	if call == nil {
-		return false
-	}
-	ident, ok := call.Function.(*ast.Identifier)
-	return ok && ident.Value == "cmd"
 }
 
 func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {

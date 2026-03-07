@@ -105,12 +105,12 @@ func TestPipelineOperatorParsing(t *testing.T) {
 	}
 	found := false
 	for _, err := range errors {
-		if strings.Contains(err, "command composition with '|' has been removed") {
+		if strings.Contains(err, "operator '|' is reserved for stream pipelines") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected migration parse error, got %v", errors)
+		t.Fatalf("expected pipe reservation parse error, got %v", errors)
 	}
 }

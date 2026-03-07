@@ -500,7 +500,7 @@ decodeUtf8(chunk) ? { error.kind }
 	assertString(t, val, "utf8_decode")
 }
 
-func TestProcessPipeOperatorMigrationError(t *testing.T) {
+func TestProcessPipeOperatorReservedError(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
 let plan =
@@ -517,13 +517,13 @@ plan
 	}
 	found := false
 	for _, err := range errors {
-		if strings.Contains(err, "command composition with '|' has been removed") {
+		if strings.Contains(err, "operator '|' is reserved for stream pipelines") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected migration parse error, got %v", errors)
+		t.Fatalf("expected reserved pipe parse error, got %v", errors)
 	}
 }
 
