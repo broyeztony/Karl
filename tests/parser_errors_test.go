@@ -46,7 +46,7 @@ func TestParserErrors(t *testing.T) {
 		},
 		{
 			name:         "spawn_proc_is_rejected",
-			input:        "& proc(cmd({ command: \"echo\", args: [\"hi\"], }))",
+			input:        "& proc({ command: \"echo\", args: [\"hi\"], })",
 			errorContain: "already returns <process>",
 		},
 	}

@@ -559,9 +559,8 @@ Implementation details (current runtime):
 - `deleteFile(path)` -> Unit
 - `exists(path)` -> Bool
 - `listDir(path)` -> Array<String>
-- `cmd({ command, args?, cwd?, env?, inheritEnv? })` -> Cmd
-- `proc(cmdOrPipeline, opts?)` -> Process
-- `run(cmdOrPipeline, opts?)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
+- `proc(spec, opts?)` -> Process
+- `run(spec, opts?)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
 - `reader(path, opts?)` -> StreamReader
 - `writer(path, opts?)` -> StreamWriter
 - `copy(srcReader, dstWriter, opts?)` -> `{ bytes, chunks }`
