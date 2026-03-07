@@ -60,7 +60,11 @@ func (e *Evaluator) evalInfixExpression(node *ast.InfixExpression, env *Environm
 	case "eqv":
 		return &Boolean{Value: Equivalent(left, right)}, nil, nil
 	case "|":
-		return nil, nil, &RuntimeError{Message: "operator '|' is reserved for stream pipelines; command composition has been removed"}
+		out, pipeErr := evalStreamPipeInfix(e, left, right)
+		if pipeErr != nil {
+			return nil, nil, pipeErr
+		}
+		return out, nil, nil
 	}
 
 	switch l := left.(type) {

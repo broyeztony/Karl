@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"karl/lexer"
-	"karl/parser"
 	"os"
 	"path/filepath"
 	"strings"
@@ -500,30 +498,19 @@ decodeUtf8(chunk) ? { error.kind }
 	assertString(t, val, "utf8_decode")
 }
 
-func TestProcessPipeOperatorReservedError(t *testing.T) {
+func TestProcessPipeOperatorRuntimeError(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`
-let plan =
-    cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
-    | cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
-plan
+cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "emit"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
+| cmd({ command: %q, args: ["-test.run=TestProcessAPIHelperProcess", "capture"], env: { KARL_PROCESS_HELPER: "1", }, inheritEnv: true, })
 `, bin, bin)
 
-	p := parser.New(lexer.New(input))
-	_ = p.ParseProgram()
-	errors := p.Errors()
-	if len(errors) == 0 {
-		t.Fatalf("expected parse error")
+	_, err := evalInput(t, input)
+	if err == nil {
+		t.Fatalf("expected runtime error")
 	}
-	found := false
-	for _, err := range errors {
-		if strings.Contains(err, "operator '|' is reserved for stream pipelines") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected reserved pipe parse error, got %v", errors)
+	if !strings.Contains(err.Error(), "operator '|' expects stream source or plan on the left") {
+		t.Fatalf("unexpected runtime error: %v", err)
 	}
 }
 

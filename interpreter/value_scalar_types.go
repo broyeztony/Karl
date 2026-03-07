@@ -28,6 +28,10 @@ const (
 	CMD           ValueType = "CMD"
 	PIPELINE      ValueType = "PIPELINE"
 	PROCESS       ValueType = "PROCESS"
+	STREAM_SOURCE ValueType = "STREAM_SOURCE"
+	STREAM_STAGE  ValueType = "STREAM_STAGE"
+	STREAM_SINK   ValueType = "STREAM_SINK"
+	STREAM_PLAN   ValueType = "STREAM_PLAN"
 	STREAM_READER ValueType = "STREAM_READER"
 	STREAM_WRITER ValueType = "STREAM_WRITER"
 )

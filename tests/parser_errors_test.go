@@ -28,12 +28,12 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:         "spawn_operator_for_expr_rejected",
 			input:        "& for i < 3 with i = 0 { i++ } then i",
-			errorContain: "spawn target must be a call expression",
+			errorContain: "spawn target must be a call expression or stream pipeline",
 		},
 		{
 			name:         "spawn_keyword_for_expr_rejected",
 			input:        "spawn (for i < 3 with i = 0 { i++ } then i)",
-			errorContain: "spawn target must be a call expression",
+			errorContain: "spawn target must be a call expression or stream pipeline",
 		},
 		{
 			name:  "object_shorthand_requires_trailing_comma",

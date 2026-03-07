@@ -11,6 +11,7 @@ func registerStreamBuiltins() {
 	builtins["reader"] = &Builtin{Name: "reader", Fn: builtinReader}
 	builtins["writer"] = &Builtin{Name: "writer", Fn: builtinWriter}
 	builtins["copy"] = &Builtin{Name: "copy", Fn: builtinCopy}
+	registerStreamPipelineBuiltins()
 }
 
 func builtinReader(_ *Evaluator, args []Value) (Value, error) {

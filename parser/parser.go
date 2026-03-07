@@ -349,8 +349,8 @@ func (p *Parser) parseSpawnExpression() ast.Expression {
 	}
 	p.nextToken()
 	task := p.parseExpression(PREFIX)
-	if !p.isCallExpression(task) {
-		p.addError(p.curToken, "spawn target must be a call expression")
+	if !p.isSpawnTargetExpression(task) {
+		p.addError(p.curToken, "spawn target must be a call expression or stream pipeline")
 		return expr
 	}
 	if p.isProcCallExpression(task) {
@@ -736,9 +736,6 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	precedence := p.curPrecedence()
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
-	if expression.Operator == "|" {
-		p.addError(expression.Token, "operator '|' is reserved for stream pipelines")
-	}
 	return expression
 }
 
@@ -1180,6 +1177,14 @@ func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 func (p *Parser) isCallExpression(expr ast.Expression) bool {
 	_, ok := expr.(*ast.CallExpression)
 	return ok
+}
+
+func (p *Parser) isSpawnTargetExpression(expr ast.Expression) bool {
+	if p.isCallExpression(expr) {
+		return true
+	}
+	infix, ok := expr.(*ast.InfixExpression)
+	return ok && infix.Operator == "|"
 }
 
 func (p *Parser) isProcCallExpression(expr ast.Expression) bool {

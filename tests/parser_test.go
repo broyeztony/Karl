@@ -4,7 +4,6 @@ import (
 	"karl/ast"
 	"karl/lexer"
 	"karl/parser"
-	"strings"
 	"testing"
 )
 
@@ -96,21 +95,27 @@ let fastest = race { taskA(), taskB() }`
 }
 
 func TestPipelineOperatorParsing(t *testing.T) {
-	input := `let p = cmd({ command: "echo", args: ["hi"], }) | cmd({ command: "wc", args: ["-c"], })`
+	input := `let p = read("in.log") | lines() | stdout()`
 	p := parser.New(lexer.New(input))
-	_ = p.ParseProgram()
-	errors := p.Errors()
-	if len(errors) == 0 {
-		t.Fatalf("expected parse error")
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt, ok := program.Statements[0].(*ast.LetStatement)
+	if !ok {
+		t.Fatalf("statement not LetStatement. got=%T", program.Statements[0])
 	}
-	found := false
-	for _, err := range errors {
-		if strings.Contains(err, "operator '|' is reserved for stream pipelines") {
-			found = true
-			break
-		}
+	outer, ok := stmt.Value.(*ast.InfixExpression)
+	if !ok {
+		t.Fatalf("expected outer infix pipeline, got %T", stmt.Value)
 	}
-	if !found {
-		t.Fatalf("expected pipe reservation parse error, got %v", errors)
+	if outer.Operator != "|" {
+		t.Fatalf("expected outer operator '|', got %q", outer.Operator)
+	}
+	left, ok := outer.Left.(*ast.InfixExpression)
+	if !ok {
+		t.Fatalf("expected left nested infix pipeline, got %T", outer.Left)
+	}
+	if left.Operator != "|" {
+		t.Fatalf("expected nested operator '|', got %q", left.Operator)
 	}
 }
