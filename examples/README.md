@@ -29,7 +29,8 @@ Each example demonstrates one specific capability.
 - `examples/features/concurrency/advanced.k` - rendezvous/channel send/recv
 - `examples/features/concurrency/buffered_channels.k` - buffered channel basics
 - `examples/features/concurrency/` - deeper dive: join/race semantics, cancellation, and failure recovery
-- `examples/features/processes/` - process orchestration with `cmd`/`proc`/`run`, pipelines, and stream control (`streaming_pipeline_channels.k` shows live channel fan-in)
+- `examples/features/processes/` - process orchestration with `proc`/`run`, process control, and byte/text stream handles
+- `examples/features/streams/` - stream pipeline operators (`|`) with Kubernetes-focused examples (map/filter/reduce/chunk/merge/send)
 - `examples/features/import_module.k` - module to import
 - `examples/features/import_use.k` - import factory usage
 - `examples/features/import_instances_module.k` - module with per-instance state

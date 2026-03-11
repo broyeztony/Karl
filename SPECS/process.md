@@ -41,6 +41,7 @@ Prebound string constants:
 
 Signature:
 - `proc(spec, opts?) -> <process>`
+- `proc(command, arg1?, arg2?, ..., opts?) -> <process>`
 
 `spec` must be a process spec object (see "Process spec object").
 
@@ -48,10 +49,16 @@ Behavior:
 - starts process execution immediately
 - returns a waitable and abortable handle
 
+Variadic form notes:
+- `command` and command args must be strings
+- trailing `opts` object is parsed as proc options when keys match proc option fields
+- for `cwd`/`env`/`inheritEnv`, use object `spec` form
+
 ### `run`
 
 Signature:
 - `run(spec, opts?) -> RunStatus`
+- `run(command, arg1?, arg2?, ..., opts?) -> RunStatus`
 
 Behavior:
 - blocking convenience API
@@ -101,6 +108,11 @@ Supported fields:
 - `timeoutMs: Int` (default `0`, no timeout)
 
 Unknown fields in `opts` are rejected.
+
+Mode semantics:
+- `"inherit"`: child stream is attached to Karl process stdio (foreground terminal behavior).
+- `"pipe"`: child stream is exposed as Karl stream handle (`p.stdin` / `p.stdout` / `p.stderr`).
+- `"null"`: child stream is connected to null device (input discarded, output ignored).
 
 ### `run(..., opts?)`
 

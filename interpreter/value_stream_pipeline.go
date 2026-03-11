@@ -13,6 +13,7 @@ type streamIterator interface {
 type streamSourceOpenFunc func(e *Evaluator) (streamIterator, error)
 type streamStageApplyFunc func(upstream streamIterator) streamIterator
 type streamSinkRunFunc func(e *Evaluator, upstream streamIterator) (Value, error)
+type streamSinkPlanRunFunc func(e *Evaluator, plan *StreamPlanValue) (Value, error)
 
 type StreamSourceValue struct {
 	name string
@@ -31,8 +32,9 @@ func (s *StreamStageValue) Type() ValueType { return STREAM_STAGE }
 func (s *StreamStageValue) Inspect() string { return "<stream-stage:" + s.name + ">" }
 
 type StreamSinkValue struct {
-	name string
-	run  streamSinkRunFunc
+	name    string
+	run     streamSinkRunFunc
+	runPlan streamSinkPlanRunFunc
 }
 
 func (s *StreamSinkValue) Type() ValueType { return STREAM_SINK }
@@ -84,6 +86,23 @@ func streamPlanFromLeft(left Value) (*StreamPlanValue, error) {
 				},
 			},
 		}, nil
+	case *Process:
+		reader, ok := v.outputStream()
+		if !ok {
+			return nil, recoverableError("process_state", "stdout is only available when stdout mode is \"pipe\"")
+		}
+		return &StreamPlanValue{
+			source: &StreamSourceValue{
+				name: "process-stdout",
+				open: func(_ *Evaluator) (streamIterator, error) {
+					return &streamReaderIterator{
+						reader:      reader,
+						size:        defaultStreamReadSize,
+						closeOnExit: false,
+					}, nil
+				},
+			},
+		}, nil
 	default:
 		return nil, &RuntimeError{Message: "operator '|' expects stream source or plan on the left"}
 	}
@@ -102,13 +121,34 @@ func appendStreamStage(plan *StreamPlanValue, stage *StreamStageValue) *StreamPl
 }
 
 func executeStreamPlan(e *Evaluator, plan *StreamPlanValue, sink *StreamSinkValue) (Value, error) {
-	if plan == nil || plan.source == nil || plan.source.open == nil {
-		return nil, &RuntimeError{Message: "invalid stream plan source"}
+	if sink == nil {
+		return nil, &RuntimeError{Message: "invalid stream sink"}
 	}
-	if sink == nil || sink.run == nil {
+	if sink.runPlan != nil {
+		return sink.runPlan(e, plan)
+	}
+	if sink.run == nil {
 		return nil, &RuntimeError{Message: "invalid stream sink"}
 	}
 
+	iter, err := openStreamIterator(e, plan)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = iter.Close()
+	}()
+	return sink.run(e, iter)
+}
+
+func openStreamIterator(e *Evaluator, sourceOrPlan Value) (streamIterator, error) {
+	plan, err := streamPlanFromLeft(sourceOrPlan)
+	if err != nil {
+		return nil, err
+	}
+	if plan == nil || plan.source == nil || plan.source.open == nil {
+		return nil, &RuntimeError{Message: "invalid stream plan source"}
+	}
 	iter, err := plan.source.open(e)
 	if err != nil {
 		return nil, err
@@ -120,10 +160,7 @@ func executeStreamPlan(e *Evaluator, plan *StreamPlanValue, sink *StreamSinkValu
 		}
 		iter = stage.apply(iter)
 	}
-	defer func() {
-		_ = iter.Close()
-	}()
-	return sink.run(e, iter)
+	return iter, nil
 }
 
 type streamReaderIterator struct {

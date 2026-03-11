@@ -113,6 +113,44 @@ st
 	assertSamePath(t, tempDir, parts[2])
 }
 
+func TestRunVariadicCommandStyle(t *testing.T) {
+	input := `
+let st = run("echo", "hello")
+;
+[st.ok, st.output.contains("hello")]
+`
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	assertBoolean(t, arr.Elements[0], true)
+	assertBoolean(t, arr.Elements[1], true)
+}
+
+func TestProcVariadicCommandStyle(t *testing.T) {
+	input := `
+let p = proc("echo", "hello", { stdout: PIPE, stderr: NULL, stdoutType: TEXT, })
+let out = p | collect()
+let st = wait p
+{ ok: st.ok, chunks: out.length, hasHello: out[0].contains("hello"), }
+`
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	obj, ok := val.(*Object)
+	if !ok {
+		t.Fatalf("expected object, got %T", val)
+	}
+	assertBoolean(t, obj.Pairs["ok"], true)
+	assertInteger(t, obj.Pairs["chunks"], 1)
+	assertBoolean(t, obj.Pairs["hasHello"], true)
+}
+
 func TestRunNonZeroExitReturnsStatus(t *testing.T) {
 	bin := mustExecutable(t)
 	input := fmt.Sprintf(`

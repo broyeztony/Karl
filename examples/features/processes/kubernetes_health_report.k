@@ -1,4 +1,4 @@
-// Kubernetes health report using Karl process APIs.
+// Kubernetes health report using Karl process + stream APIs.
 //
 // Requires:
 // - kubectl installed
@@ -9,13 +9,32 @@
 // Optional rollout check:
 //   karl run examples/features/processes/kubernetes_health_report.k -- <namespace> <deployment>
 
-let kRun = args -> run({
-    command: "kubectl",
-    args,
-}, {
-    maxOutputBytes: 8000000,
-    overflow: "truncate",
-}) ? { fail("kubectl spawn error: " + error.message) }
+let topN = (xs, n) -> if xs.length <= n { xs } else { xs[..n] }
+let streams = (import "examples/features/processes/process_stream_helpers.k")()
+
+let kRun = args -> {
+    let st = streams.spawnCaptured({
+        command: "kubectl",
+        args,
+    }, {
+        stdout: PIPE,
+        stderr: PIPE,
+        stdoutType: BYTES,
+        stderrType: BYTES,
+    }) ? {
+        fail("kubectl spawn error: " + error.message)
+    }
+
+    {
+        ok: st.ok,
+        code: st.code,
+        output: st.output,
+        error: st.error,
+        timedOut: st.timedOut,
+        aborted: st.aborted,
+        durationMs: st.durationMs,
+    }
+}
 
 // Fail-fast wrapper for kubectl non-zero exits.
 let kMust = args -> {
@@ -44,9 +63,7 @@ let scorePod = pod -> {
 let inspectNamespace = ns -> {
     let pods = kJson(["get", "pods", "-n", ns, "-o", "json"]).items.map(scorePod)
     let problematic = pods.filter(p -> p.problematic)
-    let top = problematic
-        .sort((a, b) -> (b.restarts + b.notReady) - (a.restarts + a.notReady))
-        [..5]
+    let top = topN(problematic.sort((a, b) -> (b.restarts + b.notReady) - (a.restarts + a.notReady)), 5)
     {
         namespace: ns,
         podCount: pods.length,
@@ -91,7 +108,7 @@ let report = (() -> {
         namespaceCount: namespaces.length,
         totalPods: perNs.reduce((acc, row) -> acc + row.podCount, 0),
         totalProblematicPods: perNs.reduce((acc, row) -> acc + row.problematicPods, 0),
-        busiest: ranked[..10],
+        busiest: topN(ranked, 10),
         rolloutCheck: optionalRollout(),
     }
 })() ? { generatedAt: timeFormatRFC3339(now()), error: { kind: error.kind, message: error.message, }, }

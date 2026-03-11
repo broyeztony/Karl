@@ -313,8 +313,8 @@ func registerProcessBuiltins() {
 }
 
 func builtinProc(e *Evaluator, args []Value) (Value, error) {
-	if len(args) < 1 || len(args) > 2 {
-		return nil, &RuntimeError{Message: "proc expects (spec, opts?)"}
+	if len(args) < 1 {
+		return nil, &RuntimeError{Message: "proc expects (spec, opts?) or (command, ...args, opts?)"}
 	}
 	spec, err := parseProcSpec(args)
 	if err != nil {
@@ -328,13 +328,17 @@ func builtinProc(e *Evaluator, args []Value) (Value, error) {
 }
 
 func builtinRun(e *Evaluator, args []Value) (Value, error) {
-	if len(args) < 1 || len(args) > 2 {
-		return nil, &RuntimeError{Message: "run expects (spec, opts?)"}
+	if len(args) < 1 {
+		return nil, &RuntimeError{Message: "run expects (spec, opts?) or (command, ...args, opts?)"}
 	}
 	spec, err := parseRunSpec(args)
 	if err != nil {
 		return nil, err
 	}
+	return executeRunSpec(e, spec)
+}
+
+func executeRunSpec(e *Evaluator, spec processSpec) (Value, error) {
 
 	process, err := startProcess(e, spec)
 	if err != nil {
@@ -414,16 +418,61 @@ func parseProcSpec(args []Value) (processSpec, error) {
 		stdoutType: streamTypeBytes,
 		stderrType: streamTypeBytes,
 	}
-	stage, err := parseProcessStageValue(args[0])
-	if err != nil {
-		return processSpec{}, err
+	if len(args) == 0 {
+		return processSpec{}, &RuntimeError{Message: "proc expects at least one argument"}
 	}
-	spec.stages = []processStageSpec{stage}
 
-	if len(args) == 1 || Equivalent(args[1], NullValue) {
+	if _, isObject := objectPairs(args[0]); isObject {
+		if len(args) > 2 {
+			return processSpec{}, &RuntimeError{Message: "proc expects (spec, opts?)"}
+		}
+		stage, err := parseProcessStageValue(args[0])
+		if err != nil {
+			return processSpec{}, err
+		}
+		spec.stages = []processStageSpec{stage}
+		var opts Value = NullValue
+		if len(args) == 2 {
+			opts = args[1]
+		}
+		return parseProcOptions(spec, opts)
+	}
+
+	command, ok := stringArg(args[0])
+	if !ok {
+		return processSpec{}, &RuntimeError{Message: "proc expects spec object or command string"}
+	}
+	end := len(args)
+	var opts Value = NullValue
+	if end > 1 {
+		if pairs, ok := objectPairs(args[end-1]); ok && isProcessOptionObject(pairs, []string{
+			"timeoutMs", "stdin", "stdout", "stderr", "stdinType", "stdoutType", "stderrType",
+		}) {
+			opts = args[end-1]
+			end--
+		}
+	}
+	stageArgs := make([]string, 0, max(0, end-1))
+	for i := 1; i < end; i++ {
+		arg, ok := stringArg(args[i])
+		if !ok {
+			return processSpec{}, &RuntimeError{Message: "proc variadic command args must be strings"}
+		}
+		stageArgs = append(stageArgs, arg)
+	}
+	spec.stages = []processStageSpec{{
+		command:    command,
+		args:       stageArgs,
+		inheritEnv: true,
+	}}
+	return parseProcOptions(spec, opts)
+}
+
+func parseProcOptions(spec processSpec, opts Value) (processSpec, error) {
+	if Equivalent(opts, NullValue) {
 		return spec, nil
 	}
-	pairs, ok := objectPairs(args[1])
+	pairs, ok := objectPairs(opts)
 	if !ok {
 		return processSpec{}, &RuntimeError{Message: "proc options must be object"}
 	}
@@ -505,16 +554,61 @@ func parseRunSpec(args []Value) (processSpec, error) {
 		maxOutputBytes: defaultProcessCaptureBytes,
 		overflow:       processOverflowTruncate,
 	}
-	stage, err := parseProcessStageValue(args[0])
-	if err != nil {
-		return processSpec{}, err
+	if len(args) == 0 {
+		return processSpec{}, &RuntimeError{Message: "run expects at least one argument"}
 	}
-	spec.stages = []processStageSpec{stage}
 
-	if len(args) == 1 || Equivalent(args[1], NullValue) {
+	if _, isObject := objectPairs(args[0]); isObject {
+		if len(args) > 2 {
+			return processSpec{}, &RuntimeError{Message: "run expects (spec, opts?)"}
+		}
+		stage, err := parseProcessStageValue(args[0])
+		if err != nil {
+			return processSpec{}, err
+		}
+		spec.stages = []processStageSpec{stage}
+		var opts Value = NullValue
+		if len(args) == 2 {
+			opts = args[1]
+		}
+		return parseRunOptions(spec, opts)
+	}
+
+	command, ok := stringArg(args[0])
+	if !ok {
+		return processSpec{}, &RuntimeError{Message: "run expects spec object or command string"}
+	}
+	end := len(args)
+	var opts Value = NullValue
+	if end > 1 {
+		if pairs, ok := objectPairs(args[end-1]); ok && isProcessOptionObject(pairs, []string{
+			"stdin", "timeoutMs", "maxOutputBytes", "overflow",
+		}) {
+			opts = args[end-1]
+			end--
+		}
+	}
+	stageArgs := make([]string, 0, max(0, end-1))
+	for i := 1; i < end; i++ {
+		arg, ok := stringArg(args[i])
+		if !ok {
+			return processSpec{}, &RuntimeError{Message: "run variadic command args must be strings"}
+		}
+		stageArgs = append(stageArgs, arg)
+	}
+	spec.stages = []processStageSpec{{
+		command:    command,
+		args:       stageArgs,
+		inheritEnv: true,
+	}}
+	return parseRunOptions(spec, opts)
+}
+
+func parseRunOptions(spec processSpec, opts Value) (processSpec, error) {
+	if Equivalent(opts, NullValue) {
 		return spec, nil
 	}
-	pairs, ok := objectPairs(args[1])
+	pairs, ok := objectPairs(opts)
 	if !ok {
 		return processSpec{}, &RuntimeError{Message: "run options must be object"}
 	}
@@ -567,6 +661,29 @@ func parseRunSpec(args []Value) (processSpec, error) {
 		spec.overflow = overflow
 	}
 	return spec, nil
+}
+
+func isProcessOptionObject(pairs map[string]Value, allowed []string) bool {
+	if len(pairs) == 0 {
+		return true
+	}
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, key := range allowed {
+		allowedSet[key] = struct{}{}
+	}
+	for key := range pairs {
+		if _, ok := allowedSet[key]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func parseProcessStageValue(val Value) (processStageSpec, error) {

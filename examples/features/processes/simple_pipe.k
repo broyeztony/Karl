@@ -1,11 +1,6 @@
 // stdout/stderr streams carry STRING chunks.
 // For binary data, encode in the child process (hex/base64) before reading in Karl.
-
-let readAll = s -> for true with acc = "" {
-    let [chunk, eof] = s.read() ? { break acc }
-    if eof { break acc }
-    acc = acc + chunk
-} then acc
+let streams = (import "examples/features/processes/process_stream_helpers.k")()
 
 // Force TEXT mode because this demo aggregates string output.
 let p = proc(
@@ -15,16 +10,11 @@ let p = proc(
     }, { stdout: PIPE, stderr: PIPE, stdin: NULL, stdoutType: TEXT, stderrType: TEXT, }
 )
 
-let outTask = & (() -> readAll(p.stdout))()
-let errTask = & (() -> readAll(p.stderr))()
-
-let st = wait p
-let outHex = wait outTask
-let errText = wait errTask
+let st = streams.waitCaptured(p)
 
 log({
     ok: st.ok,
     code: st.code,
-    stdoutHex: outHex,   // "0001ff10"
-    stderr: errText,     // "warn: sample stderr\n"
+    stdoutHex: st.output,   // "0001ff10"
+    stderr: st.error,       // "warn: sample stderr\n"
 })

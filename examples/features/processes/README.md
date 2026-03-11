@@ -4,7 +4,9 @@ These examples show how `proc`/`run` + streams make Karl a practical systems lan
 
 ## Files
 
+- `process_stream_helpers.k`: shared stream-capture helpers (`waitCaptured`, `spawnCaptured`, `readStreamText`).
 - `kubernetes_health_report.k`: real `kubectl` wrapper with concurrent namespace checks.
+- `kubernetes_pod_stream_scan.k`: stream-pipeline pod scan with concise problematic pod ranking.
 - `text_analytics_pipeline.k`: Unix text analytics pipeline executed via a single process stage.
 - `stream_and_abort.k`: long-running process control (`pid`, `running`, `abort`, `wait`).
 - `streaming_pipeline_channels.k`: live pipeline streaming with stream reads + channel event fan-in.
@@ -28,6 +30,9 @@ karl run examples/features/processes/infinite_random_even_filter.k
 karl run examples/features/processes/kubernetes_health_report.k
 # optional rollout check: <namespace> <deployment>
 karl run examples/features/processes/kubernetes_health_report.k -- default api
+karl run examples/features/processes/kubernetes_pod_stream_scan.k
+# optional namespace scope
+karl run examples/features/processes/kubernetes_pod_stream_scan.k -- karl-health-demo
 ```
 
 ## Why this matters

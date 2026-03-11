@@ -5,12 +5,46 @@ import (
 )
 
 func builtinSend(e *Evaluator, args []Value) (Value, error) {
+	if len(args) == 1 {
+		ch, ok := args[0].(*Channel)
+		if !ok {
+			return nil, &RuntimeError{Message: "send expects channel"}
+		}
+		return &StreamSinkValue{
+			name: "send",
+			run: func(e *Evaluator, upstream streamIterator) (Value, error) {
+				defer ch.Close()
+				for {
+					item, eof, err := upstream.Next()
+					if err != nil {
+						return nil, recoverableError("stream_read", "stream read error: "+err.Error())
+					}
+					if eof {
+						return UnitValue, nil
+					}
+					if err := channelSendBlocking(e, ch, item); err != nil {
+						return nil, err
+					}
+				}
+			},
+		}, nil
+	}
 	if len(args) != 2 {
 		return nil, &RuntimeError{Message: "send expects channel and value"}
 	}
 	ch, ok := args[0].(*Channel)
 	if !ok {
 		return nil, &RuntimeError{Message: "send expects channel"}
+	}
+	if err := channelSendBlocking(e, ch, args[1]); err != nil {
+		return nil, err
+	}
+	return UnitValue, nil
+}
+
+func channelSendBlocking(e *Evaluator, ch *Channel, value Value) error {
+	if ch == nil {
+		return &RuntimeError{Message: "send expects channel"}
 	}
 	closedCh := ch.ClosedSignal()
 	fatalCh := runtimeFatalSignal(e)
@@ -22,21 +56,21 @@ func builtinSend(e *Evaluator, args []Value) (Value, error) {
 	for {
 		select {
 		case <-closedCh:
-			return nil, &RuntimeError{Message: "send on closed channel"}
-		case ch.Ch <- args[1]:
-			return UnitValue, nil
+			return &RuntimeError{Message: "send on closed channel"}
+		case ch.Ch <- value:
+			return nil
 		case <-cancelCh:
-			return nil, canceledError()
+			return canceledError()
 		case <-fatalCh:
-			return nil, runtimeFatalError(e)
+			return runtimeFatalError(e)
 		case <-ticker.C:
 			if isTopLevelRuntimeDeadlocked(e) {
 				select {
 				case <-closedCh:
-					return nil, &RuntimeError{Message: "send on closed channel"}
+					return &RuntimeError{Message: "send on closed channel"}
 				default:
 				}
-				return nil, &RuntimeError{Message: "deadlock: send would block with no runnable tasks"}
+				return &RuntimeError{Message: "deadlock: send would block with no runnable tasks"}
 			}
 		}
 	}

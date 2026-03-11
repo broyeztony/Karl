@@ -75,6 +75,10 @@ Additional non-negotiables:
 - No implicit lifecycle/runtime magic without explicit approval.
 - No aliases by default unless explicitly requested.
 - Keep behavior predictable across CLI, REPL, Playground, and tests.
+- Prefer single-instance module import shorthand:
+  - `let x = (import "path/module.k")()`
+- Use two-step factory imports only when multiple independent instances are needed:
+  - `let makeX = import "path/module.k"; let a = makeX(); let b = makeX()`
 
 ## Development Workflow
 

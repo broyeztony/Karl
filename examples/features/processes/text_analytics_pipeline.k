@@ -3,11 +3,7 @@
 // Run:
 //   karl run examples/features/processes/text_analytics_pipeline.k
 
-let collect = s -> for true with acc = "" {
-    let [chunk, eof] = s.read() ? { break acc }
-    if eof { break acc }
-    acc = acc + chunk
-} then acc
+let streams = (import "examples/features/processes/process_stream_helpers.k")()
 
 let corpus =
     "Karl makes process orchestration concise.\n" +
@@ -31,30 +27,25 @@ let p = proc(stage, {
     stderrType: TEXT,
 })
 
-let outTask = & (() -> collect(p.stdout))()
-let errTask = & (() -> collect(p.stderr))()
-
 // Feed input corpus, then close stdin so the pipeline can complete.
 let inStream = p.stdin
 inStream.write(corpus)
 inStream.close()
 
-let st = wait p
-let out = wait outTask ? { "" }
-let err = wait errTask ? { "" }
+let st = streams.waitCaptured(p)
 
 let output = if st.ok {
     {
         ok: true,
         durationMs: st.durationMs,
-        topWords: out.trim().split("\n"),
+        topWords: st.output.trim().split("\n"),
     }
 } else {
     {
         ok: false,
         code: st.code,
         signal: st.signal,
-        stderr: err,
+        stderr: st.error,
     }
 }
 

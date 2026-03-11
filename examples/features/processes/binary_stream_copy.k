@@ -1,4 +1,4 @@
-// Binary stream copy: file reader -> file writer.
+// Binary stream copy: source file -> stream pipeline -> destination file.
 //
 // Run:
 //   karl run examples/features/processes/binary_stream_copy.k
@@ -6,39 +6,35 @@
 let srcPath = "/tmp/karl-bytes-src.bin"
 let dstPath = "/tmp/karl-bytes-dst.bin"
 
-// Seed a small binary file with non-printable bytes.
-let seed = run({
-    command: "sh",
-    args: ["-c", "printf '\\000\\001\\002\\003\\004\\377\\376\\375\\374\\012' > \"$1\"", "sh", srcPath],
-}, {
-    maxOutputBytes: 4096,
-    overflow: "truncate",
-})
+// Build a binary payload directly in Karl.
+let payload = bytesJoin([
+    encodeUtf8("\u0000\u0001\u0002\u0003\u0004"),
+    encodeUtf8("KARL"),
+    encodeUtf8("\n"),
+    encodeUtf8("\u0005\u0006\u0007\u0008\u0009"),
+])
 
-if !seed.ok { fail("seed failed") }
+let src = writer(srcPath)
+let seeded = src.write(payload)
+src.close()
 
 // Byte-for-byte copy using a stream pipeline.
-let _ = read(srcPath, { type: BYTES, }) | write(dstPath, { type: BYTES, })
+let copied = 
+        read(srcPath) 
+        | write(dstPath)
 
-// Validate payload identity.
-let cmp = run({
-    command: "sh",
-    args: ["-c", "cmp -s \"$1\" \"$2\"", "sh", srcPath, dstPath],
-}, {
-    maxOutputBytes: 4096,
-    overflow: "truncate",
-})
+// Read destination and rebuild payload from stream chunks.
+let outChunks = 
+    read(dstPath) 
+    | collect()
+let out = bytesJoin(outChunks)
 
-// Show resulting bytes as hex for visibility.
-let hex = run({
-    command: "sh",
-    args: ["-c", "od -An -t x1 \"$1\" | tr -d ' \\n'", "sh", dstPath],
-}, {
-    maxOutputBytes: 4096,
-    overflow: "truncate",
-})
+let identical = out eqv payload
 
 {
-    identical: cmp.ok,
-    hex: hex.output,
+    copied,
+    seeded,
+    chunks: len(outChunks),
+    bytes: len(out),
+    identical,
 }

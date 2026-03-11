@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 func registerHTTPBuiltins() {
@@ -15,6 +16,118 @@ func registerHTTPBuiltins() {
 }
 
 func builtinHTTP(e *Evaluator, args []Value) (Value, error) {
+	if len(args) < 1 || len(args) > 2 {
+		return nil, &RuntimeError{Message: "http expects request object or (url, opts?)"}
+	}
+	if urlStr, ok := stringArg(args[0]); ok {
+		method := "GET"
+		mode := streamTypeBytes
+		body := ""
+		headers := map[string]string{}
+
+		if len(args) == 2 && !Equivalent(args[1], NullValue) {
+			opts, ok := objectPairs(args[1])
+			if !ok {
+				return nil, &RuntimeError{Message: "http source opts must be object"}
+			}
+			if err := rejectUnknownObjectKeys(opts, "http source opts", []string{"method", "headers", "body", "type"}); err != nil {
+				return nil, err
+			}
+			if methodVal, ok := opts["method"]; ok && !Equivalent(methodVal, NullValue) {
+				parsed, ok := stringArg(methodVal)
+				if !ok {
+					return nil, &RuntimeError{Message: "http source method must be string"}
+				}
+				method = strings.ToUpper(strings.TrimSpace(parsed))
+				if method == "" {
+					return nil, &RuntimeError{Message: "http source method must not be empty"}
+				}
+			}
+			if headersVal, ok := opts["headers"]; ok && !Equivalent(headersVal, NullValue) {
+				parsed, err := extractHeaders(headersVal)
+				if err != nil {
+					return nil, err
+				}
+				headers = parsed
+			}
+			if bodyVal, ok := opts["body"]; ok && !Equivalent(bodyVal, NullValue) {
+				parsed, ok := stringArg(bodyVal)
+				if !ok {
+					return nil, &RuntimeError{Message: "http source body must be string"}
+				}
+				body = parsed
+			}
+			if typeVal, ok := opts["type"]; ok && !Equivalent(typeVal, NullValue) {
+				parsed, err := parseStreamType(typeVal, "type")
+				if err != nil {
+					return nil, err
+				}
+				mode = parsed
+			}
+		}
+
+		return &StreamSourceValue{
+			name: "http",
+			open: func(e *Evaluator) (streamIterator, error) {
+				reqDone := make(chan struct{})
+				ctx, cancel := context.WithCancel(context.Background())
+				cancelCh := runtimeCancelSignal(e)
+				fatalCh := runtimeFatalSignal(e)
+				runGuarded(e.runtime, "http stream cancel watcher", func() {
+					select {
+					case <-cancelCh:
+						cancel()
+					case <-fatalCh:
+						cancel()
+					case <-reqDone:
+						cancel()
+					}
+				})
+
+				var reqBody io.Reader
+				if body != "" {
+					reqBody = strings.NewReader(body)
+				}
+				req, err := http.NewRequestWithContext(ctx, method, urlStr, reqBody)
+				if err != nil {
+					close(reqDone)
+					cancel()
+					return nil, recoverableError("http", "http request error: "+err.Error())
+				}
+				for k, v := range headers {
+					req.Header.Set(k, v)
+				}
+
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					close(reqDone)
+					cancel()
+					if errors.Is(err, context.Canceled) {
+						return nil, canceledError()
+					}
+					return nil, recoverableError("http", "http error: "+err.Error())
+				}
+
+				reader := &StreamReader{
+					reader: resp.Body,
+					closer: resp.Body,
+					mode:   mode,
+				}
+				base := &streamReaderIterator{
+					reader:      reader,
+					size:        defaultStreamReadSize,
+					closeOnExit: true,
+				}
+				return &cleanupStreamIterator{
+					upstream: base,
+					cleanup: func() {
+						close(reqDone)
+						cancel()
+					},
+				}, nil
+			},
+		}, nil
+	}
 	if len(args) != 1 {
 		return nil, &RuntimeError{Message: "http expects request object"}
 	}
@@ -104,4 +217,30 @@ func builtinHTTP(e *Evaluator, args []Value) (Value, error) {
 		return nil, recoverableError("http", "http read error: "+err.Error())
 	}
 	return httpResponseObject(resp, data), nil
+}
+
+type cleanupStreamIterator struct {
+	upstream streamIterator
+	cleanup  func()
+	once     sync.Once
+}
+
+func (i *cleanupStreamIterator) Next() (Value, bool, error) {
+	if i == nil || i.upstream == nil {
+		return nil, true, nil
+	}
+	return i.upstream.Next()
+}
+
+func (i *cleanupStreamIterator) Close() error {
+	if i == nil {
+		return nil
+	}
+	if i.cleanup != nil {
+		i.once.Do(i.cleanup)
+	}
+	if i.upstream != nil {
+		return i.upstream.Close()
+	}
+	return nil
 }

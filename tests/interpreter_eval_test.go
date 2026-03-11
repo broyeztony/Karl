@@ -1186,3 +1186,26 @@ c.done()
 `)
 	assertString(t, val, "send on closed channel")
 }
+
+func TestPlaceholderPartialApplicationStillWorks(t *testing.T) {
+	val := mustEval(t, `
+let add = (a, b) -> a + b
+let inc = add(_, 1)
+inc(41)
+`)
+	assertInteger(t, val, 42)
+}
+
+func TestImplicitLambdaShorthandForArrayBuiltins(t *testing.T) {
+	val := mustEval(t, `map([1, 2, 3], _ + 1)`)
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	if len(arr.Elements) != 3 {
+		t.Fatalf("expected 3 elements, got %d", len(arr.Elements))
+	}
+	assertInteger(t, arr.Elements[0], 2)
+	assertInteger(t, arr.Elements[1], 3)
+	assertInteger(t, arr.Elements[2], 4)
+}

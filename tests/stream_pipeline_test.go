@@ -18,7 +18,7 @@ func TestReadLinesWritePipeline(t *testing.T) {
 	}
 
 	input := fmt.Sprintf(`
-let result = read(%q) | lines() | write(%q)
+let result = read(%q) | lines() | write(%q, { type: TEXT, })
 ;
 [result, readFile(%q)]
 `, inPath, outPath, outPath)
@@ -53,7 +53,7 @@ func TestSpawnPipelineExpression(t *testing.T) {
 	}
 
 	input := fmt.Sprintf(`
-let task = & (read(%q) | lines() | write(%q))
+let task = & (read(%q) | lines() | write(%q, { type: TEXT, }))
 wait task
 ;
 readFile(%q)
@@ -95,7 +95,7 @@ let p = proc({
     stderr: NULL,
     stdoutType: TEXT,
 })
-let linesOut = p.stdout | lines() | collect()
+let linesOut = p | lines() | collect()
 let st = wait p
 ;
 { ok: st.ok, out: linesOut, }

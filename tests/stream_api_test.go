@@ -112,3 +112,32 @@ r.close()
 	}
 	assertBoolean(t, arr.Elements[6], true)
 }
+
+func TestStreamCollectPreservesBytesChunks(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "collect-bytes.bin")
+
+	input := fmt.Sprintf(`
+let w = writer(%q)
+let _ = w.write(encodeUtf8("abc"))
+w.close()
+
+let chunks = read(%q) | collect()
+let bytes = bytesJoin(chunks)
+
+;
+[len(chunks), bytes.length, decodeUtf8(bytes)]
+`, path, path)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	assertInteger(t, arr.Elements[0], 1)
+	assertInteger(t, arr.Elements[1], 3)
+	assertString(t, arr.Elements[2], "abc")
+}
