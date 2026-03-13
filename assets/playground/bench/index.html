@@ -565,38 +565,44 @@ let at = (counts, k) -> {
     if v == null { 0 } else { v }
 }
 
+let templates = [
+    "INFO boot",
+    "DEBUG sync",
+    "WARN retry",
+    "ERROR timeout",
+    "INFO recovered",
+    "DEBUG heartbeat",
+]
+
 let simulatePod = pod -> {
     let ch = channel()
     & (() -> {
-        [
-            "INFO boot",
-            "DEBUG init",
-            "WARN retry",
-            "ERROR timeout",
-            "INFO recovered",
-        ].forEach(line -> {
-            sleep(40)
-            ch.send({ pod, level: levelOf(line), line, })
-        })
-        ch.done()
+        for true with i = 0 {
+            sleep(90 + ((i % 4) * 35))
+            let line = templates[(i + pod.length) % templates.length]
+            ch.send({ pod, level: levelOf(line), line, ts: now(), })
+            i++
+        } then ()
     })()
     fromChannel(ch)
 }
 
 let counts = map()
 let last = now()
+let snapshot = 0
 let render = () -> {
-    log({
-        podA: { INFO: at(counts, "api-a|INFO"), WARN: at(counts, "api-a|WARN"), ERROR: at(counts, "api-a|ERROR"), },
-        podB: { INFO: at(counts, "api-b|INFO"), WARN: at(counts, "api-b|WARN"), ERROR: at(counts, "api-b|ERROR"), },
-        podC: { INFO: at(counts, "api-c|INFO"), WARN: at(counts, "api-c|WARN"), ERROR: at(counts, "api-c|ERROR"), },
-    })
+    snapshot++
+    log("snapshot", snapshot)
+    log({ pod: "api-a", INFO: at(counts, "api-a|INFO"), DEBUG: at(counts, "api-a|DEBUG"), WARN: at(counts, "api-a|WARN"), ERROR: at(counts, "api-a|ERROR"), })
+    log({ pod: "api-b", INFO: at(counts, "api-b|INFO"), DEBUG: at(counts, "api-b|DEBUG"), WARN: at(counts, "api-b|WARN"), ERROR: at(counts, "api-b|ERROR"), })
+    log({ pod: "api-c", INFO: at(counts, "api-c|INFO"), DEBUG: at(counts, "api-c|DEBUG"), WARN: at(counts, "api-c|WARN"), ERROR: at(counts, "api-c|ERROR"), })
+    log("----------------")
 }
 
 merge(listPods().map(simulatePod))
     | forEach(event -> {
         bump(counts, event.pod, event.level)
-        if now() - last >= 120 {
+        if now() - last >= 1000 {
             render()
             last = now()
         }
