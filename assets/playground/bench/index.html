@@ -591,6 +591,7 @@ let counts = map()
 let last = now()
 let snapshot = 0
 let render = () -> {
+    log("\u001b[2J\u001b[H")
     snapshot++
     log("snapshot", snapshot)
     log({ pod: "api-a", INFO: at(counts, "api-a|INFO"), DEBUG: at(counts, "api-a|DEBUG"), WARN: at(counts, "api-a|WARN"), ERROR: at(counts, "api-a|ERROR"), })
@@ -837,7 +838,18 @@ match cfg.mode {
                     status.textContent = "Ready";
                     status.style.color = "#bd93f9";
                 } else if (msg.type === 'output') {
-                    output.textContent += msg.data;
+                    const clearSeq = "\x1b[2J\x1b[H";
+                    let chunk = msg.data;
+                    while (true) {
+                        const idx = chunk.indexOf(clearSeq);
+                        if (idx === -1) {
+                            output.textContent += chunk;
+                            break;
+                        }
+                        output.textContent += chunk.slice(0, idx);
+                        output.textContent = "";
+                        chunk = chunk.slice(idx + clearSeq.length);
+                    }
                     output.scrollTop = output.scrollHeight;
                 } else if (msg.type === 'error') {
                     console.error("Worker error:", msg.data);
