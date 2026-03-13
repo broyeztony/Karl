@@ -58,21 +58,67 @@
                 Karl is expression-based. Assignments, loops, and recover blocks are expressions that produce values.
                 Parsing is Pratt-style with explicit operator precedence.
             </p>
-            <pre><code>// essential parse forms
-let x = expr
+            <h3>2.1 Core Grammar (EBNF)</h3>
+            <p>
+                Canonical source: <code>SPECS/language.md</code>. This EBNF is the practical parser-facing subset used by docs readers.
+            </p>
+            <pre><code>program         = { statement } ;
 
-expr ? recoverExpr
+statement       = let_stmt | expr_stmt ;
+let_stmt        = "let" pattern "=" expr [ ";" ] ;
+expr_stmt       = expr [ ";" ] ;
 
-&amp; callExpr
-spawn callExpr
+expr            = if_expr
+                | match_expr
+                | for_expr
+                | lambda_expr
+                | loop_ctrl
+                | assign ;
 
-!&amp; { callA(), callB(), }
-race { callA(), callB(), }
+if_expr         = "if" expr block [ "else" ( if_expr | block | expr ) ] ;
+match_expr      = "match" expr "{" { match_arm } "}" ;
+match_arm       = "case" pattern [ "if" expr ] "->" expr ;
+for_expr        = "for" expr [ "with" for_bindings ] block [ "then" then_block ] ;
+lambda_expr     = binder "->" expr ;
 
-source | stage | sink
-</code></pre>
+assign          = logic_or | lvalue assign_op expr ;
+logic_or        = pipe_expr { "||" pipe_expr } ;
+pipe_expr       = logic_and { "|" logic_and } ;
+logic_and       = equality { "&&" equality } ;
+equality        = comparison { ( "==" | "!=" | "eqv" ) comparison } ;
+comparison      = range { ( "<" | "<=" | ">" | ">=" ) range } ;
+range           = add [ ".." add [ "step" add ] ] ;
+add             = mul { ( "+" | "-" ) mul } ;
+mul             = unary { ( "*" | "/" | "%" ) unary } ;
 
-            <h3>2.1 Notable parser constraints</h3>
+unary           = ( "!" | "-" ) unary
+                | wait_expr
+                | import_expr
+                | spawn_expr
+                | postfix ;
+wait_expr       = "wait" unary ;
+import_expr     = "import" STRING ;
+spawn_expr      = ( "&" | "spawn" ) spawn_target ;
+spawn_target    = call_expr | "{" [ call_expr { "," call_expr } ] "}" ;
+
+postfix         = recover_expr ;
+recover_expr    = call_expr [ "?" recovery_block ] ;
+call_expr       = primary { call | member | index | inc_dec } ;
+call            = "(" [ expr { "," expr } [ "," ] ] ")" ;
+member          = "." ( IDENT | "then" ) ;
+index           = "[" expr "]" ;
+inc_dec         = "++" | "--" ;
+
+primary         = literal | IDENT | "_" | "(" expr ")" | block | object | array | query_expr | race_expr | struct_init ;
+block           = "{" { statement } [ expr ] "}" ;
+object          = "{" [ object_entry { "," object_entry } [ "," ] ] "}" ;
+array           = "[" [ expr { "," expr } [ "," ] ] "]" ;
+race_expr       = ( "!&" | "race" ) "{" [ call_expr { "," call_expr } ] "}" ;
+query_expr      = "from" IDENT "in" expr { "where" expr } [ "orderby" expr ] "select" expr ;
+pattern         = "_" | literal | IDENT | range_pattern | object_pattern | array_pattern | tuple_pattern ;
+literal         = NUMBER | STRING | CHAR | "true" | "false" | "null" | "()" ;</code></pre>
+
+            <h3>2.2 Notable parser constraints</h3>
             <ul>
                 <li><code>&amp;</code>/<code>spawn</code> targets must be call expressions or stream pipeline expressions.</li>
                 <li><code>!&amp;</code>/<code>race</code> expects a group of call expressions.</li>
