@@ -9,7 +9,46 @@ INCLUDE_K8S=${KARL_INCLUDE_K8S_EXAMPLES:-0}
 INCLUDE_STDIN=${KARL_INCLUDE_STDIN_EXAMPLES:-0}
 
 run_with_timeout() {
-  perl -e 'alarm shift; exec @ARGV' "$@"
+  seconds=$1
+  shift
+
+  if command -v timeout >/dev/null 2>&1; then
+    timeout --signal=TERM --kill-after=2 "${seconds}s" "$@"
+    return $?
+  fi
+
+  perl -e '
+use POSIX ":sys_wait_h";
+my $seconds = shift @ARGV;
+my $pid = fork();
+die "fork failed\n" unless defined $pid;
+if ($pid == 0) {
+  setpgrp(0,0);
+  exec @ARGV;
+  die "exec failed: $!\n";
+}
+my $deadline = time() + $seconds;
+while (1) {
+  my $r = waitpid($pid, WNOHANG);
+  if ($r == $pid) {
+    if (WIFEXITED($?)) {
+      exit WEXITSTATUS($?);
+    }
+    if (WIFSIGNALED($?)) {
+      exit 128 + WTERMSIG($?);
+    }
+    exit 1;
+  }
+  if (time() >= $deadline) {
+    kill "TERM", -$pid;
+    select(undef, undef, undef, 0.2);
+    kill "KILL", -$pid;
+    waitpid($pid, 0);
+    exit 124;
+  }
+  select(undef, undef, undef, 0.1);
+}
+' "$seconds" "$@"
 }
 
 if ! command -v "$KARL_BIN" >/dev/null 2>&1; then
