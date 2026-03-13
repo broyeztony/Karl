@@ -1,16 +1,13 @@
 // Mirror pod names to console and spill to disk while counting.
 
-let snapshot = env("K8S_SNAPSHOT") ? "/tmp/karl-pods.snapshot"
+let snapshot = if (trim(env("K8S_SNAPSHOT")) ? "") == "" {
+    "/tmp/karl-pods.snapshot"
+} else {
+    trim(env("K8S_SNAPSHOT")) ? ""
+}
 
-let p = proc(
-    "kubectl",
-    "get",
-    "pods",
-    "-A",
-    "-o",
-    "name",
-    { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
-)
+let p = proc("kubectl", "get", "pods", "-A", "-o", "name",
+    { stdout: PIPE, stderr: NULL, stdoutType: TEXT, })
 
 let total = p
     | lines()
