@@ -544,7 +544,13 @@ wait producer
 stream`,
             sim_k8s_fan_in: `// Simulated Kubernetes logs fan-in (browser-safe)
 // NOTE: this does not call kubectl in bench.
-let listPods = () -> ["api-a", "api-b", "api-c"]
+let ns = "karl-health-demo"
+let selector = "app=chain-node"
+let listPods = () -> [
+    "chain-node-7d5c8d898c-2c7z7",
+    "chain-node-7d5c8d898c-fbn86",
+    "chain-node-7d5c8d898c-t6t2d",
+]
 
 let levelOf = line -> match line {
     case _ if line.contains("ERROR") -> "ERROR"
@@ -562,54 +568,98 @@ let bump = (counts, pod, level) -> {
 
 let at = (counts, k) -> {
     let v = get(counts, k)
-    if v == null { 0 } else { v }
+    if v == null { "null" } else { str(v) }
 }
 
-let templates = [
-    "INFO boot",
-    "DEBUG sync",
-    "WARN retry",
-    "ERROR timeout",
-    "INFO recovered",
-    "DEBUG heartbeat",
-]
+let spaces = n -> for i < n with i = 0, out = "" {
+    out = out + " "
+    i++
+} then out
 
-let simulatePod = pod -> {
+let fill = (ch, n) -> for i < n with i = 0, out = "" {
+    out = out + ch
+    i++
+} then out
+
+let pad = (text, width) -> if text.length >= width { text } else { text + spaces(width - text.length) }
+
+let levelW = 7
+let countW = 6
+let border =
+    "+"
+    + fill("-", levelW + 2)
+    + "+"
+    + fill("-", countW + 2)
+    + "+"
+    + fill("-", countW + 2)
+    + "+"
+    + fill("-", countW + 2)
+    + "+"
+
+let row = (a, b, c, d) ->
+    "| "
+    + pad(a, levelW)
+    + " | "
+    + pad(b, countW)
+    + " | "
+    + pad(c, countW)
+    + " | "
+    + pad(d, countW)
+    + " |"
+
+let templates = ["DEBUG sync", "INFO boot", "WARN retry", "ERROR timeout"]
+
+let simulatePod = (pod, total) -> {
     let ch = channel()
     & (() -> {
-        for true with i = 0 {
-            sleep(90 + ((i % 4) * 35))
-            let line = templates[(i + pod.length) % templates.length]
+        for i < total with i = 0 {
+            sleep(95 + ((i % 3) * 20))
+            let line = templates[i % templates.length]
             ch.send({ pod, level: levelOf(line), line, ts: now(), })
             i++
         } then ()
+        ch.done()
     })()
     fromChannel(ch)
 }
 
 let counts = map()
-let last = now()
 let snapshot = 0
-let render = () -> {
+let render = names -> {
     log("\u001b[2J\u001b[H")
-    snapshot++
-    log("snapshot", snapshot)
-    log({ pod: "api-a", INFO: at(counts, "api-a|INFO"), DEBUG: at(counts, "api-a|DEBUG"), WARN: at(counts, "api-a|WARN"), ERROR: at(counts, "api-a|ERROR"), })
-    log({ pod: "api-b", INFO: at(counts, "api-b|INFO"), DEBUG: at(counts, "api-b|DEBUG"), WARN: at(counts, "api-b|WARN"), ERROR: at(counts, "api-b|ERROR"), })
-    log({ pod: "api-c", INFO: at(counts, "api-c|INFO"), DEBUG: at(counts, "api-c|DEBUG"), WARN: at(counts, "api-c|WARN"), ERROR: at(counts, "api-c|ERROR"), })
-    log("----------------")
+    log("ns=" + ns + " selector=" + selector)
+    log("pod1=" + names[0])
+    log("pod2=" + names[1])
+    log("pod3=" + names[2])
+    log("")
+    log(border)
+    log(row("LEVEL", "POD1", "POD2", "POD3"))
+    log(border)
+    log(row("DEBUG", at(counts, names[0] + "|DEBUG"), at(counts, names[1] + "|DEBUG"), at(counts, names[2] + "|DEBUG")))
+    log(row("INFO", at(counts, names[0] + "|INFO"), at(counts, names[1] + "|INFO"), at(counts, names[2] + "|INFO")))
+    log(row("WARN", at(counts, names[0] + "|WARN"), at(counts, names[1] + "|WARN"), at(counts, names[2] + "|WARN")))
+    log(row("ERROR", at(counts, names[0] + "|ERROR"), at(counts, names[1] + "|ERROR"), at(counts, names[2] + "|ERROR")))
+    log(row("OTHER", at(counts, names[0] + "|OTHER"), at(counts, names[1] + "|OTHER"), at(counts, names[2] + "|OTHER")))
+    log(border)
 }
 
-merge(listPods().map(simulatePod))
+let names = listPods()
+let eventsPerSnapshot = 30
+let maxSnapshots = 10
+let maxEvents = eventsPerSnapshot * maxSnapshots
+let perPodEvents = maxEvents / names.length
+let processed = 0
+
+merge(names.map(pod -> simulatePod(pod, perPodEvents)))
     | forEach(event -> {
         bump(counts, event.pod, event.level)
-        if now() - last >= 1000 {
-            render()
-            last = now()
+        processed = processed + 1
+        if processed % eventsPerSnapshot == 0 {
+            snapshot = snapshot + 1
+            render(names)
         }
     })
-
-render()`,
+`,
             landing_fibonacci: `// Fibonacci (expression-based loop)
 let fib = n -> {
     if n <= 1 { n } else {
