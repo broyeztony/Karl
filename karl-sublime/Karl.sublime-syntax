@@ -1,0 +1,113 @@
+%YAML 1.2
+---
+name: Karl
+file_extensions:
+  - k
+scope: source.karl
+
+contexts:
+  main:
+    - include: comments
+    - include: strings
+    - include: numbers
+    - include: constants
+    - include: keywords
+    - include: operators
+    - include: builtins
+    - include: function-calls
+    - include: punctuation
+
+  comments:
+    - match: //.*$
+      scope: comment.line.double-slash.karl
+
+  strings:
+    - match: '"'
+      scope: punctuation.definition.string.begin.karl
+      push: double-quoted-string
+    - match: "'"
+      scope: punctuation.definition.string.begin.karl
+      push: single-quoted-string
+
+  double-quoted-string:
+    - meta_scope: string.quoted.double.karl
+    - match: \\\\(n|r|t|\\|"|')
+      scope: constant.character.escape.karl
+    - match: '"'
+      scope: punctuation.definition.string.end.karl
+      pop: true
+
+  single-quoted-string:
+    - meta_scope: string.quoted.single.karl
+    - match: \\\\(n|r|t|\\|"|')
+      scope: constant.character.escape.karl
+    - match: "'"
+      scope: punctuation.definition.string.end.karl
+      pop: true
+
+  numbers:
+    - match: \b0[xX][0-9a-fA-F]+\b
+      scope: constant.numeric.hex.karl
+    - match: \b\d+(?:\.\d+)?\b
+      scope: constant.numeric.decimal.karl
+
+  constants:
+    - match: \b(?:true|false)\b
+      scope: constant.language.boolean.karl
+    - match: \b(?:null|nil)\b
+      scope: constant.language.null.karl
+    - match: \b(?:PIPE|INHERIT|NULL|TEXT|BYTES)\b
+      scope: constant.language.karl
+
+  keywords:
+    - match: \b(?:if|else|for|while|break|continue|return|match|case|then|with|wait|spawn|race)\b
+      scope: keyword.control.karl
+    - match: \b(?:let|import|from|in|where|orderby|select)\b
+      scope: keyword.other.karl
+
+  operators:
+    - match: '!&'
+      scope: keyword.operator.race.karl
+    - match: '&(?!&)'
+      scope: keyword.operator.async.karl
+    - match: '->'
+      scope: keyword.operator.arrow.karl
+    - match: \+\+|--
+      scope: keyword.operator.increment.karl
+    - match: \+=|-=|\*=|/=|%=|=
+      scope: keyword.operator.assignment.karl
+    - match: ==|!=|<=|>=|<|>
+      scope: keyword.operator.comparison.karl
+    - match: \|\||&&
+      scope: keyword.operator.logical.karl
+    - match: \|
+      scope: keyword.operator.pipe.karl
+    - match: \.\.
+      scope: keyword.operator.range.karl
+    - match: \+|-|\*|/|%
+      scope: keyword.operator.arithmetic.karl
+    - match: \?
+      scope: keyword.operator.error-recovery.karl
+
+  builtins:
+    - match: \b(?:abs|add|appendFile|argv|buffered|bytesJoin|ceil|channel|chars|chunk|clamp|collect|contains|cos|count|debounce|delete|deleteFile|distinct|done|drop|endsWith|env|environ|exec|exists|exit|fail|filter|find|flatMap|floor|forEach|fromChannel|fromJson|fromUtf8|get|group_count|has|http|httpServe|httpServerStop|join|keys|len|lines|listDir|log|logt|map|max|merge|min|now|parseInt|partition|pow|proc|programPath|rand|randFloat|randInt|read|readFile|readLine|reader|recv|reduce|reduce_by_key|rendezvous|replace|run|send|set|sha256|signalWatch|sin|sleep|sort|spill|split|sqlBegin|sqlClose|sqlCommit|sqlExec|sqlOpen|sqlQuery|sqlQueryOne|sqlRollback|sqrt|startsWith|stdin|stdout|str|sum|take|tan|tee|then|throttle|timeAdd|timeDiff|timeFormatRFC3339|timeParseRFC3339|toChannel|toJson|toLower|toUpper|toUtf8|top|trim|uuidNew|uuidParse|uuidValid|values|window|write|writeFile|writer|zip)\b
+      scope: support.function.builtin.karl
+
+  function-calls:
+    - match: \b([A-Za-z_][A-Za-z0-9_]*)\s*(?=\()
+      captures:
+        1: entity.name.function.karl
+
+  punctuation:
+    - match: ','
+      scope: punctuation.separator.comma.karl
+    - match: ';'
+      scope: punctuation.terminator.semicolon.karl
+    - match: \.
+      scope: punctuation.accessor.karl
+    - match: '[{}]'
+      scope: meta.brace.curly.karl
+    - match: '[\[\]]'
+      scope: meta.brace.square.karl
+    - match: '[()]'
+      scope: meta.brace.round.karl
