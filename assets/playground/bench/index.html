@@ -560,8 +560,13 @@ let levelOf = line -> if line.contains("ERROR") {
 
 let bump = (counts, pod, level) -> {
     let k = pod + "|" + level
-    let v = get(counts, k) ? 0
-    set(counts, k, v + 1)
+    let v = get(counts, k)
+    set(counts, k, if v == null { 1 } else { v + 1 })
+}
+
+let at = (counts, k) -> {
+    let v = get(counts, k)
+    if v == null { 0 } else { v }
 }
 
 let simulatePod = pod -> {
@@ -586,9 +591,9 @@ let counts = map()
 let last = now()
 let render = () -> {
     log({
-        podA: { INFO: get(counts, "api-a|INFO") ? 0, WARN: get(counts, "api-a|WARN") ? 0, ERROR: get(counts, "api-a|ERROR") ? 0, },
-        podB: { INFO: get(counts, "api-b|INFO") ? 0, WARN: get(counts, "api-b|WARN") ? 0, ERROR: get(counts, "api-b|ERROR") ? 0, },
-        podC: { INFO: get(counts, "api-c|INFO") ? 0, WARN: get(counts, "api-c|WARN") ? 0, ERROR: get(counts, "api-c|ERROR") ? 0, },
+        podA: { INFO: at(counts, "api-a|INFO"), WARN: at(counts, "api-a|WARN"), ERROR: at(counts, "api-a|ERROR"), },
+        podB: { INFO: at(counts, "api-b|INFO"), WARN: at(counts, "api-b|WARN"), ERROR: at(counts, "api-b|ERROR"), },
+        podC: { INFO: at(counts, "api-c|INFO"), WARN: at(counts, "api-c|WARN"), ERROR: at(counts, "api-c|ERROR"), },
     })
 }
 
