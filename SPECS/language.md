@@ -664,8 +664,8 @@ assign          = logic_or
 lvalue          = IDENT { ( "." IDENT | "[" expr "]" ) } ;
 assign_op       = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
 
-// Process pipeline composition (`|`) is type-checked at runtime:
-// valid only for cmd/pipeline values.
+// Stream pipeline composition (`|`) is type-checked at runtime:
+// valid only for stream expressions (source/plan/stage/sink).
 logic_or        = pipe_expr { "||" pipe_expr } ;
 pipe_expr       = logic_and { "|" logic_and } ;
 logic_and       = equality { "&&" equality } ;
@@ -684,11 +684,11 @@ wait_expr      = "wait" unary ;
 import_expr    = "import" STRING ;
 spawn_expr      = ( "&" | "spawn" ) spawn_target ;
 spawn_target    = call_expr
+                | pipe_expr
                 | "{" [ call_expr { "," call_expr } ] "}" ;
 
 postfix         = recover_expr ;
-recover_expr    = call_expr [ "?" recovery_block ] ;
-recovery_block  = block ; // brace expression; object literal allowed by disambiguation
+recover_expr    = call_expr [ "?" expr ] ;
 call_expr       = primary { call | member | index | inc_dec } ;
 call            = "(" [ expr { "," expr } [ "," ] ] ")" ;
 member          = "." ( IDENT | "then" ) ;

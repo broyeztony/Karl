@@ -79,9 +79,17 @@ if_expr         = "if" expr block [ "else" ( if_expr | block | expr ) ] ;
 match_expr      = "match" expr "{" { match_arm } "}" ;
 match_arm       = "case" pattern [ "if" expr ] "->" expr ;
 for_expr        = "for" expr [ "with" for_bindings ] block [ "then" then_block ] ;
+for_bindings    = binding { "," binding } ;
+binding         = pattern "=" expr ;
+then_block      = block | expr ;
+
 lambda_expr     = binder "->" expr ;
+binder          = pattern | "(" [ pattern { "," pattern } ] ")" ;
+loop_ctrl       = "break" [ expr ] | "continue" ;
 
 assign          = logic_or | lvalue assign_op expr ;
+lvalue          = IDENT { ( "." IDENT | "[" expr "]" ) } ;
+assign_op       = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
 logic_or        = pipe_expr { "||" pipe_expr } ;
 pipe_expr       = logic_and { "|" logic_and } ;
 logic_and       = equality { "&&" equality } ;
@@ -99,10 +107,11 @@ unary           = ( "!" | "-" ) unary
 wait_expr       = "wait" unary ;
 import_expr     = "import" STRING ;
 spawn_expr      = ( "&" | "spawn" ) spawn_target ;
-spawn_target    = call_expr | "{" [ call_expr { "," call_expr } ] "}" ;
+spawn_target    = call_expr
+                | pipe_expr
+                | "{" [ call_expr { "," call_expr } ] "}" ;
 
-postfix         = recover_expr ;
-recover_expr    = call_expr [ "?" recovery_block ] ;
+postfix         = call_expr [ "?" expr ] ;
 call_expr       = primary { call | member | index | inc_dec } ;
 call            = "(" [ expr { "," expr } [ "," ] ] ")" ;
 member          = "." ( IDENT | "then" ) ;
@@ -112,10 +121,18 @@ inc_dec         = "++" | "--" ;
 primary         = literal | IDENT | "_" | "(" expr ")" | block | object | array | query_expr | race_expr | struct_init ;
 block           = "{" { statement } [ expr ] "}" ;
 object          = "{" [ object_entry { "," object_entry } [ "," ] ] "}" ;
+object_entry    = IDENT [ ":" expr ] | "..." expr ;
 array           = "[" [ expr { "," expr } [ "," ] ] "]" ;
 race_expr       = ( "!&" | "race" ) "{" [ call_expr { "," call_expr } ] "}" ;
 query_expr      = "from" IDENT "in" expr { "where" expr } [ "orderby" expr ] "select" expr ;
+struct_init     = IDENT object ;
+
 pattern         = "_" | literal | IDENT | range_pattern | object_pattern | array_pattern | tuple_pattern ;
+object_pattern  = "{" [ pattern_entry { "," pattern_entry } [ "," ] ] "}" ;
+pattern_entry   = IDENT [ ":" pattern ] ;
+array_pattern   = "[" [ pattern { "," pattern } ] [ "," "..." pattern ] [ "," ] "]" ;
+tuple_pattern   = "(" [ pattern { "," pattern } ] [ "," ] ")" ;
+range_pattern   = literal ".." literal ;
 literal         = NUMBER | STRING | CHAR | "true" | "false" | "null" | "()" ;</code></pre>
 
             <h3>2.2 Notable parser constraints</h3>
