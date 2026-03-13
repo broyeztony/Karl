@@ -5,6 +5,8 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 KARL_BIN=${KARL_BIN:-karl}
 TIMEOUT_SECONDS=${KARL_EXAMPLE_TIMEOUT:-60}
 INCLUDE_NETWORK=${KARL_INCLUDE_NETWORK_EXAMPLES:-0}
+INCLUDE_K8S=${KARL_INCLUDE_K8S_EXAMPLES:-0}
+INCLUDE_STDIN=${KARL_INCLUDE_STDIN_EXAMPLES:-0}
 
 run_with_timeout() {
   perl -e 'alarm shift; exec @ARGV' "$@"
@@ -40,6 +42,19 @@ while IFS= read -r file; do
   fi
 
   short_file=${file#$ROOT_DIR/}
+
+  if [ "$INCLUDE_K8S" != "1" ] && printf '%s' "$short_file" | grep -q '/kubernetes_'; then
+    echo "[SKIP][k8s] $short_file"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  if [ "$INCLUDE_STDIN" != "1" ] && grep -q 'stdin(' "$file"; then
+    echo "[SKIP][stdin] $short_file"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
   echo "[RUN] $short_file"
 
   set +e
