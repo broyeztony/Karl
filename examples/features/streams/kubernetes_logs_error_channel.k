@@ -26,16 +26,12 @@ let listPods = () -> {
 let pods = listPods()
 if pods.length < 3 { fail("expected at least 3 running pods for selector " + selector) }
 
-let levelOf = line -> if line.contains("ERROR") {
-    "ERROR"
-} else if line.contains("WARN") {
-    "WARN"
-} else if line.contains("INFO") {
-    "INFO"
-} else if line.contains("DEBUG") {
-    "DEBUG"
-} else {
-    "OTHER"
+let levelOf = line -> match line {
+    case _ if line.contains("ERROR") -> "ERROR"
+    case _ if line.contains("WARN") -> "WARN"
+    case _ if line.contains("INFO") -> "INFO"
+    case _ if line.contains("DEBUG") -> "DEBUG"
+    case _ -> "OTHER"
 }
 
 let key = (pod, level) -> pod + "|" + level
