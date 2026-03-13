@@ -91,17 +91,6 @@
             z-index: 6;
         }
 
-        .tour-note {
-            position: absolute;
-            top: 14px;
-            left: 18px;
-            z-index: 6;
-            font-size: 12px;
-            line-height: 1;
-            color: var(--ink);
-            opacity: 0.72;
-        }
-
         .cta-links a,
         .github-link {
             text-decoration: none;
@@ -224,7 +213,6 @@
         </section>
         <section class="right" aria-label="Karl feature examples">
             <a class="github-link" href="https://github.com/broyeztony/Karl">Github</a>
-            <div class="tour-note">CLI + streams + process orchestration</div>
             <nav class="cta-links" aria-label="Karl quick links">
                 <a href="/bench/">Try in your browser</a>
                 <a href="/docs/">Docs</a>
@@ -278,11 +266,18 @@ for true with pair = p.stdout.read() {
 
 wait p ? {}`,
             `// Fan-in: merge multiple stream sources
-let a = proc("kubectl", "logs", "-f", "deploy/api-a", { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }) | lines()
-let b = proc("kubectl", "logs", "-f", "deploy/api-b", { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }) | lines()
-let c = proc("kubectl", "logs", "-f", "deploy/api-c", { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }) | lines()
+let logA =
+    proc(
+        "kubectl", "logs", "-f", "deploy/api-a",
+        { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+    ) | lines()
+let logB =
+    proc(
+        "kubectl", "logs", "-f", "deploy/api-b",
+        { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+    ) | lines()
 
-let first100 = merge(a, b, c)
+let first100 = merge(logA, logB)
     | filter(_ != "")
     | take(100)
     | collect()

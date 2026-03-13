@@ -8,7 +8,7 @@ let matrix = (import "examples/features/streams/kubernetes_log_matrix_render.k")
 
 let ns = trim(env("K8S_NS")) ? "karl-health-demo"
 let selector = trim(env("K8S_SELECTOR")) ? "app=chain-node"
-let matrixMs = parseInt(trim(env("K8S_MATRIX_MS")) ? "2000") ? 2000
+let matrixMs = parseInt(trim(env("K8S_MATRIX_MS"))) ? 2000
 
 let listPods = () -> {
     let st = run(

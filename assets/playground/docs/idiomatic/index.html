@@ -59,7 +59,7 @@
 
             <h3 id="env">2. Env + Config</h3>
             <pre><code>let ns = trim(env("K8S_NS")) ? "default"
-let pollMs = parseInt(trim(env("POLL_MS")) ? "1000") ? 1000
+let pollMs = parseInt(trim(env("POLL_MS"))) ? 1000
 
 let cfg = fromJson(readFile("config.json")) ? {
     { mode: "safe", retries: 3, }
@@ -108,21 +108,25 @@ wait p
 log(phases)
 </code></pre>
 
-            <h3 id="matrix">6. Live matrix loop (merge + stream.read)</h3>
-            <pre><code>let merged = merge(f1.stream, f2.stream, f3.stream)
-
-for true with pair = merged.read(), last = now() {
-    let [event, eof] = pair
-    if eof { break () }
-
+            <h3 id="matrix">6. Live matrix loop (one-statement fan-in)</h3>
+            <pre><code>merge(
+  listPods()
+    .map(pod ->
+      proc(
+        "kubectl", "logs", "-f", "-n", ns, pod, "--all-containers=true", "--tail=100",
+        { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+      )
+      | lines()
+      | filter(_ != "")
+      | map(line -> { pod, level: levelOf(line), })
+    )
+) | forEach(event -> {
     bump(counts, event.pod, event.level)
-
-    if now() - last &gt;= 2000 {
+    if now() - last &gt;= matrixMs {
         render(counts)
         last = now()
     }
-    pair = merged.read()
-} then ()
+})
 </code></pre>
 
             <h3 id="sql">7. SQL boundaries</h3>
