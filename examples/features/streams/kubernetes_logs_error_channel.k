@@ -4,6 +4,8 @@
 // - K8S_SELECTOR (default: "app=chain-node")
 // - K8S_MATRIX_MS (default: 2000)
 
+let matrix = (import "examples/features/streams/kubernetes_log_matrix_render.k")()
+
 let ns = trim(env("K8S_NS")) ? "karl-health-demo"
 let selector = trim(env("K8S_SELECTOR")) ? "app=chain-node"
 let matrixMs = parseInt(trim(env("K8S_MATRIX_MS")) ? "2000") ? 2000
@@ -42,53 +44,6 @@ let bump = (counts, pod, level) -> {
     let cur = get(counts, k)
     set(counts, k, if cur == null { 1 } else { cur + 1 })
 }
-let at = (counts, pod, level) -> get(counts, key(pod, level)) ? 0
-
-let spaces = n -> for i < n with i = 0, out = "" { out = out + " "; i++ } then out
-let fill = (ch, n) -> for i < n with i = 0, out = "" { out = out + ch; i++ } then out
-let pad = (text, width) -> if text.length >= width { text } else { text + spaces(width - text.length) }
-
-let levelW = 7
-let countW = 6
-let border =
-    "+"
-    + fill("-", levelW + 2)
-    + "+"
-    + fill("-", countW + 2)
-    + "+"
-    + fill("-", countW + 2)
-    + "+"
-    + fill("-", countW + 2)
-    + "+"
-
-let row = (a, b, c, d) ->
-    "| "
-    + pad(a, levelW)
-    + " | "
-    + pad(b, countW)
-    + " | "
-    + pad(c, countW)
-    + " | "
-    + pad(d, countW)
-    + " |"
-
-let render = (counts, names) -> {
-    log("\u001b[2J\u001b[H")
-    log("ns=" + ns + " selector=" + selector)
-    log("pod1=" + names[0])
-    log("pod2=" + names[1])
-    log("pod3=" + names[2])
-    log("")
-    log(border)
-    log(row("LEVEL", "POD1", "POD2", "POD3"))
-    log(border)
-    log(row("DEBUG", str(at(counts, "pod1", "DEBUG")), str(at(counts, "pod2", "DEBUG")), str(at(counts, "pod3", "DEBUG"))))
-    log(row("INFO", str(at(counts, "pod1", "INFO")), str(at(counts, "pod2", "INFO")), str(at(counts, "pod3", "INFO"))))
-    log(row("WARN", str(at(counts, "pod1", "WARN")), str(at(counts, "pod2", "WARN")), str(at(counts, "pod3", "WARN"))))
-    log(row("ERROR", str(at(counts, "pod1", "ERROR")), str(at(counts, "pod2", "ERROR")), str(at(counts, "pod3", "ERROR"))))
-    log(row("OTHER", str(at(counts, "pod1", "OTHER")), str(at(counts, "pod2", "OTHER")), str(at(counts, "pod3", "OTHER"))))
-    log(border)
-}
 
 let feed = (podName, podLabel) -> {
     let p = proc(
@@ -111,6 +66,7 @@ let feeds = [
     feed(pods[2], "pod3"),
 ]
 let names = [pods[0], pods[1], pods[2]]
+let ui = matrix.create(ns, selector, names)
 
 let signaler = & (() -> {
     let [signal, done] = signalWatch(["SIGINT", "SIGTERM"]).recv()
@@ -122,7 +78,7 @@ let signaler = & (() -> {
 
 let counts = map()
 let last = now()
-render(counts, names)
+ui.render(counts)
 
 // Single stream statement: pull 3 pods, merge, count, and render.
 merge(feeds.map(f -> f.stream))
@@ -130,7 +86,7 @@ merge(feeds.map(f -> f.stream))
         bump(counts, event.pod, event.level)
         let t = now()
         if t - last >= matrixMs {
-            render(counts, names)
+            ui.render(counts)
             last = t
         }
     })
@@ -141,4 +97,4 @@ feeds.forEach(f -> (wait f.proc) ? {})
 signaler.cancel()
 (wait signaler) ? {}
 
-render(counts, names)
+ui.render(counts)
