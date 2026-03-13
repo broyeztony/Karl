@@ -1,10 +1,5 @@
 // Mirror pod names to console and spill to disk while counting.
-
-let snapshot = if (trim(env("K8S_SNAPSHOT")) ? "") == "" {
-    "/tmp/karl-pods.snapshot"
-} else {
-    trim(env("K8S_SNAPSHOT")) ? ""
-}
+let snapshot = trim(env("K8S_SNAPSHOT")) ? "/tmp/karl-pods.snapshot"
 
 let p = proc("kubectl", "get", "pods", "-A", "-o", "name",
     { stdout: PIPE, stderr: NULL, stdoutType: TEXT, })
@@ -17,7 +12,7 @@ let total = p
     | tee(stdout())
     | count()
 
-let st = wait p
-if !st.ok { fail("kubectl get pods failed: exit " + str(st.code)) }
+let status = wait p
+if !status.ok { fail("kubectl get pods failed: exit " + str(st.code)) }
 
 log({ total, snapshot, })

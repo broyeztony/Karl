@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-ok
+  namespace: karl-health-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-ok
+  template:
+    metadata:
+      labels:
+        app: web-ok
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 80

@@ -4,13 +4,8 @@
 // - K8S_DEPLOY (default: "api")
 // - K8S_ERROR_LIMIT (default: 30)
 
-let envText = (key, fallback) -> {
-    let value = trim(env(key)) ? ""
-    if value == "" { fallback } else { value }
-}
-
-let ns = envText("K8S_NS", "default")
-let deploy = envText("K8S_DEPLOY", "api")
+let ns = trim(env("K8S_NS")) ? "karl-health-demo"
+let deploy = trim(env("K8S_DEPLOY")) ? "api"
 let limit = parseInt(env("K8S_ERROR_LIMIT") ? "30") ? 30
 
 let q = buffered(256)

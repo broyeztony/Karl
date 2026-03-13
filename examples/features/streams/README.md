@@ -7,6 +7,31 @@ These examples focus on stream pipelines (`|`), with Kubernetes-heavy scenarios 
 - `kubectl` installed
 - current context points to a reachable cluster (minikube, kind, remote, ...)
 
+## Demo Kubernetes Manifests
+
+Reusable manifests for stream examples are in:
+
+- `examples/features/streams/k8s/`
+
+They create namespace `karl-health-demo` with three workloads:
+
+- `web-ok` (healthy)
+- `crashloop-app` (intentional CrashLoopBackOff)
+- `pending-app` (intentional Pending via oversized requests)
+
+Apply/recreate after cluster restart:
+
+```bash
+kubectl apply -f examples/features/streams/k8s
+kubectl get pods -n karl-health-demo
+```
+
+Delete:
+
+```bash
+kubectl delete -f examples/features/streams/k8s
+```
+
 ## Files
 
 - `kubernetes_pod_inventory_streams.k`
