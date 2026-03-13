@@ -7,6 +7,7 @@ TIMEOUT_SECONDS=${KARL_EXAMPLE_TIMEOUT:-60}
 INCLUDE_NETWORK=${KARL_INCLUDE_NETWORK_EXAMPLES:-0}
 INCLUDE_K8S=${KARL_INCLUDE_K8S_EXAMPLES:-0}
 INCLUDE_STDIN=${KARL_INCLUDE_STDIN_EXAMPLES:-0}
+INCLUDE_LONG=${KARL_INCLUDE_LONG_RUNNING_EXAMPLES:-0}
 
 run_with_timeout() {
   seconds=$1
@@ -90,6 +91,12 @@ while IFS= read -r file; do
 
   if [ "$INCLUDE_STDIN" != "1" ] && grep -q 'stdin(' "$file"; then
     echo "[SKIP][stdin] $short_file"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  if [ "$INCLUDE_LONG" != "1" ] && printf '%s' "$short_file" | grep -q '/infinite_'; then
+    echo "[SKIP][long] $short_file"
     skipped=$((skipped + 1))
     continue
   fi
