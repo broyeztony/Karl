@@ -7,13 +7,16 @@ import (
 )
 
 func registerJSONBuiltins() {
-	builtins["jsonEncode"] = &Builtin{Name: "jsonEncode", Fn: builtinEncodeJSON}
-	builtins["jsonDecode"] = &Builtin{Name: "jsonDecode", Fn: builtinDecodeJSON}
+	builtins["toJson"] = &Builtin{Name: "toJson", Fn: builtinToJSON}
+	builtins["fromJson"] = &Builtin{Name: "fromJson", Fn: builtinFromJSON}
 }
 
-func builtinEncodeJSON(_ *Evaluator, args []Value) (Value, error) {
+func builtinToJSON(_ *Evaluator, args []Value) (Value, error) {
+	if len(args) == 0 {
+		return newStreamToJSONStage(), nil
+	}
 	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "jsonEncode expects 1 argument"}
+		return nil, &RuntimeError{Message: "toJson expects 1 argument or no arguments for stream stage"}
 	}
 	value, err := encodeJSONValue(args[0])
 	if err != nil {
@@ -21,27 +24,30 @@ func builtinEncodeJSON(_ *Evaluator, args []Value) (Value, error) {
 	}
 	data, err := json.Marshal(value)
 	if err != nil {
-		return nil, &RuntimeError{Message: "jsonEncode error: " + err.Error()}
+		return nil, &RuntimeError{Message: "toJson error: " + err.Error()}
 	}
 	return &String{Value: string(data)}, nil
 }
 
-func builtinDecodeJSON(_ *Evaluator, args []Value) (Value, error) {
+func builtinFromJSON(_ *Evaluator, args []Value) (Value, error) {
+	if len(args) == 0 {
+		return newStreamFromJSONStage(), nil
+	}
 	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "jsonDecode expects 1 argument"}
+		return nil, &RuntimeError{Message: "fromJson expects 1 argument or no arguments for stream stage"}
 	}
 	str, ok := args[0].(*String)
 	if !ok {
-		return nil, &RuntimeError{Message: "jsonDecode expects string"}
+		return nil, &RuntimeError{Message: "fromJson expects string"}
 	}
 	decoder := json.NewDecoder(strings.NewReader(str.Value))
 	decoder.UseNumber()
 	var data interface{}
 	if err := decoder.Decode(&data); err != nil {
-		return nil, recoverableError("jsonDecode", "jsonDecode error: "+err.Error())
+		return nil, recoverableError("fromJson", "fromJson error: "+err.Error())
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return nil, recoverableError("jsonDecode", "jsonDecode expects a single JSON value")
+		return nil, recoverableError("fromJson", "fromJson expects a single JSON value")
 	}
 	return decodeJSONValue(data)
 }

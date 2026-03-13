@@ -10,3 +10,12 @@ func stringArg(val Value) (string, bool) {
 		return "", false
 	}
 }
+
+func bytesArg(val Value) ([]byte, bool) {
+	switch v := val.(type) {
+	case *Bytes:
+		return v.Value, true
+	default:
+		return nil, false
+	}
+}

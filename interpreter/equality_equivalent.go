@@ -1,5 +1,7 @@
 package interpreter
 
+import "bytes"
+
 func Equivalent(left, right Value) bool {
 	if left == nil || right == nil {
 		return left == right
@@ -17,6 +19,8 @@ func Equivalent(left, right Value) bool {
 		return l.Value == right.(*Boolean).Value
 	case *String:
 		return l.Value == right.(*String).Value
+	case *Bytes:
+		return bytes.Equal(l.Value, right.(*Bytes).Value)
 	case *Char:
 		return l.Value == right.(*Char).Value
 	case *Null, *Unit:

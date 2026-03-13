@@ -39,7 +39,7 @@ func builtinSignalWatch(e *Evaluator, args []Value) (Value, error) {
 		names[sig] = canonical
 	}
 
-	out := &Channel{Ch: make(chan Value, len(watch)+4)}
+	out := &Channel{Ch: make(chan Value, len(watch)+4), closeCh: make(chan struct{})}
 	osCh := make(chan os.Signal, len(watch)+4)
 	watchDone := make(chan struct{})
 	signal.Notify(osCh, watch...)
@@ -50,7 +50,7 @@ func builtinSignalWatch(e *Evaluator, args []Value) (Value, error) {
 
 	cancelCh := runtimeCancelSignal(e)
 	fatalCh := runtimeFatalSignal(e)
-	go func() {
+	runGuarded(e.runtime, "signalWatch", func() {
 		defer out.Close()
 		for {
 			select {
@@ -73,7 +73,7 @@ func builtinSignalWatch(e *Evaluator, args []Value) (Value, error) {
 				return
 			}
 		}
-	}()
+	})
 
 	return out, nil
 }
@@ -83,14 +83,13 @@ func signalFromName(name string) (os.Signal, string, bool) {
 }
 
 func channelTrySend(ch *Channel, val Value) (ok bool) {
-	if ch == nil || ch.Closed {
+	if ch == nil {
 		return false
 	}
-	defer func() {
-		if recover() != nil {
-			ok = false
-		}
-	}()
-	ch.Ch <- val
-	return true
+	select {
+	case <-ch.ClosedSignal():
+		return false
+	case ch.Ch <- val:
+		return true
+	}
 }

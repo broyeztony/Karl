@@ -60,8 +60,8 @@ let factorial = (n) -> {
 // I/O
 log("Hello, Karl!")
 let response = http({ method: "GET", url: "https://httpbin.org/json", headers: map() })
-let data = jsonDecode("{\"name\": \"Karl\"}")
-let json = jsonEncode({ name: "Karl", version: 1 })
+let data = fromJson("{\"name\": \"Karl\"}")
+let json = toJson({ name: "Karl", version: 1 })
 
 // Concurrency
 let ch = rendezvous()
@@ -137,7 +137,7 @@ val--
 let range = 1..10
 
 // Error recovery
-let parsed = jsonDecode(body) ? { error: "failed", }
+let parsed = fromJson(body) ? { error: "failed", }
 let result = divide(10, 0) ? { 0 }
 
 // ═══════════════════════════════════════════════════════════
@@ -182,7 +182,7 @@ let worker = (id, input_ch, output_ch) -> {
                 {
                     worker_id: id,
                     status: response.status,
-                    body: jsonDecode(response.body) ? {},
+                    body: fromJson(response.body) ? {},
                 }
             })
             

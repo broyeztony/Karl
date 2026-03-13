@@ -31,6 +31,7 @@ const (
 	_ int = iota
 	LOWEST
 	ASSIGN
+	PIPELINE
 	OR
 	AND
 	EQUALS
@@ -49,6 +50,7 @@ var precedences = map[token.TokenType]int{
 	token.ASTERISK_ASSIGN: ASSIGN,
 	token.SLASH_ASSIGN:    ASSIGN,
 	token.PERCENT_ASSIGN:  ASSIGN,
+	token.PIPE:            PIPELINE,
 	token.OR:              OR,
 	token.AND:             AND,
 	token.EQ:              EQUALS,
@@ -123,6 +125,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.ASTERISK_ASSIGN, p.parseAssignExpression)
 	p.registerInfix(token.SLASH_ASSIGN, p.parseAssignExpression)
 	p.registerInfix(token.PERCENT_ASSIGN, p.parseAssignExpression)
+	p.registerInfix(token.PIPE, p.parseInfixExpression)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.QUESTION, p.parseRecoverExpression)
 	p.registerInfix(token.DOT, p.parseMemberExpression)
@@ -268,7 +271,7 @@ func (p *Parser) parseIdentifier() ast.Expression {
 		return p.finishLambda([]ast.Pattern{param})
 	}
 	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	if p.peekTokenIs(token.LBRACE) && p.braceLooksLikeObject() {
+	if p.peekTokenIs(token.LBRACE) && p.curToken.Line == p.peekToken.Line && p.braceLooksLikeObject() {
 		p.nextToken()
 		obj := p.parseObjectLiteral().(*ast.ObjectLiteral)
 		return &ast.StructInitExpression{Token: ident.Token, TypeName: ident, Value: obj}
@@ -346,8 +349,12 @@ func (p *Parser) parseSpawnExpression() ast.Expression {
 	}
 	p.nextToken()
 	task := p.parseExpression(PREFIX)
-	if !p.isCallExpression(task) {
-		p.addError(p.curToken, "spawn target must be a call expression")
+	if !p.isSpawnTargetExpression(task) {
+		p.addError(p.curToken, "spawn target must be a call expression or stream pipeline")
+		return expr
+	}
+	if p.isProcCallExpression(task) {
+		p.addError(p.curToken, "proc(...) already returns <process>; do not use '&' or spawn")
 		return expr
 	}
 	expr.Task = task
@@ -364,7 +371,7 @@ func (p *Parser) parseRaceExpression() ast.Expression {
 }
 
 func (p *Parser) parseReservedPipeExpression() ast.Expression {
-	p.addError(p.curToken, "operator '|' is reserved for stream piping; use '!& { ... }' or 'race { ... }' for race")
+	p.addError(p.curToken, "operator '|' is reserved for stream pipelines and requires a stream expression on the left")
 	return nil
 }
 
@@ -380,6 +387,9 @@ func (p *Parser) parseRaceOrSpawnGroup() []ast.Expression {
 		task := p.parseExpression(PREFIX)
 		if !p.isCallExpression(task) {
 			p.addError(p.curToken, "group tasks must be call expressions")
+		}
+		if p.isProcCallExpression(task) {
+			p.addError(p.curToken, "proc(...) already returns <process>; do not use '&' or spawn")
 		}
 		group = append(group, task)
 
@@ -1167,6 +1177,26 @@ func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 func (p *Parser) isCallExpression(expr ast.Expression) bool {
 	_, ok := expr.(*ast.CallExpression)
 	return ok
+}
+
+func (p *Parser) isSpawnTargetExpression(expr ast.Expression) bool {
+	if p.isCallExpression(expr) {
+		return true
+	}
+	infix, ok := expr.(*ast.InfixExpression)
+	return ok && infix.Operator == "|"
+}
+
+func (p *Parser) isProcCallExpression(expr ast.Expression) bool {
+	call, ok := expr.(*ast.CallExpression)
+	if !ok {
+		return false
+	}
+	ident, ok := call.Function.(*ast.Identifier)
+	if !ok {
+		return false
+	}
+	return ident.Value == "proc"
 }
 
 func isAssignable(expr ast.Expression) bool {

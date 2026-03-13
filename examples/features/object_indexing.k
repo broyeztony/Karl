@@ -1,6 +1,6 @@
 // Bracket indexing lets objects use non-identifier keys.
 
-let headers = jsonDecode("{\"Content-Type\":\"application/json\",\"User Agent\":\"Karl\"}")
+let headers = fromJson("{\"Content-Type\":\"application/json\",\"User Agent\":\"Karl\"}")
 
 let contentType = headers["Content-Type"]
 let userAgent = headers["User Agent"]
@@ -17,5 +17,5 @@ log({
     server: headers.server,
 })
 
-let json = jsonEncode(headers)
+let json = toJson(headers)
 log("json:", json)

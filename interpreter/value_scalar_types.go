@@ -5,25 +5,33 @@ import "fmt"
 type ValueType string
 
 const (
-	INTEGER ValueType = "INTEGER"
-	FLOAT   ValueType = "FLOAT"
-	BOOLEAN ValueType = "BOOLEAN"
-	STRING  ValueType = "STRING"
-	CHAR    ValueType = "CHAR"
-	NULL    ValueType = "NULL"
-	UNIT    ValueType = "UNIT"
-	ARRAY   ValueType = "ARRAY"
-	OBJECT  ValueType = "OBJECT"
-	MAP     ValueType = "MAP"
-	SET     ValueType = "SET"
-	FUNC    ValueType = "FUNCTION"
-	BUILTIN ValueType = "BUILTIN"
-	TASK    ValueType = "TASK"
-	CHANNEL ValueType = "CHANNEL"
-	PARTIAL ValueType = "PARTIAL"
-	DB      ValueType = "DB"
-	TX      ValueType = "TX"
-	SERVER  ValueType = "SERVER"
+	INTEGER       ValueType = "INTEGER"
+	FLOAT         ValueType = "FLOAT"
+	BOOLEAN       ValueType = "BOOLEAN"
+	STRING        ValueType = "STRING"
+	BYTES_VALUE   ValueType = "BYTES"
+	CHAR          ValueType = "CHAR"
+	NULL          ValueType = "NULL"
+	UNIT          ValueType = "UNIT"
+	ARRAY         ValueType = "ARRAY"
+	OBJECT        ValueType = "OBJECT"
+	MAP           ValueType = "MAP"
+	SET           ValueType = "SET"
+	FUNC          ValueType = "FUNCTION"
+	BUILTIN       ValueType = "BUILTIN"
+	TASK          ValueType = "TASK"
+	CHANNEL       ValueType = "CHANNEL"
+	PARTIAL       ValueType = "PARTIAL"
+	DB            ValueType = "DB"
+	TX            ValueType = "TX"
+	SERVER        ValueType = "SERVER"
+	PROCESS       ValueType = "PROCESS"
+	STREAM_SOURCE ValueType = "STREAM_SOURCE"
+	STREAM_STAGE  ValueType = "STREAM_STAGE"
+	STREAM_SINK   ValueType = "STREAM_SINK"
+	STREAM_PLAN   ValueType = "STREAM_PLAN"
+	STREAM_READER ValueType = "STREAM_READER"
+	STREAM_WRITER ValueType = "STREAM_WRITER"
 )
 
 type Value interface {
@@ -63,6 +71,13 @@ type String struct {
 
 func (s *String) Type() ValueType { return STRING }
 func (s *String) Inspect() string { return fmt.Sprintf("%q", s.Value) }
+
+type Bytes struct {
+	Value []byte
+}
+
+func (b *Bytes) Type() ValueType { return BYTES_VALUE }
+func (b *Bytes) Inspect() string { return fmt.Sprintf("bytes(%x)", b.Value) }
 
 type Char struct {
 	Value string

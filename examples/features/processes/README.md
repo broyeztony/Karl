@@ -1,0 +1,44 @@
+# Karl Process API Examples
+
+These examples show how `proc`/`run` + streams make Karl a practical systems language.
+
+## Files
+
+- `process_stream_helpers.k`: shared stream-capture helpers (`waitCaptured`, `spawnCaptured`, `readStreamText`).
+- `kubernetes_health_report.k`: real `kubectl` wrapper with concurrent namespace checks.
+- `kubernetes_pod_stream_scan.k`: stream-pipeline pod scan with concise problematic pod ranking.
+- `text_analytics_pipeline.k`: Unix text analytics pipeline executed via a single process stage.
+- `stream_and_abort.k`: long-running process control (`pid`, `running`, `abort`, `wait`).
+- `streaming_pipeline_channels.k`: live pipeline streaming with stream reads + channel event fan-in.
+- `binary_stream_copy.k`: binary file streaming with `read(...) | write(...)` in `BYTES` mode.
+- `binary_process_passthrough.k`: binary bytes passthrough through `proc` using `p.stdin`/`p.stdout`.
+- `binary_chunk_loop_reconstruct.k`: manual `read()` chunk loop in `BYTES` mode + `bytesJoin(...)` reconstruction.
+- `infinite_random_even_filter.k`: fast producer vs slow consumers, sequential baseline vs concurrent filter+writer pipeline on BYTES streams.
+
+## Run
+
+```bash
+karl run examples/features/processes/text_analytics_pipeline.k
+karl run examples/features/processes/stream_and_abort.k
+karl run examples/features/processes/streaming_pipeline_channels.k
+karl run examples/features/processes/binary_stream_copy.k
+karl run examples/features/processes/binary_process_passthrough.k
+karl run examples/features/processes/binary_chunk_loop_reconstruct.k
+karl run examples/features/processes/infinite_random_even_filter.k
+
+# requires kubectl + access to a cluster
+karl run examples/features/processes/kubernetes_health_report.k
+# optional rollout check: <namespace> <deployment>
+karl run examples/features/processes/kubernetes_health_report.k -- default api
+karl run examples/features/processes/kubernetes_pod_stream_scan.k
+# optional namespace scope
+karl run examples/features/processes/kubernetes_pod_stream_scan.k -- karl-health-demo
+```
+
+## Why this matters
+
+With this API, Karl can now build:
+- operator-style CLIs that orchestrate system tools,
+- streaming ETL and log pipelines,
+- process supervisors with graceful shutdown and timeouts,
+- concurrent command fan-out (for clusters, fleets, CI workers).

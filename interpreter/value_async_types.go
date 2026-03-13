@@ -35,7 +35,9 @@ func (t *Task) Inspect() string { return "<task>" }
 
 type Channel struct {
 	Ch        chan Value
+	closeCh   chan struct{}
 	Closed    bool
+	closedMu  sync.RWMutex
 	closeOnce sync.Once
 	onClose   func()
 }
@@ -44,12 +46,35 @@ func (c *Channel) Type() ValueType { return CHANNEL }
 func (c *Channel) Inspect() string { return "<channel>" }
 func (c *Channel) Close() {
 	c.closeOnce.Do(func() {
+		c.closedMu.Lock()
 		c.Closed = true
+		c.closedMu.Unlock()
 		if c.onClose != nil {
 			c.onClose()
 		}
-		close(c.Ch)
+		if c.closeCh != nil {
+			close(c.closeCh)
+		}
 	})
+}
+
+func (c *Channel) IsClosed() bool {
+	if c == nil {
+		return true
+	}
+	c.closedMu.RLock()
+	closed := c.Closed
+	c.closedMu.RUnlock()
+	return closed
+}
+
+func (c *Channel) ClosedSignal() <-chan struct{} {
+	if c == nil {
+		ch := make(chan struct{})
+		close(ch)
+		return ch
+	}
+	return c.closeCh
 }
 
 type taskResult struct {

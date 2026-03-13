@@ -88,6 +88,13 @@ func (e *Evaluator) SetInput(input io.Reader) {
 	e.runtime.setInput(input)
 }
 
+func (e *Evaluator) SetOutput(output io.Writer) {
+	if e.runtime == nil {
+		e.runtime = newRuntimeState()
+	}
+	e.runtime.setOutput(output)
+}
+
 func (e *Evaluator) SetSQLDriver(driver string) {
 	if e.runtime == nil {
 		e.runtime = newRuntimeState()

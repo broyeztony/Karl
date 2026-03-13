@@ -332,6 +332,7 @@
                     <option value="tasks_then">Tasks + then()</option>
                     <option value="join_group">Join Group (&amp; { ... })</option>
                     <option value="channels_stream">Channels Stream</option>
+                    <option value="sim_k8s_fan_in">Simulated K8s: Pod Logs Fan-in</option>
                     <option value="landing_fibonacci">Landing: Fibonacci</option>
                     <option value="landing_concurrency_race">Landing: Concurrency + Race</option>
                     <option value="landing_tasks_then">Landing: Tasks + then()</option>
@@ -541,6 +542,124 @@ let stream = for true with res = ch.recv(), acc = [] {
 
 wait producer
 stream`,
+            sim_k8s_fan_in: `// Simulated Kubernetes logs fan-in (browser-safe)
+// NOTE: this does not call kubectl in bench.
+let ns = "karl-health-demo"
+let selector = "app=chain-node"
+let listPods = () -> [
+    "chain-node-7d5c8d898c-2c7z7",
+    "chain-node-7d5c8d898c-fbn86",
+    "chain-node-7d5c8d898c-t6t2d",
+]
+
+let levelOf = line -> match line {
+    case _ if line.contains("ERROR") -> "ERROR"
+    case _ if line.contains("WARN") -> "WARN"
+    case _ if line.contains("INFO") -> "INFO"
+    case _ if line.contains("DEBUG") -> "DEBUG"
+    case _ -> "OTHER"
+}
+
+let bump = (counts, pod, level) -> {
+    let k = pod + "|" + level
+    let v = get(counts, k)
+    set(counts, k, if v == null { 1 } else { v + 1 })
+}
+
+let at = (counts, k) -> {
+    let v = get(counts, k)
+    if v == null { "null" } else { str(v) }
+}
+
+let spaces = n -> for i < n with i = 0, out = "" {
+    out = out + " "
+    i++
+} then out
+
+let fill = (ch, n) -> for i < n with i = 0, out = "" {
+    out = out + ch
+    i++
+} then out
+
+let pad = (text, width) -> if text.length >= width { text } else { text + spaces(width - text.length) }
+
+let levelW = 7
+let countW = 6
+let border =
+    "+"
+    + fill("-", levelW + 2)
+    + "+"
+    + fill("-", countW + 2)
+    + "+"
+    + fill("-", countW + 2)
+    + "+"
+    + fill("-", countW + 2)
+    + "+"
+
+let row = (a, b, c, d) ->
+    "| "
+    + pad(a, levelW)
+    + " | "
+    + pad(b, countW)
+    + " | "
+    + pad(c, countW)
+    + " | "
+    + pad(d, countW)
+    + " |"
+
+let templates = ["DEBUG sync", "INFO boot", "WARN retry", "ERROR timeout"]
+
+let simulatePod = (pod, total) -> {
+    let ch = channel()
+    & (() -> {
+        for i < total with i = 0 {
+            sleep(95 + ((i % 3) * 20))
+            let line = templates[i % templates.length]
+            ch.send({ pod, level: levelOf(line), line, ts: now(), })
+            i++
+        } then ()
+        ch.done()
+    })()
+    fromChannel(ch)
+}
+
+let counts = map()
+let snapshot = 0
+let render = names -> {
+    log("\u001b[2J\u001b[H")
+    log("ns=" + ns + " selector=" + selector)
+    log("pod1=" + names[0])
+    log("pod2=" + names[1])
+    log("pod3=" + names[2])
+    log("")
+    log(border)
+    log(row("LEVEL", "POD1", "POD2", "POD3"))
+    log(border)
+    log(row("DEBUG", at(counts, names[0] + "|DEBUG"), at(counts, names[1] + "|DEBUG"), at(counts, names[2] + "|DEBUG")))
+    log(row("INFO", at(counts, names[0] + "|INFO"), at(counts, names[1] + "|INFO"), at(counts, names[2] + "|INFO")))
+    log(row("WARN", at(counts, names[0] + "|WARN"), at(counts, names[1] + "|WARN"), at(counts, names[2] + "|WARN")))
+    log(row("ERROR", at(counts, names[0] + "|ERROR"), at(counts, names[1] + "|ERROR"), at(counts, names[2] + "|ERROR")))
+    log(row("OTHER", at(counts, names[0] + "|OTHER"), at(counts, names[1] + "|OTHER"), at(counts, names[2] + "|OTHER")))
+    log(border)
+}
+
+let names = listPods()
+let eventsPerSnapshot = 30
+let maxSnapshots = 10
+let maxEvents = eventsPerSnapshot * maxSnapshots
+let perPodEvents = maxEvents / names.length
+let processed = 0
+
+merge(names.map(pod -> simulatePod(pod, perPodEvents)))
+    | forEach(event -> {
+        bump(counts, event.pod, event.level)
+        processed = processed + 1
+        if processed % eventsPerSnapshot == 0 {
+            snapshot = snapshot + 1
+            render(names)
+        }
+    })
+`,
             landing_fibonacci: `// Fibonacci (expression-based loop)
 let fib = n -> {
     if n <= 1 { n } else {
@@ -637,7 +756,7 @@ let rank = match score {
 }
 log("rank:", rank)`,
             landing_recover_match: `// Recover operator + match
-let cfg = jsonDecode("{\"mode\":\"safe\"}") ? {
+let cfg = fromJson("{\"mode\":\"safe\"}") ? {
     { mode: "safe", retries: 3, }
 }
 
@@ -673,7 +792,7 @@ match cfg.mode {
                     { regex: /\b(?:true|false|nil|null)\b/, token: "atom" },
                     { regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number" },
                     // Built-ins
-                    { regex: /\b(?:log|http|httpServe|httpServerStop|jsonDecode|jsonEncode|sqlOpen|sqlClose|sqlExec|sqlQuery|sqlQueryOne|sqlBegin|sqlCommit|sqlRollback|sha256|uuidNew|uuidValid|uuidParse|now|timeParseRFC3339|timeFormatRFC3339|timeAdd|timeDiff|signalWatch|rendezvous|send|recv|done|sleep|fail|map|filter|reduce|sum|find|sort|length|trim|toLower|toUpper|split)\b/, token: "builtin" },
+                    { regex: /\b(?:log|http|httpServe|httpServerStop|fromJson|toJson|fromUtf8|toUtf8|sqlOpen|sqlClose|sqlExec|sqlQuery|sqlQueryOne|sqlBegin|sqlCommit|sqlRollback|sha256|uuidNew|uuidValid|uuidParse|now|timeParseRFC3339|timeFormatRFC3339|timeAdd|timeDiff|signalWatch|rendezvous|send|recv|done|sleep|fail|map|filter|forEach|reduce|sum|find|sort|length|trim|toLower|toUpper|split)\b/, token: "builtin" },
                     { regex: /->|!&|&&|\|\||&|\|/, token: "operator" },
                     // Variables (basic heuristic)
                     { regex: /[a-z$][\w$]*/, token: "variable" },
@@ -769,7 +888,18 @@ match cfg.mode {
                     status.textContent = "Ready";
                     status.style.color = "#bd93f9";
                 } else if (msg.type === 'output') {
-                    output.textContent += msg.data;
+                    const clearSeq = "\x1b[2J\x1b[H";
+                    let chunk = msg.data;
+                    while (true) {
+                        const idx = chunk.indexOf(clearSeq);
+                        if (idx === -1) {
+                            output.textContent += chunk;
+                            break;
+                        }
+                        output.textContent += chunk.slice(0, idx);
+                        output.textContent = "";
+                        chunk = chunk.slice(idx + clearSeq.length);
+                    }
                     output.scrollTop = output.scrollHeight;
                 } else if (msg.type === 'error') {
                     console.error("Worker error:", msg.data);

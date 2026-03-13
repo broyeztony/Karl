@@ -12,6 +12,7 @@ func registerRuntimeCoreBuiltins() {
 	builtins["buffered"] = &Builtin{Name: "buffered", Fn: builtinBufferedChannel}
 	builtins["sleep"] = &Builtin{Name: "sleep", Fn: builtinSleep}
 	builtins["log"] = &Builtin{Name: "log", Fn: builtinLog}
+	builtins["logt"] = &Builtin{Name: "logt", Fn: builtinLogt}
 	builtins["str"] = &Builtin{Name: "str", Fn: builtinStr}
 }
 

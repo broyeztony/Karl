@@ -59,6 +59,12 @@ func (e *Evaluator) evalInfixExpression(node *ast.InfixExpression, env *Environm
 		return &Boolean{Value: !StrictEqual(left, right)}, nil, nil
 	case "eqv":
 		return &Boolean{Value: Equivalent(left, right)}, nil, nil
+	case "|":
+		out, pipeErr := evalStreamPipeInfix(e, left, right)
+		if pipeErr != nil {
+			return nil, nil, pipeErr
+		}
+		return out, nil, nil
 	}
 
 	switch l := left.(type) {

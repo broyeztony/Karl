@@ -1,26 +1,42 @@
 package interpreter
 
+import "sync"
+
 var builtins = map[string]*Builtin{}
+var builtinsOnce sync.Once
+
+var builtinConstants = map[string]string{
+	"PIPE":    "pipe",
+	"INHERIT": "inherit",
+	"NULL":    "null",
+	"TEXT":    "text",
+	"BYTES":   "bytes",
+}
 
 func RegisterBuiltins() {
-	builtins = map[string]*Builtin{}
-	registerRuntimeBuiltins()
-	registerFSBuiltins()
-	registerHTTPBuiltins()
-	registerJSONBuiltins()
-	registerSQLBuiltins()
-	registerCryptoBuiltins()
-	registerUUIDBuiltins()
-	registerTimeBuiltins()
-	registerSignalBuiltins()
-	registerAsyncBuiltins()
-	registerStringBuiltins()
-	registerCollectionBuiltins()
-	registerListBuiltins()
-	registerMathBuiltins()
+	builtinsOnce.Do(func() {
+		builtins = map[string]*Builtin{}
+		registerRuntimeBuiltins()
+		registerFSBuiltins()
+		registerStreamBuiltins()
+		registerHTTPBuiltins()
+		registerJSONBuiltins()
+		registerSQLBuiltins()
+		registerCryptoBuiltins()
+		registerUUIDBuiltins()
+		registerTimeBuiltins()
+		registerSignalBuiltins()
+		registerAsyncBuiltins()
+		registerEncodingBuiltins()
+		registerStringBuiltins()
+		registerCollectionBuiltins()
+		registerListBuiltins()
+		registerMathBuiltins()
+	})
 }
 
 func getBuiltin(name string) *Builtin {
+	RegisterBuiltins()
 	if b, ok := builtins[name]; ok {
 		return b
 	}
@@ -32,6 +48,9 @@ func NewBaseEnvironment() *Environment {
 	env := NewEnvironment()
 	for name, builtin := range builtins {
 		env.Define(name, builtin)
+	}
+	for name, value := range builtinConstants {
+		env.Define(name, &String{Value: value})
 	}
 	return env
 }

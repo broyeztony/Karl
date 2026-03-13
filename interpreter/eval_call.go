@@ -9,21 +9,26 @@ func (e *Evaluator) evalCallExpression(node *ast.CallExpression, env *Environmen
 	}
 
 	args := make([]Value, 0, len(node.Arguments))
-	hasPlaceholder := false
+	hasDirectPlaceholder := false
 	for _, arg := range node.Arguments {
 		if _, ok := arg.(*ast.Placeholder); ok {
 			args = append(args, nil)
-			hasPlaceholder = true
+			hasDirectPlaceholder = true
 			continue
 		}
-		val, sig, err := e.Eval(arg, env)
+		toEval := arg
+		if expressionContainsPlaceholder(arg) {
+			toEval = implicitLambdaFromPlaceholder(arg)
+		}
+
+		val, sig, err := e.Eval(toEval, env)
 		if err != nil || sig != nil {
 			return val, sig, err
 		}
 		args = append(args, val)
 	}
 
-	if hasPlaceholder {
+	if hasDirectPlaceholder {
 		return &Partial{Target: function, Args: args}, nil, nil
 	}
 	return e.applyFunction(function, args)

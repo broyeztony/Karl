@@ -26,13 +26,28 @@ func TestParserErrors(t *testing.T) {
 			input: "spawn foo",
 		},
 		{
+			name:         "spawn_operator_for_expr_rejected",
+			input:        "& for i < 3 with i = 0 { i++ } then i",
+			errorContain: "spawn target must be a call expression or stream pipeline",
+		},
+		{
+			name:         "spawn_keyword_for_expr_rejected",
+			input:        "spawn (for i < 3 with i = 0 { i++ } then i)",
+			errorContain: "spawn target must be a call expression or stream pipeline",
+		},
+		{
 			name:  "object_shorthand_requires_trailing_comma",
 			input: "let o = { x, y }",
 		},
 		{
-			name:         "pipe_race_syntax_removed",
+			name:         "pipe_without_left_operand",
 			input:        "wait | { fast(), slow() }",
-			errorContain: "reserved for stream piping",
+			errorContain: "reserved for stream pipelines",
+		},
+		{
+			name:         "spawn_proc_is_rejected",
+			input:        "& proc({ command: \"echo\", args: [\"hi\"], })",
+			errorContain: "already returns <process>",
 		},
 	}
 

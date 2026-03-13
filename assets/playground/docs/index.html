@@ -25,21 +25,20 @@
 
     <main class="page">
         <section class="hero">
-            <h1>Documentation</h1>
+            <h1>Karl Documentation</h1>
             <p>
-                Single source of truth for Karl language behavior, runtime semantics, and library APIs.
-                This section is split into formal spec material, standard library reference, and idiomatic patterns.
+                Karl is a language for CLI tooling, infrastructure automation, and process orchestration.
+                The current direction centers on process handles + stream pipelines as first-class building blocks for DevOps workloads.
             </p>
-            <div class="meta-row">Version focus: v0.8.x</div>
+            <div class="meta-row">Current focus: process + stream runtime (PR #42 direction)</div>
         </section>
 
         <section class="grid-cards" aria-label="Documentation sections">
             <article class="card">
                 <h2>Specs</h2>
                 <p>
-                    Formal, implementation-oriented specification of Karl grammar and semantics.
-                    Covers parser grammar (EBNF), expression evaluation, concurrency model, error handling,
-                    import/runtime behavior, and determinism rules.
+                    Normative semantics: grammar, evaluation model, task/channel behavior,
+                    stream pipeline execution, process lifecycle, and error propagation.
                 </p>
                 <a class="card-link" href="/docs/specs/">Open /docs/specs</a>
             </article>
@@ -47,9 +46,8 @@
             <article class="card">
                 <h2>Std</h2>
                 <p>
-                    Complete reference for Karl standard library built-ins and method sugars.
-                    Includes argument lists, return values, runtime constraints, and environment availability
-                    (CLI vs browser runtime).
+                    Exhaustive built-in reference with signatures, defaults, runtime constraints,
+                    and examples for less intuitive APIs.
                 </p>
                 <a class="card-link" href="/docs/std/">Open /docs/std</a>
             </article>
@@ -57,9 +55,8 @@
             <article class="card">
                 <h2>Idiomatic</h2>
                 <p>
-                    Concise Karl patterns: destructuring, recover flows, task composition, channel streams,
-                    and expressive match + guard style.
-                    Each pattern is optimized for readable and compact Karl code.
+                    Concise Karl patterns for real automation: streams, subprocesses, recover boundaries,
+                    signal-aware loops, and SQL integrations.
                 </p>
                 <a class="card-link" href="/docs/idiomatic/">Open /docs/idiomatic</a>
             </article>
@@ -67,19 +64,29 @@
 
         <section class="doc" style="margin-top: 18px;">
             <article>
-                <h2>Quick Entry Points</h2>
-                <pre><code>// Try Karl now in your browser
+                <h2>Start Here</h2>
+                <pre><code>// browser playground
 https://karl-lang.org/bench/
 
-// Run Karl locally
-karl run file.k
+// process + streams examples
+karl run examples/features/streams/kubernetes_logs_error_channel.k
 
-// Open docs
+// docs
 https://karl-lang.org/docs/
 </code></pre>
+
+                <h3>Why this direction</h3>
+                <ul>
+                    <li>Process handles (<code>proc</code>/<code>run</code>) make host tooling composable from Karl.</li>
+                    <li>Stream pipelines (<code>|</code>) provide backpressure-aware dataflow for logs/events/text.</li>
+                    <li>Task/channel primitives stay available for explicit concurrency topologies.</li>
+                    <li>Recover blocks (<code>? { ... }</code>) keep boundary failure handling explicit.</li>
+                    <li>Real-world validation: <a href=\"https://github.com/broyeztony/vigil_in_karl\">Vigil reimplementation in Karl</a>.</li>
+                </ul>
+
                 <div class="footer">
-                    <span>Docs live with the codebase in <code>assets/playground/docs/</code>.</span>
-                    <span><a href="https://github.com/broyeztony/Karl">Suggest a doc change</a></span>
+                    <span>Docs source: <code>assets/playground/docs/</code> + <code>SPECS/</code>.</span>
+                    <span><a href="https://github.com/broyeztony/Karl/issues">Report doc gaps</a></span>
                 </div>
             </article>
         </section>

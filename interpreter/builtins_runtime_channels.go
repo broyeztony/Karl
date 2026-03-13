@@ -1,7 +1,7 @@
 package interpreter
 
 func builtinChannel(_ *Evaluator, _ []Value) (Value, error) {
-	return &Channel{Ch: make(chan Value)}, nil
+	return &Channel{Ch: make(chan Value), closeCh: make(chan struct{})}, nil
 }
 
 func builtinBufferedChannel(_ *Evaluator, args []Value) (Value, error) {
@@ -18,5 +18,5 @@ func builtinBufferedChannel(_ *Evaluator, args []Value) (Value, error) {
 	if size.Value > 1000000 {
 		return nil, &RuntimeError{Message: "buffered buffer size too large (max 1000000)"}
 	}
-	return &Channel{Ch: make(chan Value, size.Value)}, nil
+	return &Channel{Ch: make(chan Value, size.Value), closeCh: make(chan struct{})}, nil
 }

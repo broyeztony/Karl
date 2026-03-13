@@ -4,6 +4,12 @@ func builtinMap(e *Evaluator, args []Value) (Value, error) {
 	if len(args) == 0 {
 		return &Map{Pairs: make(map[MapKey]Value)}, nil
 	}
+	if len(args) == 1 {
+		if !isCallable(args[0]) {
+			return nil, &RuntimeError{Message: "map stage expects function"}
+		}
+		return newStreamMapStage(e, args[0]), nil
+	}
 	if len(args) != 2 {
 		return nil, &RuntimeError{Message: "map expects no arguments or array and function"}
 	}

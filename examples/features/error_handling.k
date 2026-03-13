@@ -1,7 +1,7 @@
 // Recoverable errors use ? { ... } with implicit error.
 
 let raw = "{\"foo\": }"
-let parsed = jsonDecode(raw) ? {
+let parsed = fromJson(raw) ? {
     let msg = error.message
     { error: msg, }
 }

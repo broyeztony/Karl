@@ -146,7 +146,7 @@ let found = for true with msg = null {
 // - Recoverable failures are only allowed from specific builtin calls (see below).
 // - Use explicit checks for optional data (null or sentinel values).
 // - Missing property access or out-of-bounds index access are runtime errors and call exit(...).
-// - `wait` on a non-Task is a runtime error and calls exit(...).
+// - `wait` on a non-task/non-process is a runtime error and calls exit(...).
 
 // Recoverable errors: postfix catch block
 // - Only call expressions may use `? { ... }`.
@@ -157,13 +157,13 @@ let found = for true with msg = null {
 // - Non-recoverable errors still call exit(), even if wrapped in `? {}`.
 
 // Builtins that can produce recoverable errors:
-// jsonDecode, readFile, writeFile, appendFile, deleteFile, exists, listDir, http,
+// fromJson, readFile, writeFile, appendFile, deleteFile, exists, listDir, http,
 // sqlOpen, sqlClose, sqlExec, sqlQuery, sqlQueryOne, sqlBegin, sqlCommit, sqlRollback,
-// uuidParse, timeParseRFC3339, fail, readLine
+// uuidParse, timeParseRFC3339, fail, readLine, proc, run
 
 // Example: recover from bad JSON
 let raw = "{\"foo\":\"bar\"}"
-let parsed = jsonDecode(raw) ? {
+let parsed = fromJson(raw) ? {
     log("bad json:", error.message)
     { foo: "default" }
 }
@@ -176,9 +176,9 @@ let divide = (a, b) -> {
 let quotient = divide(10, 0) ? { 0 }
 
 // Example: nested recoverable errors
-let config = jsonDecode(readFile("config.json")) ? {
+let config = fromJson(readFile("config.json")) ? {
     log("config error:", error.message)
-    jsonDecode("{\"mode\":\"safe\"}") ? { mode: "safe", }
+    fromJson("{\"mode\":\"safe\"}") ? { mode: "safe", }
 }
 
 // Explicit checks before calling fallible operations
@@ -194,6 +194,10 @@ if user == null { exit("user not found") }
 // 3.5 SYSTEM PRIMITIVES (PHASE 1)
 // ============================================
 
+// Runtime model references:
+// - SPECS/process.md is the normative source for proc/run/wait process semantics.
+// - SPECS/stream.md is the normative source for stream built-ins and `|` pipelines.
+
 // Program args (only values passed after `--` in `karl run`)
 let args = argv()           // [string]
 let first = env("HOME")     // string | null
@@ -202,6 +206,24 @@ let path = programPath()    // "file.k" | "<stdin>" | null
 
 // readLine() returns line without trailing newline, null on EOF.
 let line = readLine() ? { null }
+
+// run() is the blocking convenience API.
+let st = run({ command: "echo", args: ["hello"], })
+if !st.ok { exit("command failed: " + str(st.code)) }
+log(st.output)
+
+// proc() starts a waitable/abortable process handle.
+// mode/type constants are available: PIPE, INHERIT, NULL, TEXT, BYTES
+let p = proc({ command: "cat", }, { stdin: PIPE, stdout: PIPE, stderr: PIPE, })
+let inStream = p.stdin
+inStream.write(toUtf8("hello\\n"))
+inStream.close()
+let [line, eof] = p.stdout.read()
+if !eof { log(fromUtf8(line)) }
+wait p
+
+// recoverable process error kinds:
+// process_spawn, process_state, process_io, process_output_limit
 
 // ============================================
 // 4. FUNCTIONAL EXPRESSIONS
@@ -642,7 +664,10 @@ assign          = logic_or
 lvalue          = IDENT { ( "." IDENT | "[" expr "]" ) } ;
 assign_op       = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
 
-logic_or        = logic_and { "||" logic_and } ;
+// Process pipeline composition (`|`) is type-checked at runtime:
+// valid only for cmd/pipeline values.
+logic_or        = pipe_expr { "||" pipe_expr } ;
+pipe_expr       = logic_and { "|" logic_and } ;
 logic_and       = equality { "&&" equality } ;
 equality        = comparison { ( "==" | "!=" | "eqv" ) comparison } ;
 comparison      = range { ( "<" | "<=" | ">" | ">=" ) range } ;

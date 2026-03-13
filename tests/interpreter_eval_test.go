@@ -2,8 +2,10 @@ package tests
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -223,6 +225,35 @@ func TestEvalStrBuiltin(t *testing.T) {
 	assertString(t, val, "123")
 }
 
+func TestEvalBuiltinConstants(t *testing.T) {
+	val := mustEval(t, `[PIPE, INHERIT, NULL, TEXT, BYTES]`)
+	expected := &Array{Elements: []Value{
+		&String{Value: "pipe"},
+		&String{Value: "inherit"},
+		&String{Value: "null"},
+		&String{Value: "text"},
+		&String{Value: "bytes"},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestEvalLogtBuiltin(t *testing.T) {
+	restore, output := captureStdout(t)
+
+	val := mustEval(t, `logt("hello", 42); "ok"`)
+	assertString(t, val, "ok")
+
+	restore()
+	got := strings.TrimSpace(output())
+	if got == "" {
+		t.Fatalf("expected output from logt")
+	}
+	re := regexp.MustCompile(`^\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\] hello 42$`)
+	if !re.MatchString(got) {
+		t.Fatalf("unexpected logt output: %q", got)
+	}
+}
+
 func TestEvalLenBuiltin(t *testing.T) {
 	val := mustEval(t, `
 let m = map()
@@ -231,15 +262,17 @@ let s = set([1, 2, 2])
 let o = { x: 1, y: 2, }
 let arr = [1, 2]
 let a = len("hé")
-let b = len(arr)
-let c = len(m)
-let d = len(s)
-let e = len(o)
-let out = [a, b, c, d, e]
+let b = len(toUtf8("hé"))
+let c = len(arr)
+let d = len(m)
+let e = len(s)
+let f = len(o)
+let out = [a, b, c, d, e, f]
 out
 `)
 	expected := &Array{Elements: []Value{
 		&Integer{Value: 2},
+		&Integer{Value: 3},
 		&Integer{Value: 2},
 		&Integer{Value: 1},
 		&Integer{Value: 2},
@@ -248,18 +281,91 @@ out
 	assertEquivalent(t, val, expected)
 }
 
+func captureStdout(t *testing.T) (restore func(), output func() string) {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stdout = w
+
+	return func() {
+			_ = w.Close()
+			os.Stdout = old
+		}, func() string {
+			b, _ := io.ReadAll(r)
+			_ = r.Close()
+			return string(b)
+		}
+}
+
 func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
 	_, err := evalInput(t, `len(1)`)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "len expects string, array, map, set, or object") {
+	if !strings.Contains(err.Error(), "len expects string, bytes, array, map, set, or object") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
+func TestEvalUtf8EncodeDecodeHelpers(t *testing.T) {
+	val := mustEval(t, `fromUtf8(toUtf8("karl"))`)
+	assertString(t, val, "karl")
+}
+
+func TestEvalBytesJoin(t *testing.T) {
+	val := mustEval(t, `fromUtf8(bytesJoin([toUtf8("kar"), toUtf8("l")]))`)
+	assertString(t, val, "karl")
+}
+
+func TestEvalToFromJSON(t *testing.T) {
+	val := mustEval(t, `fromJson(toJson({ a: 1, b: [true, "x"], }))`)
+	expected := &Object{Pairs: map[string]Value{
+		"a": &Integer{Value: 1},
+		"b": &Array{Elements: []Value{
+			&Boolean{Value: true},
+			&String{Value: "x"},
+		}},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestEvalRemovedJSONBuiltins(t *testing.T) {
+	_, err := evalInput(t, `decodeJson("{}")`)
+	if err == nil {
+		t.Fatalf("expected undefined identifier error")
+	}
+	if !strings.Contains(err.Error(), "undefined identifier: decodeJson") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, err = evalInput(t, `encodeJson({ a: 1, })`)
+	if err == nil {
+		t.Fatalf("expected undefined identifier error")
+	}
+	if !strings.Contains(err.Error(), "undefined identifier: encodeJson") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalArrayForEach(t *testing.T) {
+	val := mustEval(t, `
+let out = []
+let src = [1, 2, 3]
+src.forEach(x -> out.push(x * 2))
+out
+`)
+	expected := &Array{Elements: []Value{
+		&Integer{Value: 2},
+		&Integer{Value: 4},
+		&Integer{Value: 6},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
 func TestEvalEncodeDecodeJSON(t *testing.T) {
-	val := mustEval(t, `jsonDecode(jsonEncode({ a: 1, b: [true, null, "x"] }))`)
+	val := mustEval(t, `fromJson(toJson({ a: 1, b: [true, null, "x"] }))`)
 	expected := &Object{Pairs: map[string]Value{
 		"a": &Integer{Value: 1},
 		"b": &Array{Elements: []Value{
@@ -373,8 +479,24 @@ func TestTruthyFalsyMatchGuard(t *testing.T) {
 }
 
 func TestEvalObjectStringIndexRead(t *testing.T) {
-	val := mustEval(t, `let obj = jsonDecode("{\"a-field\": 42}"); obj["a-field"]`)
+	val := mustEval(t, `let obj = fromJson("{\"a-field\": 42}"); obj["a-field"]`)
 	assertInteger(t, val, 42)
+}
+
+func TestEvalObjectLiteralAfterWaitOnNewLine(t *testing.T) {
+	val := mustEval(t, `
+let f = () -> {
+    let t = & (() -> 1)()
+    let v = wait t
+    { value: v, }
+}
+f()
+`)
+	obj, ok := val.(*Object)
+	if !ok {
+		t.Fatalf("expected Object, got %T", val)
+	}
+	assertInteger(t, obj.Pairs["value"], 1)
 }
 
 func TestEvalObjectStringIndexAssignment(t *testing.T) {
@@ -418,7 +540,7 @@ func TestEvalArrayIndexStillRequiresInteger(t *testing.T) {
 }
 
 func TestEvalDecodeJSONOverflow(t *testing.T) {
-	_, err := evalInput(t, `jsonDecode("999999999999999999999")`)
+	_, err := evalInput(t, `fromJson("999999999999999999999")`)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -470,7 +592,7 @@ func TestEvalRecoverDivisionByZero(t *testing.T) {
 }
 
 func TestEvalRecoverDecodeJSON(t *testing.T) {
-	val := mustEval(t, `jsonDecode("{\"foo\": }") ? { foo: "bar", }`)
+	val := mustEval(t, `fromJson("{\"foo\": }") ? { foo: "bar", }`)
 	expected := &Object{Pairs: map[string]Value{
 		"foo": &String{Value: "bar"},
 	}}
@@ -1034,4 +1156,88 @@ let replaced = trimmed.replace("l", "x");
 		&String{Value: "Hexxo"},
 	}}
 	assertEquivalent(t, val, expected)
+}
+
+func TestChannelDeadlockRecvReturnsRuntimeError(t *testing.T) {
+	done := make(chan struct{})
+	var err error
+	go func() {
+		_, err = evalInput(t, `
+let c = channel()
+c.recv()
+`)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("evaluation timed out")
+	}
+	if err == nil {
+		t.Fatalf("expected deadlock error")
+	}
+	msg := interpreter.FormatRuntimeError(err, "", "<test>")
+	if !strings.Contains(msg, "deadlock: recv would block with no runnable tasks") {
+		t.Fatalf("unexpected error: %s", msg)
+	}
+}
+
+func TestChannelDeadlockSendReturnsRuntimeError(t *testing.T) {
+	done := make(chan struct{})
+	var err error
+	go func() {
+		_, err = evalInput(t, `
+let c = channel()
+c.send(1)
+`)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("evaluation timed out")
+	}
+	if err == nil {
+		t.Fatalf("expected deadlock error")
+	}
+	msg := interpreter.FormatRuntimeError(err, "", "<test>")
+	if !strings.Contains(msg, "deadlock: send would block with no runnable tasks") {
+		t.Fatalf("unexpected error: %s", msg)
+	}
+}
+
+func TestSendOnClosedChannelIsKarlErrorNotGoPanic(t *testing.T) {
+	val := mustEval(t, `
+let c = channel()
+let t = & (() -> c.send("x"))()
+sleep(20)
+c.done()
+(wait t) ? { error.message }
+`)
+	assertString(t, val, "send on closed channel")
+}
+
+func TestPlaceholderPartialApplicationStillWorks(t *testing.T) {
+	val := mustEval(t, `
+let add = (a, b) -> a + b
+let inc = add(_, 1)
+inc(41)
+`)
+	assertInteger(t, val, 42)
+}
+
+func TestImplicitLambdaShorthandForArrayBuiltins(t *testing.T) {
+	val := mustEval(t, `map([1, 2, 3], _ + 1)`)
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	if len(arr.Elements) != 3 {
+		t.Fatalf("expected 3 elements, got %d", len(arr.Elements))
+	}
+	assertInteger(t, arr.Elements[0], 2)
+	assertInteger(t, arr.Elements[1], 3)
+	assertInteger(t, arr.Elements[2], 4)
 }

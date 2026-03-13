@@ -7,15 +7,19 @@ func (e *Evaluator) evalAwaitExpression(node *ast.AwaitExpression, env *Environm
 	if err != nil || sig != nil {
 		return val, sig, err
 	}
-	task, ok := val.(*Task)
-	if !ok {
-		return nil, nil, &RuntimeError{Message: "wait expects task"}
-	}
+
 	var cancelCh <-chan struct{}
 	if e.currentTask != nil {
 		cancelCh = e.currentTask.cancelCh
 	}
-	return taskAwaitWithCancel(task, cancelCh, e.runtime)
+
+	if task, ok := val.(*Task); ok {
+		return taskAwaitWithCancel(task, cancelCh, e.runtime)
+	}
+	if process, ok := val.(*Process); ok {
+		return processAwaitWithCancel(process, cancelCh, e.runtime)
+	}
+	return nil, nil, &RuntimeError{Message: "wait expects task or process"}
 }
 
 func (e *Evaluator) evalSpawnExpression(node *ast.SpawnExpression, env *Environment) (Value, *Signal, error) {
@@ -43,6 +47,13 @@ func (e *Evaluator) evalSpawnExpression(node *ast.SpawnExpression, env *Environm
 	}
 
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				reportRuntimePanic(e.runtime, "spawn join", recovered)
+				join.complete(nil, panicToError("spawn join", recovered))
+			}
+		}()
+
 		type result struct {
 			idx   int
 			value Value
@@ -53,6 +64,11 @@ func (e *Evaluator) evalSpawnExpression(node *ast.SpawnExpression, env *Environm
 		resultsCh := make(chan result, len(children))
 		for i, child := range children {
 			go func(idx int, t *Task) {
+				defer func() {
+					if recovered := recover(); recovered != nil {
+						resultsCh <- result{idx: idx, err: panicToError("spawn wait", recovered)}
+					}
+				}()
 				val, sig, err := taskAwaitWithCancel(t, join.cancelCh, e.runtime)
 				resultsCh <- result{idx: idx, value: val, sig: sig, err: err}
 			}(i, child)
@@ -92,6 +108,11 @@ func (e *Evaluator) spawnTask(expr ast.Expression, env *Environment, parent *Tas
 	task := e.newTask(parent, internal)
 	taskEval := e.cloneForTask(task)
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				taskEval.handleAsyncError(task, panicToError("task", recovered))
+			}
+		}()
 		val, sig, err := taskEval.Eval(expr, env)
 		if err != nil {
 			taskEval.handleAsyncError(task, err)

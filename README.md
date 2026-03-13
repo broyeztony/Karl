@@ -18,6 +18,16 @@ Karl aims to occupy the space between:
 - Bash
 - Go
 
+Notably, it features:
+- Functions as first-class entities
+- Composable expression-first style
+- Pattern matching with guards
+- Property destructuring
+- Expression-based control flow (`if`/`match`/`for` all return values)
+- Recover operator (`?`)
+- Concurrency model inspired by Go
+- Stream pipelines with `|` (`read(...) | lines() | stdout()`)
+
 Website: [karl-lang.org](https://karl-lang.org)
 
 Try Karl today in your browser (`bench`): [karl-lang.org/bench](https://karl-lang.org/bench)

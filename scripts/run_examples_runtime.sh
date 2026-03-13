@@ -5,9 +5,51 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 KARL_BIN=${KARL_BIN:-karl}
 TIMEOUT_SECONDS=${KARL_EXAMPLE_TIMEOUT:-60}
 INCLUDE_NETWORK=${KARL_INCLUDE_NETWORK_EXAMPLES:-0}
+INCLUDE_K8S=${KARL_INCLUDE_K8S_EXAMPLES:-0}
+INCLUDE_STDIN=${KARL_INCLUDE_STDIN_EXAMPLES:-0}
+INCLUDE_LONG=${KARL_INCLUDE_LONG_RUNNING_EXAMPLES:-0}
 
 run_with_timeout() {
-  perl -e 'alarm shift; exec @ARGV' "$@"
+  seconds=$1
+  shift
+
+  if command -v timeout >/dev/null 2>&1; then
+    timeout --signal=TERM --kill-after=2 "${seconds}s" "$@"
+    return $?
+  fi
+
+  perl -e '
+use POSIX ":sys_wait_h";
+my $seconds = shift @ARGV;
+my $pid = fork();
+die "fork failed\n" unless defined $pid;
+if ($pid == 0) {
+  setpgrp(0,0);
+  exec @ARGV;
+  die "exec failed: $!\n";
+}
+my $deadline = time() + $seconds;
+while (1) {
+  my $r = waitpid($pid, WNOHANG);
+  if ($r == $pid) {
+    if (WIFEXITED($?)) {
+      exit WEXITSTATUS($?);
+    }
+    if (WIFSIGNALED($?)) {
+      exit 128 + WTERMSIG($?);
+    }
+    exit 1;
+  }
+  if (time() >= $deadline) {
+    kill "TERM", -$pid;
+    select(undef, undef, undef, 0.2);
+    kill "KILL", -$pid;
+    waitpid($pid, 0);
+    exit 124;
+  }
+  select(undef, undef, undef, 0.1);
+}
+' "$seconds" "$@"
 }
 
 if ! command -v "$KARL_BIN" >/dev/null 2>&1; then
@@ -40,6 +82,25 @@ while IFS= read -r file; do
   fi
 
   short_file=${file#$ROOT_DIR/}
+
+  if [ "$INCLUDE_K8S" != "1" ] && printf '%s' "$short_file" | grep -q '/kubernetes_'; then
+    echo "[SKIP][k8s] $short_file"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  if [ "$INCLUDE_STDIN" != "1" ] && grep -q 'stdin(' "$file"; then
+    echo "[SKIP][stdin] $short_file"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  if [ "$INCLUDE_LONG" != "1" ] && printf '%s' "$short_file" | grep -q '/infinite_'; then
+    echo "[SKIP][long] $short_file"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
   echo "[RUN] $short_file"
 
   set +e

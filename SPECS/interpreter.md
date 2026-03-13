@@ -220,6 +220,47 @@ Ordering requires comparable keys; otherwise runtime error.
   - Reads one line from stdin and strips trailing newline.
   - Returns `null` on EOF.
   - I/O read failures are recoverable (`kind = "readLine"`).
+- Process execution semantics are specified in `SPECS/process.md`.
+- Stream/pipeline semantics are specified in `SPECS/stream.md`.
+- `proc(spec, opts?) -> <process>`
+  - Starts process execution immediately and returns a handle.
+  - First argument: process spec object.
+  - Optional `opts` supports:
+    - stdio modes: `stdin`, `stdout`, `stderr` in `"pipe" | "inherit" | "null"`
+    - stream types: `stdinType`, `stdoutType`, `stderrType` in `"text" | "bytes"` (default `"bytes"`)
+    - `timeoutMs`
+- `run(spec, opts?) -> RunStatus`
+  - Blocking convenience API.
+  - First argument: process spec object.
+  - Optional `opts` supports:
+    - `stdin` (string sent to stdin)
+    - `timeoutMs`
+    - `maxOutputBytes`
+    - `overflow` (`"truncate"` or `"error"`)
+  - Captures `output`/`error` with bounded memory (default `maxOutputBytes = 1048576`).
+  - Overflow mode defaults to `"truncate"`; `"error"` raises recoverable `process_output_limit`.
+- `reader(path, opts?) -> <stream-reader>`
+- `writer(path, opts?) -> <stream-writer>`
+- `read(path, opts?) -> <stream-source>`
+- `lines() -> <stream-stage>`
+- `stdout() | write(path, opts?) | collect() -> <stream-sink>`
+- Process stream properties:
+  - `process.stdin -> <stream-writer>`
+  - `process.stdout -> <stream-reader>`
+  - `process.stderr -> <stream-reader>`
+  - Available only when corresponding stdio mode is `"pipe"`; otherwise recoverable `process_state`.
+- Stream members:
+  - `stream.read(size?) -> [chunk, eof]`
+  - `stream.write(chunk) -> Int`
+  - `stream.close() -> Unit`
+- `wait process -> ProcessStatus`
+  - `wait` now accepts both task and process handles.
+
+`ProcessStatus`:
+- `{ ok, code, signal, timedOut, aborted, durationMs }`
+
+`RunStatus`:
+- `ProcessStatus + { output, error, outputTruncated, errorTruncated }`
 
 Snapshot semantics:
 - Runtime context (`argv`, `programPath`, environment snapshot) is captured at evaluator startup.
@@ -238,7 +279,7 @@ Snapshot semantics:
   the fallback block runs and its value is returned.
 - Inside the fallback block, `error` is bound to `{ kind: String, message: String }`.
   - Runtime errors use `kind = "runtime"`.
-  - Builtin recoverable errors keep their specific `kind` (for example `jsonDecode`, `http`, `fail`).
+  - Builtin recoverable errors keep their specific `kind` (for example `fromJson`, `http`, `fail`).
 
 Errors not catchable by `?`:
 - `exit(...)` (explicit hard stop)
@@ -248,7 +289,7 @@ Errors not catchable by `?`:
 Example:
 
 ```
-let parsed = jsonDecode(raw) ? {
+let parsed = fromJson(raw) ? {
     log("bad json:", error.message)
     { foo: "default" }
 }
@@ -500,20 +541,33 @@ Implementation details (current runtime):
 - `exit(message)` -> no return (terminates)
 - `fail(message)` -> no return (recoverable error)
 - `log(...values)` -> Unit
+- `logt(...values)` -> Unit (prefixes output with current UTC RFC3339 timestamp)
 - `str(value)` -> String
+- `toUtf8(text)` -> Bytes
+- `fromUtf8(bytes)` -> String
 - `parseInt(string)` -> Int
 - `sha256(text)` -> String (hex digest)
 - `uuidNew()` -> String
 - `uuidValid(text)` -> Bool
 - `uuidParse(text)` -> String (canonical)
-- `jsonEncode(value)` -> String
-- `jsonDecode(text)` -> Value
+- `toJson(value)` -> String
+- `fromJson(text)` -> Value
 - `readFile(path)` -> String
 - `writeFile(path, data)` -> Unit
 - `appendFile(path, data)` -> Unit
 - `deleteFile(path)` -> Unit
 - `exists(path)` -> Bool
 - `listDir(path)` -> Array<String>
+- `proc(spec, opts?)` -> Process
+- `run(spec, opts?)` -> `{ ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated }`
+- `reader(path, opts?)` -> StreamReader
+- `writer(path, opts?)` -> StreamWriter
+- process/string constants:
+  - `PIPE = "pipe"`
+  - `INHERIT = "inherit"`
+  - `NULL = "null"`
+  - `TEXT = "text"`
+  - `BYTES = "bytes"`
 - `http({ method, url, headers, body, })` -> { status, headers, body, }
 - `httpServe({ addr, routes, })` -> Server
 - `httpServerStop(server)` -> Unit

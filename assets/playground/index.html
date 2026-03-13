@@ -227,164 +227,144 @@
 
     <script>
         const EXAMPLES = [
-            `// Fibonacci (expression-based loop)
-let fib = n -> {
-    if n <= 1 { n } else {
-        for i < n with i = 1, a = 0, b = 1 {
-            let next = a + b
-            a = b
-            b = next
-            i++
-        } then b
+            `// Process orchestration: synchronous command
+let st = run("kubectl", "version", "--client", "--short", {
+    maxOutputBytes: 8192,
+})
+
+if !st.ok {
+    fail("kubectl failed: " + st.error)
+}
+log(st.output.trim())`,
+            `// Streams: kubectl pod phase summary
+let p = proc(
+    "kubectl", "get", "pods", "-A",
+    "-o", "jsonpath={range .items[*]}{.status.phase}{\"\\n\"}{end}",
+    { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+)
+
+let phases = p
+    | lines()
+    | filter(_ != "")
+    | group_count()
+
+wait p
+log(phases)`,
+            `// Follow process output with stream.read()
+let p = proc(
+    "kubectl", "logs", "-f", "deploy/api",
+    "--tail=20",
+    { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+)
+
+for true with pair = p.stdout.read() {
+    let [line, eof] = pair
+    if eof { break () }
+    if line.contains("ERROR") { log("error", line) }
+    pair = p.stdout.read()
+} then ()
+
+wait p ? {}`,
+            `// Fan-in: merge multiple stream sources
+let logA =
+    proc(
+        "kubectl", "logs", "-f", "deploy/api-a",
+        { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+    ) | lines()
+let logB =
+    proc(
+        "kubectl", "logs", "-f", "deploy/api-b",
+        { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+    ) | lines()
+
+let first100 = merge(logA, logB)
+    | filter(_ != "")
+    | take(100)
+    | collect()
+
+log({ count: len(first100), })`,
+            `// Pod logs fan-in in one statement
+merge(
+  listPods()
+    .map(pod ->
+      proc(
+        "kubectl", "logs", "-f", "-n", ns, pod, "--all-containers=true", "--tail=100",
+        { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+      )
+      | lines()
+      | filter(_ != "")
+      | map(line -> { pod, level: levelOf(line), })
+    )
+) | forEach(event -> {
+    bump(counts, event.pod, event.level)
+    if now() - last >= matrixMs {
+        render(counts)
+        last = now()
     }
-}
-log((0..10).map(fib))`,
-            `// Concurrency + race
-let group = & {
-    (() -> { sleep(120); "A done" })(),
-    (() -> { sleep(80); "B done" })(),
-    (() -> { sleep(40); "C done" })()
-}
-log(wait group)
-
-let fastest = !& {
-    (() -> { sleep(200); "slow" })(),
-    (() -> { sleep(30); "fast" })()
-}
-log(wait fastest)`,
-            `// Tasks + then()
-let base = & (() -> {
-    sleep(100)
-    20
-})()
-
-let out = wait base.then(v -> v + 1).then(v -> v * 2)
-log(out)`,
-            `// Channels stream
-let ch = channel()
-
-let producer = & (() -> {
-    ch.send("alpha")
-    ch.send("beta")
-    ch.send("gamma")
-    ch.done()
-})()
-
-let stream = for true with res = ch.recv(), acc = [] {
-    let [v, done] = res
-    if done { break acc }
-    acc += [v]
-    res = ch.recv()
-} then acc
-
-wait producer
-log(stream)`,
-            `// recover
-let divide = (a, b) -> a / b
-let result = divide(1, 0) ? {
-    log("recovered:", error.message)
-    0
-}
-log(result)`,
-            `// Destructuring
-let user = { id: "u_1", email: "ana@karl.dev", role: "admin", }
-let { id, email, role, } = user
-
-let nums = [10, 20, 30, 40]
-let [head, second, ...tail, ] = nums
-
-let pair = [7, 9]
-let (a, b) = pair
-
-log({ id, email, role, head, second, tail, a, b, })`,
-            `// Strings: indexing + slicing
-let text = "karl-language"
-let chars = text.split("")
-let first = chars[0]
-let dash = chars[4]
-let left = text[..4]
-let right = text[5..]
-let last = chars[chars.length - 1]
-
-log({
-    first,
-    dash,
-    left,
-    right,
-    last,
 })`,
-            `// Match + guards
-let score = 87
-let rank = match score {
-    case _ if score >= 90 -> "A"
-    case _ if score >= 80 -> "B"
-    case _ if score >= 70 -> "C"
-    case _ -> "D"
-}
-log("rank:", rank)`,
-            `// File I/O
-let path = "notes.txt"
-writeFile(path, "hello\\n")
-appendFile(path, "from karl\\n")
+            `// Stream side effects: spill + tee
+let n = proc(
+    "kubectl", "get", "pods", "-A",
+    { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+)
+    | lines()
+    | spill("/tmp/pods.snapshot", { type: TEXT, })
+    | tee(stdout())
+    | count()
 
-log(readFile(path))
-log("exists:", exists(path))
-deleteFile(path)`,
-            `// System runtime APIs
-let args = argv()
-let exe = programPath()
-let home = env("HOME")
-let all = environ()
+log({ lines: n, })`,
+            `// Stream -> exec sink
+let result = proc(
+    "kubectl", "get", "pods", "-A",
+    { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+)
+    | lines()
+    | filter(_ != "")
+    | exec("wc", "-l", { maxOutputBytes: 4096, })
 
-log({
-    args: args,
-    exe: exe,
-    home: home,
-    env_count: all.length,
-})`,
-            `// Signal handling
-let sigs = signalWatch(["SIGINT", "SIGTERM"])
-log("waiting for shutdown...")
+if !result.ok { fail("wc failed") }
+log(result.output.trim())`,
+            `// HTTP stream source (NDJSON style)
+let teams = http("http://127.0.0.1:8080/events", { type: TEXT, })
+    | lines()
+    | filter(_ != "")
+    | fromJson()
+    | group_count(_.team)
 
-let [sig, closed] = sigs.recv()
-if !closed {
-    log("shutdown:", sig)
-}`,
-            `// HTTP server
-let srv = httpServe({
-    addr: ":8080",
-    routes: [
-        {
-            method: "GET",
-            path: "/health",
-            handler: req -> {
-                status: 200,
-                headers: { "Content-Type": "application/json", },
-                body: jsonEncode({ status: "ok", now: now(), }),
-            }
-        }
-    ],
-})`,
-            `// SQL + UUID + hash
+log(teams)`,
+            `// SQL + time + hash
 let db = sqlOpen("postgres://vigil:vigil@localhost:5432/vigil?sslmode=disable")
-let id = uuidNew()
 let email = "hello@karl-lang.org"
 let fp = sha256(email)
 
 sqlExec(db,
-  "INSERT INTO users (id, email, fingerprint) VALUES ($1, $2, $3)",
-  [id, email, fp]
+  "INSERT INTO users (id, email, fingerprint, last_email_check) VALUES ($1, $2, $3, $4)",
+  [uuidNew(), email, fp, now()]
 )
-log(sqlQueryOne(db, "SELECT id, email FROM users WHERE id = $1", [id]))`,
-            `// Recover operator + match
-let cfg = jsonDecode(readFile("config.json")) ? {
-    { mode: "safe", retries: 3, }
+log(sqlQueryOne(db, "SELECT email, fingerprint FROM users WHERE email = $1", [email]))
+sqlClose(db)`,
+            `// Signal-aware worker lifecycle
+let worker = spawn (() -> {
+    for true with running = true {
+        sleep(1000)
+        logt("tick")
+    } then ()
+})()
+
+let sigs = signalWatch(["SIGINT", "SIGTERM"])
+let [sig, done] = sigs.recv()
+if !done { log("shutdown:", sig) }
+
+worker.cancel()
+wait worker ? {}`,
+            `// Recover at IO/parse boundaries
+let config = fromJson(readFile("config.json")) ? {
+    log("bad config:", error.message)
+    { mode: "safe", poll_ms: 1000, }
 }
 
-match cfg.mode {
-    "safe" -> log("safe mode")
-    _ -> log("custom mode")
-}`
+let pollMs = parseInt(str(config.poll_ms)) ? 1000
+log({ mode: config.mode, pollMs, })`
         ];
 
         const KEYWORDS = new Set([

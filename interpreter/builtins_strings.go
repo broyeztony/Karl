@@ -14,9 +14,18 @@ func registerStringBuiltins() {
 	builtins["replace"] = &Builtin{Name: "replace", Fn: builtinReplace}
 }
 
-func builtinSplit(_ *Evaluator, args []Value) (Value, error) {
+func builtinSplit(e *Evaluator, args []Value) (Value, error) {
+	if len(args) == 1 {
+		if !isCallable(args[0]) {
+			return nil, &RuntimeError{Message: "split expects string and separator, or predicate for stream split sink"}
+		}
+		return newStreamSplitSink(e, args[0]), nil
+	}
 	if len(args) != 2 {
 		return nil, &RuntimeError{Message: "split expects string and separator"}
+	}
+	if isCallable(args[1]) {
+		return newStreamSplitSink(e, args[1]), nil
 	}
 	str, ok := args[0].(*String)
 	if !ok {
