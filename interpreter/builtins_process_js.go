@@ -9,6 +9,11 @@ type processStageSpec struct {
 	args    []string
 }
 
+type processSpec struct {
+	stdinMode string
+	stdinText *string
+}
+
 type Process struct{}
 
 func (p *Process) Type() ValueType { return PROCESS }
@@ -31,6 +36,8 @@ func registerProcessBuiltins() {
 	builtins["run"] = &Builtin{Name: "run", Fn: builtinRun}
 }
 
+const processModePipe = "pipe"
+
 func builtinProc(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) < 1 || len(args) > 2 {
 		return nil, &RuntimeError{Message: "proc expects (spec, opts?)"}
@@ -47,4 +54,12 @@ func builtinRun(_ *Evaluator, args []Value) (Value, error) {
 
 func processAwaitWithCancel(_ *Process, _ <-chan struct{}, _ *runtimeState) (Value, *Signal, error) {
 	return nil, nil, recoverableError("process_state", "process API is not supported in this runtime")
+}
+
+func parseRunSpec(_ []Value) (processSpec, error) {
+	return processSpec{}, recoverableError("process_spawn", "process API is not supported in this runtime")
+}
+
+func executeRunSpec(_ *Evaluator, _ processSpec) (Value, error) {
+	return nil, recoverableError("process_spawn", "process API is not supported in this runtime")
 }

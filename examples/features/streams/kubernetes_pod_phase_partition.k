@@ -1,13 +1,9 @@
 // Split pods into running vs non-running with split(pred).
 // Optional env: K8S_NS=<namespace> (default: all namespaces)
 
-let ns = env("K8S_NS") ? ""
-
-let args = if ns == "" {
-    ["get", "pods", "-A", "-o", "jsonpath={range .items[*]}{.metadata.namespace}|{.metadata.name}|{.status.phase}{\"\\n\"}{end}"]
-} else {
-    ["get", "pods", "-n", ns, "-o", "jsonpath={range .items[*]}{.metadata.namespace}|{.metadata.name}|{.status.phase}{\"\\n\"}{end}"]
-}
+let ns = trim(env("K8S_NS")) ? ""
+let scope = if ns == "" { ["-A"] } else { ["-n", ns] }
+let args = ["get", "pods"] + scope + ["-o", "jsonpath={range .items[*]}{.metadata.namespace}|{.metadata.name}|{.status.phase}{\"\\n\"}{end}"]
 
 let p = proc(
     { command: "kubectl", args: args, },

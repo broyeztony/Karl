@@ -1,13 +1,9 @@
 // Merge pod + node feeds into one stream.
 // Optional env: K8S_NS=<namespace> (default: all namespaces)
 
-let ns = env("K8S_NS") ? ""
-
-let podArgs = if ns == "" {
-    ["get", "pods", "-A", "-o", "jsonpath={range .items[*]}{.metadata.namespace}/{.metadata.name}{\"\\n\"}{end}"]
-} else {
-    ["get", "pods", "-n", ns, "-o", "jsonpath={range .items[*]}{.metadata.namespace}/{.metadata.name}{\"\\n\"}{end}"]
-}
+let ns = trim(env("K8S_NS")) ? ""
+let scope = if ns == "" { ["-A"] } else { ["-n", ns] }
+let podArgs = ["get", "pods"] + scope + ["-o", "jsonpath={range .items[*]}{.metadata.namespace}/{.metadata.name}{\"\\n\"}{end}"]
 
 let pPods = proc(
     { command: "kubectl", args: podArgs, },

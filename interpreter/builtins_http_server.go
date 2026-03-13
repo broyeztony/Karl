@@ -267,12 +267,3 @@ func parseHTTPHandlerResponse(val Value) (int, map[string]string, string, error)
 	}
 	return status, headers, body, nil
 }
-
-func isCallable(val Value) bool {
-	switch val.(type) {
-	case *Function, *Builtin, *Partial:
-		return true
-	default:
-		return false
-	}
-}
