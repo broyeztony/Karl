@@ -1,6 +1,6 @@
 // Stream NDJSON over HTTP, decode each row, and aggregate.
 
-let port = env("STREAM_HTTP_PORT") ? "18091"
+let port = trim(env("STREAM_HTTP_PORT")) ? "18091"
 let addr = "127.0.0.1:" + port
 
 let srv = httpServe({

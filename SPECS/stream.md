@@ -71,7 +71,9 @@ Every stream pipeline expression corresponds to a directed acyclic graph (DAG):
 Current runtime execution model:
 - each `source | ... | sink` expression builds a linear DAG path
 - a `<stream-plan>` is immutable: appending a stage returns a new plan
-- execution starts only when a sink is attached
+- execution starts when a terminal consumer runs:
+  - a pipeline sink (`source | ... | sink`)
+  - or stream member reads (`stream.read()`)
 - execution is pull-driven from the sink (downstream demand drives upstream reads)
 
 This gives deterministic linear dataflow semantics while keeping room for richer
@@ -119,7 +121,7 @@ Streams are:
 - lazy
 - pull-driven internally
 - composable through operators
-- executed only when consumed by sinks
+- executed only when consumed by terminal consumers (pipeline sinks or member reads)
 
 Runtime implementations must not introduce push-based execution or implicit
 buffering that violates backpressure guarantees.
@@ -215,6 +217,32 @@ buffering that violates backpressure guarantees.
 - unconsumed partition branches are dropped by policy (no upstream blocking for unopened branches).
 
 ## Stream members
+
+For `s: <stream-source>` or `s: <stream-plan>`:
+- `s.read() -> [item, eof]`
+- `s.close() -> Unit`
+
+Rules:
+- `read()` is stateful per stream value instance.
+- first `read()` lazily opens an internal cursor.
+- each next `read()` advances the same cursor.
+- when EOF is reached, `read()` returns `[null, true]` and the cursor is closed.
+- subsequent `read()` calls remain `[null, true]` (no implicit restart).
+- `close()` closes the cursor early; later `read()` returns `[null, true]`.
+- concurrent `read()` on the same stream value instance is a recoverable `stream_state` error.
+
+Example:
+
+```karl
+let s = read("events.log", { type: TEXT, }) | lines()
+
+let rows = for true with pair = s.read(), acc = [] {
+  let [line, eof] = pair
+  if eof { break acc }
+  acc += [line]
+  pair = s.read()
+} then []
+```
 
 For `r: <stream-reader>`:
 - `r.read(size?) -> [chunk, eof]`

@@ -29,191 +29,359 @@
             <h3>Contents</h3>
             <ul>
                 <li><a href="#availability">Availability</a></li>
-                <li><a href="#runtime-core">Runtime Core</a></li>
-                <li><a href="#runtime-system">Runtime System</a></li>
-                <li><a href="#collections">Collections + List Ops</a></li>
+                <li><a href="#constants">Constants</a></li>
+                <li><a href="#core">Core Runtime</a></li>
+                <li><a href="#tasks-channels">Tasks + Channels</a></li>
+                <li><a href="#runtime-system">Program Runtime</a></li>
+                <li><a href="#collections">Collections + List</a></li>
                 <li><a href="#strings">Strings</a></li>
-                <li><a href="#json-time-crypto">JSON / Time / UUID / Crypto</a></li>
-                <li><a href="#io-http-sql">File, HTTP, SQL, Signals</a></li>
+                <li><a href="#encoding">Encoding + Data</a></li>
+                <li><a href="#time-uuid-crypto">Time / UUID / Crypto</a></li>
                 <li><a href="#math-random">Math + Random</a></li>
+                <li><a href="#fs">Filesystem</a></li>
+                <li><a href="#http">HTTP + Server</a></li>
+                <li><a href="#sql">SQL</a></li>
+                <li><a href="#signals">Signals</a></li>
+                <li><a href="#process">Process API</a></li>
+                <li><a href="#streams">Stream API</a></li>
                 <li><a href="#methods">Method Sugar</a></li>
-                <li><a href="#examples">Less Intuitive Cases</a></li>
+                <li><a href="#examples">Non-Obvious Examples</a></li>
             </ul>
         </aside>
 
         <article>
             <h2>Standard Library Reference</h2>
             <p>
-                This page is the API reference for global Karl built-ins and member-method sugar.
-                Signatures are written in Karl style; nullable return values are explicit.
+                Exhaustive built-in API reference for current runtime behavior.
+                This page is aligned with <code>interpreter/builtins_*.go</code> and the canonical stream/process specs.
             </p>
 
             <h3 id="availability">1. Runtime Availability</h3>
             <p>
-                Some APIs depend on runtime host capabilities.
-                Browser WASM (bench) does not provide OS file APIs, signal watching, SQL drivers, or server sockets.
+                Karl has two execution environments: CLI/native runtime and browser/WASM bench runtime.
             </p>
             <div>
-                <span class="badge ok">CLI/runtime: full std</span>
-                <span class="badge ok">Bench WASM: pure/runtime-safe subset</span>
-                <span class="badge">Unsupported in bench: file I/O, signalWatch, sql*, httpServe</span>
+                <span class="badge ok">CLI native: full standard library</span>
+                <span class="badge ok">Bench WASM: core language + safe built-ins</span>
+                <span class="badge">Bench unsupported: process/sql/signals/httpServe/filesystem streams</span>
             </div>
 
-            <h3 id="runtime-core">2. Runtime Core</h3>
+            <h3 id="constants">2. Prebound Constants</h3>
             <table>
                 <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Signature</th>
-                        <th>Returns</th>
-                        <th>Notes</th>
-                    </tr>
+                    <tr><th>Name</th><th>Value</th><th>Used for</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>log</code></td><td><code>log(...values)</code></td><td><code>()</code></td><td>Prints inspected values.</td></tr>
-                    <tr><td><code>logt</code></td><td><code>logt(...values)</code></td><td><code>()</code></td><td>Like <code>log</code> with UTC RFC3339 timestamp prefix.</td></tr>
-                    <tr><td><code>str</code></td><td><code>str(value)</code></td><td><code>String</code></td><td>Stringifies value.</td></tr>
-                    <tr><td><code>sleep</code></td><td><code>sleep(ms)</code></td><td><code>()</code></td><td>Cooperative delay in milliseconds.</td></tr>
-                    <tr><td><code>fail</code></td><td><code>fail([message])</code></td><td><code>recoverable error</code></td><td>Recoverable via <code>? { ... }</code>.</td></tr>
-                    <tr><td><code>exit</code></td><td><code>exit([message])</code></td><td><code>never</code></td><td>Terminates program execution.</td></tr>
+                    <tr><td><code>PIPE</code></td><td><code>"pipe"</code></td><td>Process stdio mode</td></tr>
+                    <tr><td><code>INHERIT</code></td><td><code>"inherit"</code></td><td>Process stdio mode</td></tr>
+                    <tr><td><code>NULL</code></td><td><code>"null"</code></td><td>Process stdio mode</td></tr>
+                    <tr><td><code>TEXT</code></td><td><code>"text"</code></td><td>Stream/process text mode</td></tr>
+                    <tr><td><code>BYTES</code></td><td><code>"bytes"</code></td><td>Stream/process bytes mode</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="core">3. Core Runtime</h3>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>log</code></td><td><code>log(...values)</code></td><td><code>()</code></td><td>Print inspected values.</td></tr>
+                    <tr><td><code>logt</code></td><td><code>logt(...values)</code></td><td><code>()</code></td><td>Timestamped log line (UTC RFC3339 prefix).</td></tr>
+                    <tr><td><code>str</code></td><td><code>str(value)</code></td><td><code>String</code></td><td>Value stringification.</td></tr>
+                    <tr><td><code>sleep</code></td><td><code>sleep(ms)</code></td><td><code>()</code></td><td>Cooperative delay in ms.</td></tr>
+                    <tr><td><code>fail</code></td><td><code>fail([message])</code></td><td><code>recoverable error</code></td><td>Recover with <code>? { ... }</code>.</td></tr>
+                    <tr><td><code>exit</code></td><td><code>exit([message])</code></td><td><code>never</code></td><td>Terminates execution.</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="tasks-channels">4. Tasks + Channels</h3>
+            <p>
+                <code>spawn</code>, <code>&amp;</code>, <code>race</code>, <code>!&amp;</code>, and <code>wait</code> are language operators/keywords.
+                Built-ins below are channel/task helpers.
+            </p>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
                     <tr><td><code>channel</code></td><td><code>channel()</code></td><td><code>Channel</code></td><td>Alias of <code>rendezvous()</code>.</td></tr>
                     <tr><td><code>rendezvous</code></td><td><code>rendezvous()</code></td><td><code>Channel</code></td><td>Unbuffered channel.</td></tr>
-                    <tr><td><code>buffered</code></td><td><code>buffered(size)</code></td><td><code>Channel</code></td><td>Buffered channel, <code>size &gt;= 0</code>.</td></tr>
-                    <tr><td><code>send</code></td><td><code>send(channel, value)</code></td><td><code>()</code></td><td>Also available as <code>ch.send(v)</code>.</td></tr>
-                    <tr><td><code>recv</code></td><td><code>recv(channel)</code></td><td><code>[value|null, doneBool]</code></td><td>Also available as <code>ch.recv()</code>.</td></tr>
-                    <tr><td><code>done</code></td><td><code>done(channel)</code></td><td><code>()</code></td><td>Closes channel; also <code>ch.done()</code>.</td></tr>
-                    <tr><td><code>then</code></td><td><code>then(task, fn)</code></td><td><code>Task</code></td><td>Also available as <code>task.then(fn)</code>.</td></tr>
+                    <tr><td><code>buffered</code></td><td><code>buffered(size)</code></td><td><code>Channel</code></td><td>Buffered channel with <code>size &gt;= 0</code>.</td></tr>
+                    <tr><td><code>send</code></td><td><code>send(ch, value)</code></td><td><code>()</code></td><td>Also <code>ch.send(v)</code>.</td></tr>
+                    <tr><td><code>recv</code></td><td><code>recv(ch)</code></td><td><code>[value|null, doneBool]</code></td><td>Also <code>ch.recv()</code>.</td></tr>
+                    <tr><td><code>done</code></td><td><code>done(ch)</code></td><td><code>()</code></td><td>Also <code>ch.done()</code>.</td></tr>
+                    <tr><td><code>then</code></td><td><code>then(task, fn)</code></td><td><code>Task</code></td><td>Also <code>task.then(fn)</code>.</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="runtime-system">3. Runtime System</h3>
+            <h3 id="runtime-system">5. Program Runtime</h3>
             <table>
                 <thead>
-                    <tr><th>Name</th><th>Signature</th><th>Returns</th><th>Notes</th></tr>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>argv</code></td><td><code>argv()</code></td><td><code>Array&lt;String&gt;</code></td><td>Args passed after <code>--</code>.</td></tr>
-                    <tr><td><code>programPath</code></td><td><code>programPath()</code></td><td><code>String|null</code></td><td>Script path or <code>&lt;stdin&gt;</code>.</td></tr>
-                    <tr><td><code>environ</code></td><td><code>environ()</code></td><td><code>Array&lt;String&gt;</code></td><td><code>KEY=value</code> snapshot entries.</td></tr>
-                    <tr><td><code>env</code></td><td><code>env(name)</code></td><td><code>String|null</code></td><td>Single environment lookup.</td></tr>
-                    <tr><td><code>readLine</code></td><td><code>readLine()</code></td><td><code>String|null</code></td><td>EOF returns <code>null</code>; read failure recoverable.</td></tr>
+                    <tr><td><code>argv</code></td><td><code>argv()</code></td><td><code>Array&lt;String&gt;</code></td><td>Arguments after <code>--</code> in <code>karl run</code>.</td></tr>
+                    <tr><td><code>programPath</code></td><td><code>programPath()</code></td><td><code>String|null</code></td><td>Current script path or null.</td></tr>
+                    <tr><td><code>environ</code></td><td><code>environ()</code></td><td><code>Array&lt;String&gt;</code></td><td>Environment snapshot entries <code>KEY=value</code>.</td></tr>
+                    <tr><td><code>env</code></td><td><code>env(name)</code></td><td><code>String|null</code></td><td>Single env lookup.</td></tr>
+                    <tr><td><code>readLine</code></td><td><code>readLine()</code></td><td><code>String|null</code></td><td>Reads one line from stdin.</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="collections">4. Collections + List Ops</h3>
+            <h3 id="collections">6. Collections + List</h3>
             <table>
                 <thead>
-                    <tr><th>Name</th><th>Signature</th><th>Returns</th><th>Notes</th></tr>
+                    <tr><th>Name</th><th>Signatures</th><th>Return</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>map</code></td><td><code>map()</code> or <code>map(array, fn)</code></td><td><code>Map</code> or <code>Array</code></td><td>Constructor and array transform overload.</td></tr>
-                    <tr><td><code>set</code></td><td><code>set()</code> / <code>set(array)</code> / <code>set(map,key,value)</code></td><td><code>Set</code> or <code>Map</code></td><td>Overloaded set constructor + map update.</td></tr>
-                    <tr><td><code>get</code></td><td><code>get(map, key)</code></td><td><code>Value|null</code></td><td>Map lookup.</td></tr>
-                    <tr><td><code>has</code></td><td><code>has(mapOrSet, key)</code></td><td><code>Bool</code></td><td>Membership test.</td></tr>
-                    <tr><td><code>delete</code></td><td><code>delete(mapOrSet, key)</code></td><td><code>Bool</code></td><td>Deletes key/value if present.</td></tr>
-                    <tr><td><code>keys</code></td><td><code>keys(mapOrObject)</code></td><td><code>Array</code></td><td>Order not guaranteed.</td></tr>
-                    <tr><td><code>values</code></td><td><code>values(mapOrSet)</code></td><td><code>Array</code></td><td>Order not guaranteed.</td></tr>
-                    <tr><td><code>add</code></td><td><code>add(set, value)</code></td><td><code>Set</code></td><td>Set insert.</td></tr>
-                    <tr><td><code>len</code></td><td><code>len(string|array|map|set|object)</code></td><td><code>Int</code></td><td>Unicode-aware for strings.</td></tr>
-                    <tr><td><code>sort</code></td><td><code>sort(array, cmp)</code></td><td><code>Array</code></td><td>Comparator must return number.</td></tr>
-                    <tr><td><code>filter</code></td><td><code>filter(array, pred)</code></td><td><code>Array</code></td><td>Predicate must return bool.</td></tr>
-                    <tr><td><code>reduce</code></td><td><code>reduce(array, fn, initial)</code></td><td><code>Value</code></td><td>Left fold.</td></tr>
-                    <tr><td><code>sum</code></td><td><code>sum(array)</code></td><td><code>Int|Float</code></td><td>Numeric array only.</td></tr>
-                    <tr><td><code>find</code></td><td><code>find(array, pred)</code></td><td><code>Value|null</code></td><td>First element matching predicate.</td></tr>
+                    <tr><td><code>map</code></td><td><code>map()</code> or <code>map(array, fn)</code> or <code>map(fn)</code></td><td>Map / Array / stream stage</td></tr>
+                    <tr><td><code>set</code></td><td><code>set()</code>, <code>set(array)</code>, <code>set(map,key,value)</code></td><td>Set / Map</td></tr>
+                    <tr><td><code>get</code></td><td><code>get(map, key)</code></td><td>Value|null</td></tr>
+                    <tr><td><code>add</code></td><td><code>add(set, value)</code></td><td>Set</td></tr>
+                    <tr><td><code>has</code></td><td><code>has(mapOrSet, key)</code></td><td>Bool</td></tr>
+                    <tr><td><code>delete</code></td><td><code>delete(mapOrSet, key)</code></td><td>Bool</td></tr>
+                    <tr><td><code>keys</code></td><td><code>keys(mapOrObject)</code></td><td>Array</td></tr>
+                    <tr><td><code>values</code></td><td><code>values(mapOrSet)</code></td><td>Array</td></tr>
+                    <tr><td><code>len</code></td><td><code>len(string|bytes|array|map|set|object)</code></td><td>Int</td></tr>
+                    <tr><td><code>filter</code></td><td><code>filter(array, pred)</code> or <code>filter(pred)</code></td><td>Array / stream stage</td></tr>
+                    <tr><td><code>flatMap</code></td><td><code>flatMap(array, fn)</code> or <code>flatMap(fn)</code></td><td>Array / stream stage</td></tr>
+                    <tr><td><code>reduce</code></td><td><code>reduce(array, fn, init)</code> or <code>reduce(init, fn)</code></td><td>Value / stream sink</td></tr>
+                    <tr><td><code>sum</code></td><td><code>sum(array)</code></td><td>Int|Float</td></tr>
+                    <tr><td><code>find</code></td><td><code>find(array, pred)</code></td><td>Value|null</td></tr>
+                    <tr><td><code>sort</code></td><td><code>sort(array, cmp)</code> or <code>sort()</code>/<code>sort(cmp)</code></td><td>Array / stream stage</td></tr>
+                    <tr><td><code>take</code></td><td><code>take(n)</code></td><td>stream stage</td></tr>
+                    <tr><td><code>drop</code></td><td><code>drop(n)</code></td><td>stream stage</td></tr>
+                    <tr><td><code>chunk</code></td><td><code>chunk(size)</code></td><td>stream stage</td></tr>
+                    <tr><td><code>window</code></td><td><code>window(size, step)</code></td><td>stream stage</td></tr>
+                    <tr><td><code>throttle</code></td><td><code>throttle(ms)</code></td><td>stream stage</td></tr>
+                    <tr><td><code>debounce</code></td><td><code>debounce(ms)</code></td><td>stream stage</td></tr>
+                    <tr><td><code>distinct</code></td><td><code>distinct()</code></td><td>stream stage</td></tr>
+                    <tr><td><code>partition</code></td><td><code>partition(array, pred)</code> or <code>partition(selectorFn[, keys])</code></td><td>Array pair / stream sink</td></tr>
+                    <tr><td><code>split</code></td><td><code>split(array, pred)</code> or stream sink <code>split(pred)</code></td><td>Object</td></tr>
+                    <tr><td><code>count</code></td><td><code>count()</code></td><td>stream sink Int</td></tr>
+                    <tr><td><code>group_count</code></td><td><code>group_count([keyFn])</code></td><td>stream sink Map</td></tr>
+                    <tr><td><code>reduce_by_key</code></td><td><code>reduce_by_key(keyFn, init, reducerFn)</code></td><td>stream sink Map</td></tr>
+                    <tr><td><code>top</code></td><td><code>top(n[, scoreFn])</code></td><td>stream sink Array</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="strings">5. String APIs</h3>
+            <h3 id="strings">7. Strings</h3>
             <table>
                 <thead>
-                    <tr><th>Name</th><th>Signature</th><th>Returns</th><th>Notes</th></tr>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>split</code></td><td><code>split(text, sep)</code></td><td><code>Array&lt;String&gt;</code></td><td><code>sep == ""</code> splits by runes.</td></tr>
-                    <tr><td><code>chars</code></td><td><code>chars(text)</code></td><td><code>Array&lt;Char&gt;</code></td><td>Unicode chars.</td></tr>
-                    <tr><td><code>trim</code></td><td><code>trim(text)</code></td><td><code>String</code></td><td>Whitespace trim.</td></tr>
-                    <tr><td><code>toLower</code></td><td><code>toLower(text)</code></td><td><code>String</code></td><td>Lowercase.</td></tr>
-                    <tr><td><code>toUpper</code></td><td><code>toUpper(text)</code></td><td><code>String</code></td><td>Uppercase.</td></tr>
-                    <tr><td><code>contains</code></td><td><code>contains(text, sub)</code></td><td><code>Bool</code></td><td>Substring search.</td></tr>
-                    <tr><td><code>startsWith</code></td><td><code>startsWith(text, prefix)</code></td><td><code>Bool</code></td><td>Prefix test.</td></tr>
-                    <tr><td><code>endsWith</code></td><td><code>endsWith(text, suffix)</code></td><td><code>Bool</code></td><td>Suffix test.</td></tr>
-                    <tr><td><code>replace</code></td><td><code>replace(text, old, new)</code></td><td><code>String</code></td><td>Replace all occurrences.</td></tr>
+                    <tr><td><code>trim</code></td><td><code>trim(text)</code></td><td>String</td></tr>
+                    <tr><td><code>toLower</code></td><td><code>toLower(text)</code></td><td>String</td></tr>
+                    <tr><td><code>toUpper</code></td><td><code>toUpper(text)</code></td><td>String</td></tr>
+                    <tr><td><code>split</code></td><td><code>split(text, sep)</code></td><td>Array&lt;String&gt;</td></tr>
+                    <tr><td><code>chars</code></td><td><code>chars(text)</code></td><td>Array&lt;Char&gt;</td></tr>
+                    <tr><td><code>contains</code></td><td><code>contains(text, sub)</code></td><td>Bool</td></tr>
+                    <tr><td><code>startsWith</code></td><td><code>startsWith(text, prefix)</code></td><td>Bool</td></tr>
+                    <tr><td><code>endsWith</code></td><td><code>endsWith(text, suffix)</code></td><td>Bool</td></tr>
+                    <tr><td><code>replace</code></td><td><code>replace(text, old, new)</code></td><td>String</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="json-time-crypto">6. JSON / Time / UUID / Crypto</h3>
+            <h3 id="encoding">8. Encoding + Data</h3>
             <table>
                 <thead>
-                    <tr><th>Name</th><th>Signature</th><th>Returns</th><th>Notes</th></tr>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>jsonEncode</code></td><td><code>jsonEncode(value)</code></td><td><code>String</code></td><td>Maps require string-like keys.</td></tr>
-                    <tr><td><code>jsonDecode</code></td><td><code>jsonDecode(text)</code></td><td><code>Value</code></td><td>Recoverable parse errors.</td></tr>
-                    <tr><td><code>now</code></td><td><code>now()</code></td><td><code>Int</code></td><td>Unix epoch milliseconds.</td></tr>
-                    <tr><td><code>timeParseRFC3339</code></td><td><code>timeParseRFC3339(text)</code></td><td><code>Int</code></td><td>Recoverable parse errors.</td></tr>
-                    <tr><td><code>timeFormatRFC3339</code></td><td><code>timeFormatRFC3339(ms)</code></td><td><code>String</code></td><td>UTC RFC3339 format.</td></tr>
-                    <tr><td><code>timeAdd</code></td><td><code>timeAdd(ms, deltaMs)</code></td><td><code>Int</code></td><td>Millisecond arithmetic.</td></tr>
-                    <tr><td><code>timeDiff</code></td><td><code>timeDiff(aMs, bMs)</code></td><td><code>Int</code></td><td>Difference in milliseconds.</td></tr>
-                    <tr><td><code>sha256</code></td><td><code>sha256(text)</code></td><td><code>String</code></td><td>Hex digest string.</td></tr>
-                    <tr><td><code>uuidNew</code></td><td><code>uuidNew()</code></td><td><code>String</code></td><td>Random UUID string.</td></tr>
-                    <tr><td><code>uuidValid</code></td><td><code>uuidValid(text)</code></td><td><code>Bool</code></td><td>Format validation.</td></tr>
-                    <tr><td><code>uuidParse</code></td><td><code>uuidParse(text)</code></td><td><code>String</code></td><td>Canonicalized UUID; recoverable on invalid input.</td></tr>
+                    <tr><td><code>decodeJson</code></td><td><code>decodeJson(text)</code></td><td>Value</td><td>Recoverable parse failures.</td></tr>
+                    <tr><td><code>encodeJson</code></td><td><code>encodeJson(value)</code></td><td>String</td><td>JSON encoding of Karl value.</td></tr>
+                    <tr><td><code>decodeUtf8</code></td><td><code>decodeUtf8(bytes)</code></td><td>String</td><td>UTF-8 decode.</td></tr>
+                    <tr><td><code>encodeUtf8</code></td><td><code>encodeUtf8(text)</code></td><td>Bytes</td><td>UTF-8 encode.</td></tr>
+                    <tr><td><code>bytesJoin</code></td><td><code>bytesJoin(arrayOfBytes)</code></td><td>Bytes</td><td>Concatenate chunks.</td></tr>
+                    <tr><td><code>parseInt</code></td><td><code>parseInt(text)</code></td><td>Int</td><td>Base-10, recoverable on invalid input.</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="io-http-sql">7. File, HTTP, SQL, Signals</h3>
+            <h3 id="time-uuid-crypto">9. Time / UUID / Crypto</h3>
             <table>
                 <thead>
-                    <tr><th>Name</th><th>Signature</th><th>Returns</th><th>Notes</th></tr>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>readFile</code></td><td><code>readFile(path)</code></td><td><code>String</code></td><td>Recoverable on filesystem error.</td></tr>
-                    <tr><td><code>writeFile</code></td><td><code>writeFile(path, data)</code></td><td><code>()</code></td><td>Recoverable on filesystem error.</td></tr>
-                    <tr><td><code>appendFile</code></td><td><code>appendFile(path, data)</code></td><td><code>()</code></td><td>Recoverable on filesystem error.</td></tr>
-                    <tr><td><code>deleteFile</code></td><td><code>deleteFile(path)</code></td><td><code>()</code></td><td>Recoverable on filesystem error.</td></tr>
-                    <tr><td><code>exists</code></td><td><code>exists(path)</code></td><td><code>Bool</code></td><td>Recoverable on unexpected stat errors.</td></tr>
-                    <tr><td><code>listDir</code></td><td><code>listDir(path)</code></td><td><code>Array&lt;String&gt;</code></td><td>Sorted names.</td></tr>
-                    <tr><td><code>http</code></td><td><code>http({ method?, url, headers?, body? })</code></td><td><code>{ status, headers, body }</code></td><td>Recoverable request/IO errors.</td></tr>
-                    <tr><td><code>httpServe</code></td><td><code>httpServe({ addr, routes })</code></td><td><code>Server</code></td><td>Not supported in browser runtime.</td></tr>
-                    <tr><td><code>httpServerStop</code></td><td><code>httpServerStop(server)</code></td><td><code>()</code></td><td>Graceful stop.</td></tr>
-                    <tr><td><code>signalWatch</code></td><td><code>signalWatch(["SIGINT", ...])</code></td><td><code>Channel&lt;String&gt;</code></td><td>Not supported in browser runtime.</td></tr>
-                    <tr><td><code>sqlOpen</code></td><td><code>sqlOpen(dsn)</code></td><td><code>Db</code></td><td>Recoverable connection errors.</td></tr>
-                    <tr><td><code>sqlClose</code></td><td><code>sqlClose(db)</code></td><td><code>()</code></td><td>Close DB handle.</td></tr>
-                    <tr><td><code>sqlExec</code></td><td><code>sqlExec(connOrTx, query, paramsArray)</code></td><td><code>{ rowsAffected }</code></td><td>Params: null/bool/number/string.</td></tr>
-                    <tr><td><code>sqlQuery</code></td><td><code>sqlQuery(connOrTx, query, paramsArray)</code></td><td><code>Array&lt;Object&gt;</code></td><td>Row-object projection.</td></tr>
-                    <tr><td><code>sqlQueryOne</code></td><td><code>sqlQueryOne(connOrTx, query, paramsArray)</code></td><td><code>Object|null</code></td><td>First row or null.</td></tr>
-                    <tr><td><code>sqlBegin</code></td><td><code>sqlBegin(db)</code></td><td><code>Tx</code></td><td>Starts transaction.</td></tr>
-                    <tr><td><code>sqlCommit</code></td><td><code>sqlCommit(tx)</code></td><td><code>()</code></td><td>Commit transaction.</td></tr>
-                    <tr><td><code>sqlRollback</code></td><td><code>sqlRollback(tx)</code></td><td><code>()</code></td><td>Rollback transaction.</td></tr>
+                    <tr><td><code>now</code></td><td><code>now()</code></td><td>Int (ms epoch)</td></tr>
+                    <tr><td><code>timeParseRFC3339</code></td><td><code>timeParseRFC3339(text)</code></td><td>Int</td></tr>
+                    <tr><td><code>timeFormatRFC3339</code></td><td><code>timeFormatRFC3339(ms)</code></td><td>String</td></tr>
+                    <tr><td><code>timeAdd</code></td><td><code>timeAdd(ms, deltaMs)</code></td><td>Int</td></tr>
+                    <tr><td><code>timeDiff</code></td><td><code>timeDiff(aMs, bMs)</code></td><td>Int</td></tr>
+                    <tr><td><code>sha256</code></td><td><code>sha256(text)</code></td><td>String (hex)</td></tr>
+                    <tr><td><code>uuidNew</code></td><td><code>uuidNew()</code></td><td>String</td></tr>
+                    <tr><td><code>uuidParse</code></td><td><code>uuidParse(text)</code></td><td>String</td></tr>
+                    <tr><td><code>uuidValid</code></td><td><code>uuidValid(text)</code></td><td>Bool</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="math-random">8. Math + Random</h3>
+            <h3 id="math-random">10. Math + Random</h3>
             <table>
                 <thead>
-                    <tr><th>Name</th><th>Signature</th><th>Returns</th><th>Notes</th></tr>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>parseInt</code></td><td><code>parseInt(text)</code></td><td><code>Int</code></td><td>Base-10 parsing.</td></tr>
-                    <tr><td><code>rand</code></td><td><code>rand()</code></td><td><code>Int</code></td><td>Non-crypto random integer.</td></tr>
-                    <tr><td><code>randInt</code></td><td><code>randInt(min, max)</code></td><td><code>Int</code></td><td>Inclusive bounds.</td></tr>
-                    <tr><td><code>randFloat</code></td><td><code>randFloat(min, max)</code></td><td><code>Float</code></td><td>Requires <code>min &lt;= max</code>.</td></tr>
-                    <tr><td><code>abs</code></td><td><code>abs(number)</code></td><td><code>Int|Float</code></td><td>Absolute value.</td></tr>
-                    <tr><td><code>sqrt</code></td><td><code>sqrt(number)</code></td><td><code>Float</code></td><td>Input must be non-negative.</td></tr>
-                    <tr><td><code>pow</code></td><td><code>pow(base, exp)</code></td><td><code>Float</code></td><td>Finite result required.</td></tr>
-                    <tr><td><code>sin</code></td><td><code>sin(number)</code></td><td><code>Float</code></td><td>Radians.</td></tr>
-                    <tr><td><code>cos</code></td><td><code>cos(number)</code></td><td><code>Float</code></td><td>Radians.</td></tr>
-                    <tr><td><code>tan</code></td><td><code>tan(number)</code></td><td><code>Float</code></td><td>Radians.</td></tr>
-                    <tr><td><code>floor</code></td><td><code>floor(number)</code></td><td><code>Int</code></td><td>Round down.</td></tr>
-                    <tr><td><code>ceil</code></td><td><code>ceil(number)</code></td><td><code>Int</code></td><td>Round up.</td></tr>
-                    <tr><td><code>min</code></td><td><code>min(a, b)</code></td><td><code>Int|Float</code></td><td>Numeric minimum.</td></tr>
-                    <tr><td><code>max</code></td><td><code>max(a, b)</code></td><td><code>Int|Float</code></td><td>Numeric maximum.</td></tr>
-                    <tr><td><code>clamp</code></td><td><code>clamp(value, min, max)</code></td><td><code>Int|Float</code></td><td>Clamped numeric value.</td></tr>
+                    <tr><td><code>rand</code></td><td><code>rand()</code></td><td>Int</td></tr>
+                    <tr><td><code>randInt</code></td><td><code>randInt(min, max)</code></td><td>Int</td></tr>
+                    <tr><td><code>randFloat</code></td><td><code>randFloat(min, max)</code></td><td>Float</td></tr>
+                    <tr><td><code>abs</code></td><td><code>abs(number)</code></td><td>Int|Float</td></tr>
+                    <tr><td><code>sqrt</code></td><td><code>sqrt(number)</code></td><td>Float</td></tr>
+                    <tr><td><code>pow</code></td><td><code>pow(base, exp)</code></td><td>Float</td></tr>
+                    <tr><td><code>sin</code></td><td><code>sin(number)</code></td><td>Float</td></tr>
+                    <tr><td><code>cos</code></td><td><code>cos(number)</code></td><td>Float</td></tr>
+                    <tr><td><code>tan</code></td><td><code>tan(number)</code></td><td>Float</td></tr>
+                    <tr><td><code>floor</code></td><td><code>floor(number)</code></td><td>Int</td></tr>
+                    <tr><td><code>ceil</code></td><td><code>ceil(number)</code></td><td>Int</td></tr>
+                    <tr><td><code>min</code></td><td><code>min(a, b)</code></td><td>Int|Float</td></tr>
+                    <tr><td><code>max</code></td><td><code>max(a, b)</code></td><td>Int|Float</td></tr>
+                    <tr><td><code>clamp</code></td><td><code>clamp(v, min, max)</code></td><td>Int|Float</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="methods">9. Member-Method Sugar and Properties</h3>
-            <p>Methods below are equivalent to global built-ins with receiver as first argument.</p>
+            <h3 id="fs">11. Filesystem</h3>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>readFile</code></td><td><code>readFile(path)</code></td><td>String</td></tr>
+                    <tr><td><code>writeFile</code></td><td><code>writeFile(path, text)</code></td><td>()</td></tr>
+                    <tr><td><code>appendFile</code></td><td><code>appendFile(path, text)</code></td><td>()</td></tr>
+                    <tr><td><code>deleteFile</code></td><td><code>deleteFile(path)</code></td><td>()</td></tr>
+                    <tr><td><code>exists</code></td><td><code>exists(path)</code></td><td>Bool</td></tr>
+                    <tr><td><code>listDir</code></td><td><code>listDir(path)</code></td><td>Array&lt;String&gt;</td></tr>
+                    <tr><td><code>reader</code></td><td><code>reader(path, opts?)</code></td><td><code>&lt;stream-reader&gt;</code></td></tr>
+                    <tr><td><code>writer</code></td><td><code>writer(path, opts?)</code></td><td><code>&lt;stream-writer&gt;</code></td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="http">12. HTTP + Server</h3>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>http</code></td><td><code>http({ method?, url, headers?, body? })</code></td><td>Object response</td><td>Blocking request form.</td></tr>
+                    <tr><td><code>http</code></td><td><code>http(url, opts?)</code></td><td><code>&lt;stream-source&gt;</code></td><td>Stream source form for pipeline consumption.</td></tr>
+                    <tr><td><code>httpServe</code></td><td><code>httpServe({ addr, routes })</code></td><td>Server</td><td>Native runtime only.</td></tr>
+                    <tr><td><code>httpServerStop</code></td><td><code>httpServerStop(server)</code></td><td>()</td><td>Graceful stop.</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="sql">13. SQL</h3>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>sqlOpen</code></td><td><code>sqlOpen(dsn)</code></td><td>Db</td></tr>
+                    <tr><td><code>sqlClose</code></td><td><code>sqlClose(db)</code></td><td>()</td></tr>
+                    <tr><td><code>sqlExec</code></td><td><code>sqlExec(connOrTx, query, paramsArray)</code></td><td><code>{ rowsAffected }</code></td></tr>
+                    <tr><td><code>sqlQuery</code></td><td><code>sqlQuery(connOrTx, query, paramsArray)</code></td><td>Array&lt;Object&gt;</td></tr>
+                    <tr><td><code>sqlQueryOne</code></td><td><code>sqlQueryOne(connOrTx, query, paramsArray)</code></td><td>Object|null</td></tr>
+                    <tr><td><code>sqlBegin</code></td><td><code>sqlBegin(db)</code></td><td>Tx</td></tr>
+                    <tr><td><code>sqlCommit</code></td><td><code>sqlCommit(tx)</code></td><td>()</td></tr>
+                    <tr><td><code>sqlRollback</code></td><td><code>sqlRollback(tx)</code></td><td>()</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="signals">14. Signals</h3>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>signalWatch</code></td><td><code>signalWatch(["SIGINT", ...])</code></td><td>Channel&lt;String&gt;</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="process">15. Process API</h3>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>proc</code></td><td><code>proc(spec, opts?)</code> or <code>proc(command, ...args, opts?)</code></td><td><code>&lt;process&gt;</code></td><td>Starts immediately; non-blocking handle.</td></tr>
+                    <tr><td><code>run</code></td><td><code>run(spec, opts?)</code> or <code>run(command, ...args, opts?)</code></td><td>RunStatus</td><td>Blocking capture convenience.</td></tr>
+                </tbody>
+            </table>
+            <p>Process status fields from <code>wait p</code>:</p>
+            <pre><code>{ ok, code, signal, timedOut, aborted, durationMs, }</code></pre>
+            <p>RunStatus extends with:</p>
+            <pre><code>{ output, error, outputTruncated, errorTruncated, }</code></pre>
+            <p>Process members:</p>
+            <pre><code>p.pid
+p.running
+p.stdin   // only with stdin: PIPE
+p.stdout  // only with stdout: PIPE
+p.stderr  // only with stderr: PIPE
+p.abort()
+p.kill()
+p.signal("SIGTERM")
+</code></pre>
+
+            <h3 id="streams">16. Stream API</h3>
+            <h4>16.1 Sources</h4>
+            <pre><code>read(path, opts?)
+stdin(opts?)
+http(url, opts?)
+fromChannel(ch)
+merge(a, b, ...)
+zip(a, b)
+join(left, right, leftKeyFn, rightKeyFn)
+</code></pre>
+
+            <h4>16.2 Stages</h4>
+            <pre><code>lines()
+json()
+map(fn)
+filter(fn)
+flatMap(fn)
+distinct()
+sort([cmp])
+take(n)
+drop(n)
+chunk(size)
+window(size, step)
+throttle(ms)
+debounce(ms)
+tee(sink)
+spill(path, opts?)
+</code></pre>
+
+            <h4>16.3 Sinks</h4>
+            <pre><code>stdout()
+write(path, opts?)
+collect()
+toChannel(ch)
+send(ch)
+reduce(init, fn)
+count()
+group_count([keyFn])
+reduce_by_key(keyFn, init, reducerFn)
+top(n[, scoreFn])
+partition(selector[, branchKeys])
+split(pred)
+exec(specOrCommand...)
+</code></pre>
+
+            <h4>16.4 Stream members</h4>
+            <pre><code>// source / plan
+s.read()      // [item, eof]
+s.close()
+
+// reader
+r.read([size]) // [chunk, eof]
+r.close()
+
+// writer
+w.write(chunk) // bytes written
+w.close()
+</code></pre>
+
+            <h3 id="methods">17. Method Sugar</h3>
             <table>
                 <thead>
                     <tr><th>Type</th><th>Properties</th><th>Methods</th></tr>
@@ -221,77 +389,53 @@
                 <tbody>
                     <tr><td><code>Array</code></td><td><code>.length</code></td><td><code>.map .filter .reduce .sum .find .sort .push</code></td></tr>
                     <tr><td><code>String</code></td><td><code>.length</code></td><td><code>.split .chars .trim .toLower .toUpper .contains .startsWith .endsWith .replace</code></td></tr>
+                    <tr><td><code>Bytes</code></td><td><code>.length</code></td><td>-</td></tr>
                     <tr><td><code>Map</code></td><td>-</td><td><code>.get .set .has .delete .keys .values</code></td></tr>
                     <tr><td><code>Set</code></td><td><code>.size</code></td><td><code>.add .has .delete .values</code></td></tr>
                     <tr><td><code>Channel</code></td><td>-</td><td><code>.send .recv .done</code></td></tr>
                     <tr><td><code>Task</code></td><td>-</td><td><code>.then .cancel</code></td></tr>
+                    <tr><td><code>Process</code></td><td><code>.pid .running .stdin .stdout .stderr</code></td><td><code>.abort .kill .signal</code></td></tr>
+                    <tr><td><code>Stream source/plan</code></td><td>-</td><td><code>.read .close</code></td></tr>
+                    <tr><td><code>Stream reader</code></td><td>-</td><td><code>.read .close</code></td></tr>
+                    <tr><td><code>Stream writer</code></td><td>-</td><td><code>.write .close</code></td></tr>
                 </tbody>
             </table>
 
-            <h3 id="examples">10. Less Intuitive Cases (Examples)</h3>
-            <p>These are the APIs where behavior is correct but easy to misread without examples.</p>
-
-            <h4><code>map</code> is overloaded (constructor and transform)</h4>
-            <pre><code>let m = map()                              // empty Map
-let doubled = map([1, 2, 3], x -> x * 2)  // array transform
-log({ m, doubled, })</code></pre>
-
-            <h4><code>set</code> is also overloaded</h4>
-            <pre><code>let uniq = set([1, 1, 2, 3])   // Set constructor from array
-let kv = map()
-let sameMap = set(kv, "a", 10)  // map update; returns the map
-log({ uniq: uniq.values(), sameMap: sameMap.get("a"), })</code></pre>
-
-            <h4><code>recv()</code> returns <code>[value, done]</code></h4>
-            <pre><code>let ch = channel()
-spawn (c -> { c.send("one"); c.done() })(ch)
-
-let [v1, done1] = ch.recv()  // ["one", false]
-let [v2, done2] = ch.recv()  // [null, true]
-log({ v1, done1, v2, done2, })</code></pre>
-
-            <h4>Recovering parse/runtime boundary failures with <code>? { ... }</code></h4>
-            <pre><code>let n = parseInt("not-a-number") ? {
-    log("parseInt:", error.message)
-    0
-}
-
-let payload = jsonDecode("{bad json}") ? {
-    log("jsonDecode:", error.message)
-    { ok: false, }
-}
-log({ n, payload, })</code></pre>
-
-            <h4>String length is Unicode-aware (runes, not bytes)</h4>
-            <pre><code>let s = "é🙂"
-log({ len_builtin: len(s), len_property: s.length, }) // both 2</code></pre>
-
-            <h4>Method syntax is sugar for global built-ins</h4>
-            <pre><code>let xs = [1, 2, 3]
-let a = xs.map(x -> x + 1)
-let b = map(xs, x -> x + 1)
-log(a eqv b) // true</code></pre>
-
-            <h4><code>jsonEncode</code> requires string-like map keys</h4>
+            <h3 id="examples">18. Non-Obvious Examples</h3>
+            <h4>map overloads: constructor vs array transform vs stream stage</h4>
             <pre><code>let m = map()
-set(m, 42, "answer") // int key is valid for Map
+let xs = map([1, 2, 3], x -> x * 2)
+let ys = read("items.txt", { type: TEXT, }) | lines() | map(_ + "!") | collect()
+</code></pre>
 
-let encoded = jsonEncode(m) ? {
-    log("jsonEncode:", error.message) // map keys must be string/char for JSON
-    "{}"
-}
-log(encoded)</code></pre>
+            <h4>http overloads: blocking object request vs stream source</h4>
+            <pre><code>let r = http({ method: "GET", url: "https://api.github.com", })
+let rows = http("https://example.com/events.ndjson", { type: TEXT, }) | lines() | collect()
+</code></pre>
 
-            <h4>Runtime-specific APIs should be guarded in browser/WASM</h4>
-            <pre><code>// In bench (WASM), server/sql/signal APIs are unavailable.
-let maybeServer = httpServe({ addr: ":8080", routes: [], }) ? {
-    log(error.kind, error.message)
-    null
-}
-log(maybeServer)</code></pre>
+            <h4>run vs proc</h4>
+            <pre><code>let st = run("kubectl", "get", "ns") // blocking capture
+
+let p = proc("kubectl", "logs", "-f", "deploy/api", { stdout: PIPE, stderr: NULL, stdoutType: TEXT, })
+let [line, eof] = p.stdout.read()
+let final = wait p
+</code></pre>
+
+            <h4>stream.read() cursor semantics</h4>
+            <pre><code>let s = read("events.log", { type: TEXT, }) | lines()
+let [a, eofA] = s.read()
+let [b, eofB] = s.read()
+s.close()
+let [c, eofC] = s.read() // [null, true]
+</code></pre>
+
+            <h4>run overflow mode</h4>
+            <pre><code>let st = run("cat", "huge.log", { maxOutputBytes: 4096, overflow: "truncate", })
+log({ truncated: st.outputTruncated, size: len(st.output), })
+</code></pre>
 
             <div class="footer">
-                <span>Normative source: builtins in <code>interpreter/builtins_*.go</code>.</span>
+                <span>Canonical semantics are defined in <code>SPECS/stream.md</code> and <code>SPECS/process.md</code>.</span>
                 <span><a href="/docs/idiomatic/">Next: idiomatic patterns</a></span>
             </div>
         </article>

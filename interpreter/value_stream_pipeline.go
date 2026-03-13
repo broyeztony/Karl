@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -18,6 +19,8 @@ type streamSinkPlanRunFunc func(e *Evaluator, plan *StreamPlanValue) (Value, err
 type StreamSourceValue struct {
 	name string
 	open streamSourceOpenFunc
+
+	cursor streamCursorState
 }
 
 func (s *StreamSourceValue) Type() ValueType { return STREAM_SOURCE }
@@ -43,10 +46,128 @@ func (s *StreamSinkValue) Inspect() string { return "<stream-sink:" + s.name + "
 type StreamPlanValue struct {
 	source *StreamSourceValue
 	stages []*StreamStageValue
+
+	cursor streamCursorState
 }
 
 func (s *StreamPlanValue) Type() ValueType { return STREAM_PLAN }
 func (s *StreamPlanValue) Inspect() string { return "<stream-plan>" }
+
+type streamCursorState struct {
+	mu sync.Mutex
+
+	iter    streamIterator
+	reading bool
+	closed  bool
+	eof     bool
+}
+
+func streamReadEOFValue() Value {
+	return &Array{Elements: []Value{NullValue, &Boolean{Value: true}}}
+}
+
+func streamReadCursor(e *Evaluator, state *streamCursorState, open func(*Evaluator) (streamIterator, error)) (Value, error) {
+	if state == nil {
+		return nil, &RuntimeError{Message: "stream read unavailable"}
+	}
+
+	state.mu.Lock()
+	if state.closed || state.eof {
+		state.mu.Unlock()
+		return streamReadEOFValue(), nil
+	}
+	if state.reading {
+		state.mu.Unlock()
+		return nil, recoverableError("stream_state", "stream read already in progress")
+	}
+	if state.iter == nil {
+		iter, err := open(e)
+		if err != nil {
+			state.mu.Unlock()
+			return nil, err
+		}
+		state.iter = iter
+	}
+	iter := state.iter
+	state.reading = true
+	state.mu.Unlock()
+
+	item, eof, err := iter.Next()
+
+	state.mu.Lock()
+	state.reading = false
+	if err != nil {
+		state.iter = nil
+		state.closed = true
+		state.eof = true
+		state.mu.Unlock()
+		_ = iter.Close()
+		return nil, recoverableError("stream_read", "stream read error: "+err.Error())
+	}
+	if eof {
+		state.iter = nil
+		state.closed = true
+		state.eof = true
+		state.mu.Unlock()
+		_ = iter.Close()
+		return streamReadEOFValue(), nil
+	}
+	state.mu.Unlock()
+	return &Array{Elements: []Value{cloneStreamItem(item), &Boolean{Value: false}}}, nil
+}
+
+func streamCloseCursor(state *streamCursorState) error {
+	if state == nil {
+		return nil
+	}
+	state.mu.Lock()
+	if state.reading {
+		state.mu.Unlock()
+		return recoverableError("stream_state", "stream close while read is in progress")
+	}
+	if state.closed {
+		state.mu.Unlock()
+		return nil
+	}
+	iter := state.iter
+	state.iter = nil
+	state.closed = true
+	state.eof = true
+	state.mu.Unlock()
+	if iter != nil {
+		return iter.Close()
+	}
+	return nil
+}
+
+func streamReadValue(e *Evaluator, value Value) (Value, error) {
+	switch s := value.(type) {
+	case *StreamSourceValue:
+		return streamReadCursor(e, &s.cursor, func(ev *Evaluator) (streamIterator, error) {
+			if s == nil || s.open == nil {
+				return nil, &RuntimeError{Message: "invalid stream source"}
+			}
+			return s.open(ev)
+		})
+	case *StreamPlanValue:
+		return streamReadCursor(e, &s.cursor, func(ev *Evaluator) (streamIterator, error) {
+			return openStreamIterator(ev, s)
+		})
+	default:
+		return nil, &RuntimeError{Message: "read expects stream value"}
+	}
+}
+
+func streamCloseValue(value Value) error {
+	switch s := value.(type) {
+	case *StreamSourceValue:
+		return streamCloseCursor(&s.cursor)
+	case *StreamPlanValue:
+		return streamCloseCursor(&s.cursor)
+	default:
+		return &RuntimeError{Message: "close expects stream value"}
+	}
+}
 
 func evalStreamPipeInfix(e *Evaluator, left Value, right Value) (Value, error) {
 	plan, err := streamPlanFromLeft(left)

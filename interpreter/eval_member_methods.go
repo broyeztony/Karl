@@ -273,3 +273,36 @@ func (e *Evaluator) streamWriterMethod(s *StreamWriter, name string) (Value, *Si
 		return nil, nil, &RuntimeError{Message: "unknown stream writer member: " + name}
 	}
 }
+
+func (e *Evaluator) streamValueMethod(value Value, name string) (Value, *Signal, error) {
+	switch name {
+	case "read":
+		return &Builtin{
+			Name: "read",
+			Fn: func(eval *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "read expects no arguments"}
+				}
+				return streamReadValue(eval, value)
+			},
+		}, nil, nil
+	case "close":
+		return &Builtin{
+			Name: "close",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "close expects no arguments"}
+				}
+				if err := streamCloseValue(value); err != nil {
+					if _, ok := err.(*RecoverableError); ok {
+						return nil, err
+					}
+					return nil, recoverableError("stream_close", "stream close error: "+err.Error())
+				}
+				return UnitValue, nil
+			},
+		}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "unknown stream member: " + name}
+	}
+}

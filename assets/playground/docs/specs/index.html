@@ -28,233 +28,206 @@
         <aside class="toc" aria-label="Specs table of contents">
             <h3>Contents</h3>
             <ul>
-                <li><a href="#notation">Notation</a></li>
-                <li><a href="#lexical">Lexical Elements</a></li>
-                <li><a href="#grammar">Grammar (EBNF)</a></li>
-                <li><a href="#evaluation">Evaluation Semantics</a></li>
+                <li><a href="#scope">Scope and Sources</a></li>
+                <li><a href="#grammar">Grammar and Parsing</a></li>
+                <li><a href="#eval">Evaluation Semantics</a></li>
                 <li><a href="#concurrency">Concurrency Model</a></li>
+                <li><a href="#streams">Stream Model</a></li>
+                <li><a href="#processes">Process Model</a></li>
                 <li><a href="#errors">Error Model</a></li>
-                <li><a href="#imports">Imports and Modules</a></li>
-                <li><a href="#runtime">Runtime Snapshot</a></li>
+                <li><a href="#runtime">Runtime Availability</a></li>
+                <li><a href="#constraints">Current Constraints</a></li>
             </ul>
         </aside>
 
         <article>
-            <h2 id="notation">1. Notation</h2>
+            <h2 id="scope">1. Scope and Sources</h2>
             <p>
-                This specification is normative for Karl parser and interpreter behavior.
-                Grammar uses EBNF-style productions. Literal tokens are quoted; non-terminals are lowercase names.
+                This page is the implementation-facing summary. Canonical normative specifications are in:
+                <code>SPECS/language.md</code>, <code>SPECS/interpreter.md</code>, <code>SPECS/stream.md</code>, and <code>SPECS/process.md</code>.
             </p>
-            <p>
-                Karl is expression-based: every construct yields a value.
-                Assignment and loop control are expressions, not statements-only forms.
-            </p>
-
-            <h2 id="lexical">2. Lexical Elements</h2>
             <ul>
-                <li>Identifiers: <code>[a-zA-Z_][a-zA-Z0-9_]*</code>.</li>
-                <li>Literals: integers, floats, strings, chars, booleans, <code>null</code>, and unit <code>()</code>.</li>
-                <li>Comments: line comment form <code>// ...</code>.</li>
-                <li>Operators include arithmetic, comparisons, assignment operators, <code>&amp;</code>, <code>!&amp;</code>, and <code>?</code>.</li>
-                <li><code>spawn</code> is an alias keyword for <code>&amp;</code>; <code>race</code> is an alias for <code>!&amp;</code>.</li>
+                <li><code>language.md</code>: parser grammar and core expression semantics.</li>
+                <li><code>interpreter.md</code>: runtime behavior and evaluator details.</li>
+                <li><code>stream.md</code>: stream value kinds, pipeline semantics, and stream members.</li>
+                <li><code>process.md</code>: process handles, proc/run APIs, and lifecycle guarantees.</li>
             </ul>
 
-            <h2 id="grammar">3. Core Grammar (EBNF)</h2>
-            <pre><code>program              = { statement } ;
-statement            = let_stmt | expr_stmt ;
-let_stmt             = "let" pattern "=" expr [ ";" ] ;
-expr_stmt            = expr [ ";" ] ;
+            <h2 id="grammar">2. Grammar and Parsing</h2>
+            <p>
+                Karl is expression-based. Assignments, loops, and recover blocks are expressions that produce values.
+                Parsing is Pratt-style with explicit operator precedence.
+            </p>
+            <pre><code>// essential parse forms
+let x = expr
 
-expr                 = assign ;
+expr ? recoverExpr
 
-assign               = logic_or
-                     | lvalue assign_op assign ;   // right-associative
-lvalue               = IDENT { "." IDENT | "[" expr "]" } ;
-assign_op            = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
+&amp; callExpr
+spawn callExpr
 
-logic_or             = logic_and { "||" logic_and } ;
-logic_and            = equality { "&amp;&amp;" equality } ;
-equality             = comparison { ( "==" | "!=" | "eqv" ) comparison } ;
-comparison           = range { ( "&lt;" | "&lt;=" | "&gt;" | "&gt;=" ) range } ;
-range                = sum [ ".." sum [ "step" sum ] ] ;
-sum                  = product { ( "+" | "-" ) product } ;
-product              = prefix { ( "*" | "/" | "%" ) prefix } ;
+!&amp; { callA(), callB(), }
+race { callA(), callB(), }
 
-prefix               = ( "!" | "-" | "wait" ) prefix
-                     | import_expr
-                     | spawn_expr
-                     | race_expr
-                     | if_expr
-                     | match_expr
-                     | for_expr
-                     | break_expr
-                     | continue_expr
-                     | postfix ;
-
-import_expr          = "import" STRING ;
-spawn_expr           = ( "&amp;" | "spawn" ) spawn_target ;
-spawn_target         = call_expr | group_expr ;
-race_expr            = ( "!&amp;" | "race" ) group_expr ;
-group_expr           = "{" [ call_expr { "," call_expr } [ "," ] ] "}" ;
-
-postfix              = primary { call_op | recover_op | member_op | index_or_slice_op | inc_dec_op } ;
-call_expr            = primary { member_op | index_or_slice_op } call_op { call_op | member_op | index_or_slice_op | inc_dec_op } ;
-call_op              = "(" [ expr { "," expr } [ "," ] ] ")" ;
-recover_op           = "?" expr ;
-member_op            = "." ( IDENT | "then" ) ;
-index_or_slice_op    = "[" ( expr [ ".." [ expr ] ] | ".." [ expr ] ) "]" ;
-inc_dec_op           = "++" | "--" ;
-
-if_expr              = "if" expr block [ "else" ( if_expr | block | expr ) ] ;
-match_expr           = "match" expr "{" { match_arm [ ";" ] } "}" ;
-match_arm            = "case" pattern [ "if" expr ] "->" expr ;
-for_expr             = "for" expr [ "with" bindings ] block [ "then" ( brace_expr | expr ) ] ;
-bindings             = binding { "," binding } ;
-binding              = pattern "=" expr ;
-break_expr           = "break" [ expr ] ;
-continue_expr        = "continue" ;
-
-primary              = literal
-                     | IDENT
-                     | "_"
-                     | "(" expr ")"
-                     | "()"
-                     | brace_expr
-                     | array
-                     | lambda_expr
-                     | query_expr
-                     | struct_init ;
-
-lambda_expr          = binder "->" expr ;
-binder               = pattern | "(" [ pattern { "," pattern } [ "," ] ] ")" ;
-
-brace_expr           = block | object ;
-block                = "{" { statement } "}" ;
-object               = "{" [ object_entry { "," object_entry } [ "," ] ] "}" ;
-object_entry         = IDENT [ ":" expr ] | "..." expr ;
-
-array                = "[" [ expr { "," expr } [ "," ] ] "]" ;
-struct_init          = IDENT object ;
-
-query_expr           = "from" IDENT "in" expr
-                       { "where" expr }
-                       [ "orderby" expr ]
-                       "select" expr ;
-
-pattern              = "_"
-                     | IDENT
-                     | literal
-                     | range_pattern
-                     | object_pattern
-                     | array_pattern
-                     | tuple_pattern ;
-range_pattern        = literal ".." pattern ;
-object_pattern       = "{" [ pattern_entry { "," pattern_entry } [ "," ] ] "}" ;
-pattern_entry        = IDENT [ ":" pattern ] ;
-array_pattern        = "[" [ array_pattern_items ] "]" ;
-array_pattern_items  = "..." pattern [ "," ]
-                     | pattern { "," pattern } [ "," "..." pattern ] [ "," ] ;
-tuple_pattern        = "(" [ pattern { "," pattern } [ "," ] ] ")" ;
-
-literal              = INT | FLOAT | STRING | CHAR | "true" | "false" | "null" ;
+source | stage | sink
 </code></pre>
 
-            <h3>3.1 Object vs Block Disambiguation</h3>
-            <p>
-                <code>{ ... }</code> parses as an object literal when a top-level colon, spread, or trailing comma is present.
-                Otherwise it parses as a block expression.
-                Shorthand-only objects should use trailing comma form, e.g. <code>{ x, y, }</code>.
-            </p>
-            <p>
-                Constraint: <code>spawn</code>/<code>&amp;</code> and <code>race</code>/<code>!&amp;</code> group entries must be call expressions.
-            </p>
-
-            <h2 id="evaluation">4. Evaluation Semantics</h2>
-            <h3>4.1 Order</h3>
-            <p>
-                Karl evaluates left-to-right for arguments, array/object entries, and infix operands.
-                Logical <code>&amp;&amp;</code> and <code>||</code> short-circuit.
-            </p>
-
-            <h3>4.2 Truthy / Falsy</h3>
-            <p>Falsy values are: <code>null</code>, <code>false</code>, numeric zero, empty string, empty array/object/map/set. Everything else is truthy.</p>
-
-            <h3>4.3 Loop Results</h3>
+            <h3>2.1 Notable parser constraints</h3>
             <ul>
-                <li><code>for ... then ...</code> returns the <code>then</code> expression on normal termination.</li>
-                <li><code>break expr</code> exits loop with <code>expr</code> directly (bypasses <code>then</code>).</li>
-                <li><code>break</code> with no value uses <code>then</code> result if present, else unit <code>()</code>.</li>
+                <li><code>&amp;</code>/<code>spawn</code> targets must be call expressions or stream pipeline expressions.</li>
+                <li><code>!&amp;</code>/<code>race</code> expects a group of call expressions.</li>
+                <li><code>|</code> is reserved for stream pipelines.</li>
+                <li><code>proc(...)</code> starts immediately and <code>&amp; proc(...)</code> is parse-rejected.</li>
+                <li>Object-vs-block disambiguation follows top-level object markers (colon/spread/trailing comma).</li>
             </ul>
 
-            <h3>4.4 Equality</h3>
+            <h2 id="eval">3. Evaluation Semantics</h2>
             <ul>
-                <li><code>==</code>: identity for composite values.</li>
-                <li><code>eqv</code>: deep structural equality for arrays/objects/maps.</li>
+                <li>Left-to-right evaluation for function args and infix operands.</li>
+                <li><code>&amp;&amp;</code> and <code>||</code> short-circuit.</li>
+                <li><code>for</code> returns expression values via <code>then</code> or explicit <code>break value</code>.</li>
+                <li><code>==</code> is identity-oriented for composite values; <code>eqv</code> is deep structural equality.</li>
+                <li>Division by zero is runtime error (recoverable by <code>? { ... }</code>).</li>
             </ul>
 
-            <h2 id="concurrency">5. Concurrency Model</h2>
-            <p>
-                Karl concurrency is task-based with channels and explicit waiting.
-                Runtime implementation is cooperative from the language perspective.
-            </p>
-            <pre><code>let grouped = &amp; { a(), b(), c() }
-let grouped2 = spawn { a(), b(), c() }   // alias
-let all = wait grouped
+            <h2 id="concurrency">4. Concurrency Model</h2>
+            <pre><code>let t = &amp; (() -> work())()
+let u = spawn (() -> work())() // alias
+let value = wait t
 
-let first = wait !&amp; { slow(), fast() }
-let first2 = wait race { slow(), fast() } // alias
-</code></pre>
-            <ul>
-                <li><code>&amp;</code>/<code>spawn</code> returns a <code>&lt;task&gt;</code>.</li>
-                <li><code>!&amp;</code>/<code>race</code> resolves first result and cancels losers cooperatively.</li>
-                <li><code>wait</code> expects a task handle; otherwise runtime error.</li>
-                <li>Channels expose <code>send</code>, <code>recv</code>, <code>done</code>.</li>
-            </ul>
-
-            <h2 id="errors">6. Error Model</h2>
-            <p>
-                Karl supports recover blocks via postfix <code>?</code>.
-                Recover receives implicit <code>error</code> object with <code>kind</code> and <code>message</code>.
-            </p>
-            <pre><code>let parsed = jsonDecode(raw) ? {
-    log(error.message)
-    { fallback: true, }
+let first = wait !&amp; {
+  (() -> slow())(),
+  (() -> fast())(),
 }
 </code></pre>
             <ul>
-                <li>Recover applies to expressions and recovers runtime or recoverable builtin errors.</li>
-                <li><code>fail()</code> creates recoverable failures.</li>
-                <li><code>exit()</code> is terminal and not recoverable.</li>
+                <li>Tasks are first-class values.</li>
+                <li><code>wait</code> accepts <code>&lt;task&gt;</code> and <code>&lt;process&gt;</code>.</li>
+                <li>Channels are explicit sync points: <code>send</code>, <code>recv</code>, <code>done</code>.</li>
+                <li>Cancellation propagates through task/process wait points as recoverable <code>canceled</code>.</li>
             </ul>
 
-            <h2 id="imports">7. Imports and Modules</h2>
+            <h2 id="streams">5. Stream Model</h2>
             <p>
-                <code>import "path"</code> returns a factory function.
-                Calling the factory evaluates module top-level bindings in a fresh module environment and returns exported bindings.
+                Streams are lazy and pull-driven. A pipeline is executed by attaching a sink,
+                or by member reads on stream values.
             </p>
+
+            <h3>5.1 Stream value kinds</h3>
             <ul>
-                <li>Relative paths resolve against importer directory.</li>
-                <li>Non-relative paths resolve against project root.</li>
-                <li>Top-level <code>let</code> bindings are exported.</li>
+                <li><code>&lt;stream-source&gt;</code>, <code>&lt;stream-stage&gt;</code>, <code>&lt;stream-sink&gt;</code>, <code>&lt;stream-plan&gt;</code></li>
+                <li>Low-level handles: <code>&lt;stream-reader&gt;</code>, <code>&lt;stream-writer&gt;</code></li>
             </ul>
 
-            <h2 id="runtime">8. Runtime Snapshot and Context</h2>
+            <h3>5.2 Pipe operator</h3>
+            <ul>
+                <li><code>source | stage</code> returns <code>&lt;stream-plan&gt;</code> (lazy).</li>
+                <li><code>source | ... | sink</code> executes immediately in current task.</li>
+                <li>Runtime rejects non-stream operands for <code>|</code>.</li>
+            </ul>
+
+            <h3>5.3 Stream member reads</h3>
+            <pre><code>let s = read("events.log", { type: TEXT, }) | lines()
+
+for true with pair = s.read() {
+    let [line, eof] = pair
+    if eof { break () }
+    log(line)
+    pair = s.read()
+} then ()
+</code></pre>
+            <ul>
+                <li>First <code>s.read()</code> lazily opens a cursor for that stream value instance.</li>
+                <li>After EOF, <code>s.read()</code> returns <code>[null, true]</code> consistently.</li>
+                <li><code>s.close()</code> closes early and transitions to EOF state.</li>
+                <li>Concurrent <code>s.read()</code> on same stream instance is <code>stream_state</code>.</li>
+            </ul>
+
+            <h3>5.4 Backpressure</h3>
             <p>
-                Process context (<code>argv</code>, environment snapshot, program path) is captured at runtime initialization and shared by spawned tasks.
+                Sinks pull from upstream. Slow sinks slow the whole chain, preventing unbounded upstream drift.
+                Runtime must not add implicit buffering that breaks this property.
             </p>
-            <dl class="kv">
-                <dt><code>argv()</code></dt>
-                <dd>Program arguments after <code>--</code> in <code>karl run</code>.</dd>
-                <dt><code>programPath()</code></dt>
-                <dd>Current script path, <code>&lt;stdin&gt;</code>, or <code>null</code> when unavailable.</dd>
-                <dt><code>environ()</code></dt>
-                <dd>Environment snapshot as <code>["KEY=value", ...]</code>.</dd>
-                <dt><code>env(name)</code></dt>
-                <dd>Environment lookup returning string or <code>null</code>.</dd>
-            </dl>
+
+            <h2 id="processes">6. Process Model</h2>
+            <p>
+                Process APIs expose external command execution as first-class handles.
+                <code>proc</code> is non-blocking handle creation; <code>run</code> is blocking capture convenience.
+            </p>
+
+            <pre><code>let p = proc("kubectl", "logs", "-f", "deploy/api", {
+    stdout: PIPE,
+    stderr: NULL,
+    stdoutType: TEXT,
+})
+
+let [line, eof] = p.stdout.read()
+let st = wait p
+</code></pre>
+
+            <h3>6.1 Process forms</h3>
+            <ul>
+                <li><code>proc(spec, opts?) -&gt; &lt;process&gt;</code></li>
+                <li><code>proc(command, ...args, opts?) -&gt; &lt;process&gt;</code></li>
+                <li><code>run(spec, opts?) -&gt; RunStatus</code></li>
+                <li><code>run(command, ...args, opts?) -&gt; RunStatus</code></li>
+            </ul>
+
+            <h3>6.2 Process members</h3>
+            <ul>
+                <li><code>p.pid</code>, <code>p.running</code></li>
+                <li><code>p.stdin</code>/<code>p.stdout</code>/<code>p.stderr</code> only when mode is <code>PIPE</code></li>
+                <li><code>p.abort()</code>, <code>p.kill()</code>, <code>p.signal(name)</code></li>
+                <li><code>wait p</code> returns ProcessStatus (cached after completion)</li>
+            </ul>
+
+            <h2 id="errors">7. Error Model</h2>
+            <p>
+                Karl uses explicit recovery with postfix <code>?</code>.
+                Recover blocks receive implicit <code>error</code> with <code>kind</code> and <code>message</code>.
+            </p>
+            <pre><code>let cfg = decodeJson(raw) ? {
+    log(error.kind, error.message)
+    { mode: "safe", }
+}
+</code></pre>
+            <ul>
+                <li><code>fail("msg")</code> creates recoverable error kind <code>fail</code>.</li>
+                <li><code>exit(...)</code> is terminal and not recovered.</li>
+                <li>Streams and processes define dedicated recoverable kinds (<code>stream_*</code>, <code>process_*</code>).</li>
+            </ul>
+
+            <h2 id="runtime">8. Runtime Availability</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Area</th>
+                        <th>CLI Native</th>
+                        <th>Bench (WASM)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Core language / arrays / maps / strings</td><td>Yes</td><td>Yes</td></tr>
+                    <tr><td>Tasks / channels / race</td><td>Yes</td><td>Yes</td></tr>
+                    <tr><td>Streams from channels</td><td>Yes</td><td>Yes</td></tr>
+                    <tr><td>Filesystem (<code>readFile</code>, <code>writeFile</code>, <code>read(...)</code>)</td><td>Yes</td><td>No</td></tr>
+                    <tr><td>Processes (<code>proc</code>, <code>run</code>, <code>exec</code> sink)</td><td>Yes</td><td>No</td></tr>
+                    <tr><td>SQL built-ins</td><td>Yes</td><td>No</td></tr>
+                    <tr><td><code>signalWatch</code></td><td>Yes</td><td>No</td></tr>
+                    <tr><td><code>httpServe</code> server</td><td>Yes</td><td>No</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="constraints">9. Current Constraints</h2>
+            <ul>
+                <li>Stream plans are linear DAG paths; branch fan-out is modeled via explicit primitives (<code>tee</code>, <code>partition</code>).</li>
+                <li><code>partition(...)</code> branch sources are single-consumer.</li>
+                <li>Unknown fields in process options/spec objects are rejected (strict parsing).</li>
+                <li>Process stdio properties throw <code>process_state</code> when mode is not <code>PIPE</code>.</li>
+            </ul>
 
             <div class="footer">
-                <span>Normative sources: <code>SPECS/language.md</code>, <code>SPECS/interpreter.md</code>, <code>SPECS/process.md</code>.</span>
+                <span>Canonical references: <code>SPECS/language.md</code>, <code>SPECS/interpreter.md</code>, <code>SPECS/stream.md</code>, <code>SPECS/process.md</code>.</span>
                 <span><a href="/docs/std/">Next: standard library reference</a></span>
             </div>
         </article>

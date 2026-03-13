@@ -18,6 +18,7 @@ They create namespace `karl-health-demo` with three workloads:
 - `web-ok` (healthy)
 - `crashloop-app` (intentional CrashLoopBackOff)
 - `pending-app` (intentional Pending via oversized requests)
+- `chain-node` (3 replicas, continuous blockchain-like logs with DEBUG/INFO/WARN/ERROR)
 
 Apply/recreate after cluster restart:
 
@@ -39,8 +40,8 @@ kubectl delete -f examples/features/streams/k8s
   - Uses `lines()`, `filter(...)`, `map(...)`, `collect()`.
 
 - `kubernetes_logs_error_channel.k`
-  - Follow deployment logs, keep only error lines, bridge stream output to a channel.
-  - Uses `take(...)`, `send(ch)`, and a concurrent consumer task.
+  - Follow logs from 3 pods and build a live log-level matrix (`pod1/pod2/pod3` x levels).
+  - Uses `proc(... -f)`, `merge(...)`, direct stream `read()` consumption, and periodic matrix rendering.
 
 - `kubernetes_merge_cluster_feed.k`
   - Merge pod and node feeds into one stream for unified inspection.
@@ -97,4 +98,11 @@ karl run examples/features/streams/new_stream_builtins.k
 karl run examples/features/streams/stdin_numbers_top.k < numbers.txt
 karl run examples/features/streams/http_stream_json_lines.k
 karl run examples/features/streams/exec_sink_wc.k
+```
+
+For the 3-pod log matrix demo:
+
+```bash
+kubectl apply -f examples/features/streams/k8s
+karl run examples/features/streams/kubernetes_logs_error_channel.k
 ```

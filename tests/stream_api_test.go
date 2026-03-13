@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -140,4 +141,115 @@ let bytes = bytesJoin(chunks)
 	assertInteger(t, arr.Elements[0], 1)
 	assertInteger(t, arr.Elements[1], 3)
 	assertString(t, arr.Elements[2], "abc")
+}
+
+func TestStreamPlanReadMemberSequentialEOF(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "stream-read-plan.txt")
+	content := "alpha\nbeta\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	input := fmt.Sprintf(`
+let s = read(%q, { type: TEXT, }) | lines()
+let [a, eofA] = s.read()
+let [b, eofB] = s.read()
+let [c, eofC] = s.read()
+let [d, eofD] = s.read()
+;
+[a, eofA, b, eofB, c, eofC, d, eofD]
+`, path)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+
+	assertString(t, arr.Elements[0], "alpha")
+	assertBoolean(t, arr.Elements[1], false)
+	assertString(t, arr.Elements[2], "beta")
+	assertBoolean(t, arr.Elements[3], false)
+	if !Equivalent(arr.Elements[4], NullValue) {
+		t.Fatalf("expected null at eof, got %v", arr.Elements[4])
+	}
+	assertBoolean(t, arr.Elements[5], true)
+	if !Equivalent(arr.Elements[6], NullValue) {
+		t.Fatalf("expected null after eof, got %v", arr.Elements[6])
+	}
+	assertBoolean(t, arr.Elements[7], true)
+}
+
+func TestStreamPlanCloseMemberStopsReads(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "stream-close-plan.txt")
+	content := "alpha\nbeta\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	input := fmt.Sprintf(`
+let s = read(%q, { type: TEXT, }) | lines()
+let [a, eofA] = s.read()
+s.close()
+let [b, eofB] = s.read()
+;
+[a, eofA, b, eofB]
+`, path)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+
+	assertString(t, arr.Elements[0], "alpha")
+	assertBoolean(t, arr.Elements[1], false)
+	if !Equivalent(arr.Elements[2], NullValue) {
+		t.Fatalf("expected null after close, got %v", arr.Elements[2])
+	}
+	assertBoolean(t, arr.Elements[3], true)
+}
+
+func TestStreamPlanReadMemberRejectsConcurrentRead(t *testing.T) {
+	input := `
+let c = channel()
+let s = fromChannel(c)
+let t = & (() -> s.read())()
+sleep(20)
+let msg = s.read() ? error.message
+c.send("x")
+c.done()
+let first = wait t
+let [item, eof] = first
+s.close()
+;
+[msg, item, eof]
+`
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+
+	msg, ok := arr.Elements[0].(*String)
+	if !ok {
+		t.Fatalf("expected concurrent-read message string, got %T", arr.Elements[0])
+	}
+	if !strings.Contains(msg.Value, "already in progress") {
+		t.Fatalf("expected concurrent-read error, got %q", msg.Value)
+	}
+	assertString(t, arr.Elements[1], "x")
+	assertBoolean(t, arr.Elements[2], false)
 }

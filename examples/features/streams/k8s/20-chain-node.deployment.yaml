@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chain-node
+  namespace: karl-health-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chain-node
+  template:
+    metadata:
+      labels:
+        app: chain-node
+    spec:
+      containers:
+      - name: node
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          i=0
+          while true; do
+            i=$((i + 1))
+            m=$((i % 20))
+            if [ "$m" -eq 0 ]; then
+              level="ERROR"
+            elif [ "$m" -lt 4 ]; then
+              level="WARN"
+            elif [ "$m" -lt 12 ]; then
+              level="INFO"
+            else
+              level="DEBUG"
+            fi
+            echo "ts=$(date -u +%FT%TZ) level=$level node=${HOSTNAME} block=$((100000 + i)) peers=$((8 + (i % 5))) tx=$((i % 120)) msg=sync"
+            sleep 0.3
+          done

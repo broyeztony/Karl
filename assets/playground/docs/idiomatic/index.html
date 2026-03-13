@@ -28,267 +28,157 @@
         <aside class="toc" aria-label="Idiomatic table of contents">
             <h3>Contents</h3>
             <ul>
-                <li><a href="#mindset">Mindset</a></li>
-                <li><a href="#helpers">Expression-First Helpers</a></li>
-                <li><a href="#data">Data Shaping + Shorthand</a></li>
-                <li><a href="#recover">Recover at Boundaries</a></li>
-                <li><a href="#match">Match + Guards</a></li>
-                <li><a href="#collections">Collection Flows</a></li>
-                <li><a href="#destructure">Destructuring</a></li>
-                <li><a href="#tasks">Tasks and race/spawn</a></li>
-                <li><a href="#channels">Channels Stream Pattern</a></li>
-                <li><a href="#runtime">Runtime + Signals</a></li>
-                <li><a href="#sql">SQL + Time Pattern</a></li>
-                <li><a href="#anti">Anti-Patterns</a></li>
+                <li><a href="#principles">Principles</a></li>
+                <li><a href="#env">Env + Config</a></li>
+                <li><a href="#run">run() for command wrappers</a></li>
+                <li><a href="#proc">proc() for long-lived jobs</a></li>
+                <li><a href="#streams">Stream-first transforms</a></li>
+                <li><a href="#matrix">Live matrix loop</a></li>
+                <li><a href="#sql">SQL boundaries</a></li>
+                <li><a href="#shutdown">Graceful shutdown</a></li>
+                <li><a href="#concise">Conciseness rules</a></li>
+                <li><a href="#anti">Anti-patterns</a></li>
             </ul>
         </aside>
 
         <article>
-            <h2>Idiomatic Karl</h2>
+            <h2>Idiomatic Karl for DevOps Tooling</h2>
             <p>
-                Karl shines when code stays expression-first, compact, and direct.
-                Prefer a single clear expression over boilerplate wrappers.
-                Keep abstractions only when reused enough to justify them.
+                Karl code is best when the dataflow is explicit and concise:
+                process handles for external tooling, stream operators for transformation, and recover blocks only at failure boundaries.
             </p>
 
-            <h3 id="mindset">1. Mindset</h3>
+            <h3 id="principles">1. Principles</h3>
             <ul>
-                <li>Think in values: every block returns a value, every branch returns a value.</li>
-                <li>Prefer local clarity over generic utility helpers.</li>
-                <li>Use <code>spawn</code>/<code>race</code> to communicate intent quickly.</li>
-                <li>Recover only where a safe fallback exists; fail fast elsewhere.</li>
-                <li>Keep data structure shape visible in-place with object shorthand.</li>
+                <li>Prefer expression-first code over boilerplate wrapper functions.</li>
+                <li>Use <code>run</code> for one-shot command wrappers and <code>proc</code> for lifecycle-managed subprocesses.</li>
+                <li>Keep stream transforms in one pipeline before branching to tasks/channels.</li>
+                <li>Recover only where fallback is meaningful (parsing/IO boundaries).</li>
+                <li>Use object shorthand and local names to reduce visual noise.</li>
             </ul>
 
-            <h3 id="helpers">2. Expression-First Helpers</h3>
-            <p>
-                Keep tiny helpers as single expressions. Avoid wrappers that just rename existing built-ins.
-            </p>
-            <pre><code>// good: one-expression helpers
-let mkJSONHeaders = () -> map().set("Content-Type", "application/json")
-let normalizeEmail = s -> s.trim().toLower()
+            <h3 id="env">2. Env + Config</h3>
+            <pre><code>let ns = trim(env("K8S_NS")) ? "default"
+let pollMs = parseInt(trim(env("POLL_MS")) ? "1000") ? 1000
 
-// avoid: pass-through aliases with no semantic value
-// let msToRFC3339 = ms -> timeFormatRFC3339(ms)
-// let rfc3339ToMs = txt -> timeParseRFC3339(txt)
-</code></pre>
-
-            <h3 id="data">3. Data Shaping + Shorthand</h3>
-            <pre><code>let userToDTO = u -> {
-    id: u.id,
-    email: u.email.toLower(),
-    active: u.active,
-}
-
-let activeUsers = users
-    .filter(u -> u.active)
-    .map(userToDTO)
-
-let result = {
-    count: activeUsers.length,
-    users: activeUsers,
-}
-
-let id = "u_42"
-let email = "ana@karl.dev"
-log({ id, email, }) // shorthand
-</code></pre>
-
-            <h3 id="recover">4. Recover at Boundaries</h3>
-            <p>
-                Recover around IO/parsing boundaries, not around all business logic.
-            </p>
-            <pre><code>// decode boundary
-let cfg = jsonDecode(rawConfig) ? {
-    log("invalid config:", error.message)
+let cfg = decodeJson(readFile("config.json")) ? {
     { mode: "safe", retries: 3, }
 }
-
-// arithmetic boundary with explicit recover
-let divide = (a, b) -> a / b
-let value = divide(10, 0) ? {
-    log("recover:", error.message)
-    0
-}
-
-// parse boundary
-let tickMs = parseInt(tickText) ? { 1000 }
 </code></pre>
 
-            <h3 id="match">5. Match + Guards</h3>
-            <pre><code>let classify = n -> match n {
-    case _ if n &lt; 0 -> "negative"
-    case 0 -> "zero"
-    case _ if n &lt; 10 -> "small"
-    case _ -> "large"
+            <h3 id="run">3. Use run() for command wrappers</h3>
+            <pre><code>let st = run("kubectl", "get", "ns", { maxOutputBytes: 32768, }) ? {
+    fail("kubectl invocation failed: " + error.message)
 }
+if !st.ok { fail("kubectl exit " + str(st.code) + ": " + st.error) }
 
-let route = event -> match event {
-    case { kind: "email", payload: { user_id, subject, }, } -> {
-        type: "notify",
-        user_id,
-        subject,
+let names = st.output.split("\n").filter(_ != "")
+log({ count: len(names), })
+</code></pre>
+
+            <h3 id="proc">4. Use proc() for long-lived jobs</h3>
+            <pre><code>let p = proc(
+    "kubectl", "logs", "-f", "deploy/api",
+    { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+)
+
+for true with pair = p.stdout.read() {
+    let [line, eof] = pair
+    if eof { break () }
+    if line.contains("ERROR") { logt("error", line) }
+    pair = p.stdout.read()
+} then ()
+
+wait p ? {}
+</code></pre>
+
+            <h3 id="streams">5. Stream-first transforms</h3>
+            <pre><code>let p = proc(
+    "kubectl", "get", "pods", "-A",
+    "-o", "jsonpath={range .items[*]}{.status.phase}{\"\\n\"}{end}",
+    { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+)
+
+let phases = p
+    | lines()
+    | filter(_ != "")
+    | group_count()
+
+wait p
+log(phases)
+</code></pre>
+
+            <h3 id="matrix">6. Live matrix loop (merge + stream.read)</h3>
+            <pre><code>let merged = merge(f1.stream, f2.stream, f3.stream)
+
+for true with pair = merged.read(), last = now() {
+    let [event, eof] = pair
+    if eof { break () }
+
+    bump(counts, event.pod, event.level)
+
+    if now() - last &gt;= 2000 {
+        render(counts)
+        last = now()
     }
-    case { kind: "system", payload, } if payload.priority &gt;= 10 -> {
-        type: "alert",
-        payload,
-    }
-    case { kind } -> { type: "ignore", kind, }
-    case _ -> { type: "invalid", }
-}
+    pair = merged.read()
+} then ()
 </code></pre>
 
-            <h3 id="collections">6. Collection Flows</h3>
-            <pre><code>let emails = [
-    { id: "e1", score: 7, },
-    { id: "e2", score: 2, },
-    { id: "e3", score: 9, },
-]
+            <h3 id="sql">7. SQL boundaries</h3>
+            <pre><code>let db = sqlOpen(dsn) ? { fail("db open: " + error.message) }
 
-let important = emails
-    .filter(e -> e.score &gt;= 5)
-    .sort((a, b) -> b.score - a.score)
+let row = sqlQueryOne(db,
+    "SELECT id, email FROM users WHERE id = $1",
+    [userId]
+) ? { fail("query failed: " + error.message) }
 
-let scoreSum = important
-    .map(e -> e.score)
-    .sum()
-
-let firstCritical = important.find(e -> e.score &gt;= 8)
-log({ important, scoreSum, firstCritical, })
-</code></pre>
-
-            <h3 id="destructure">7. Destructuring First</h3>
-            <pre><code>let { id, email, profile: { role, team, }, } = user
-let [head, second, ...tail, ] = values
-let (x, y) = point
-
-let summary = {
-    id,
-    email,
-    role,
-    team,
-    head,
-    second,
-    tail,
-    x,
-    y,
-}
-log(summary)
-</code></pre>
-
-            <h3 id="tasks">8. Tasks and <code>spawn</code>/<code>race</code></h3>
-            <pre><code>let grouped = spawn {
-    (() -> { sleep(80); { src: "a", score: 4, } })(),
-    (() -> { sleep(120); { src: "b", score: 8, } })(),
+let result = match row {
+    case null -> { found: false, }
+    case r -> { found: true, id: r.id, email: r.email, }
 }
 
-let [a, b, ] = wait grouped
-
-let fastest = wait race {
-    (() -> { sleep(100); "slow" })(),
-    (() -> { sleep(20); "fast" })(),
-}
-
-let computed = wait (&amp; (() -> 20)()).then(x -> x + 1).then(x -> x * 2)
-log({ a, b, fastest, computed, })
+sqlClose(db)
+log(result)
 </code></pre>
 
-            <h3 id="channels">9. Channels Stream Pattern</h3>
-            <pre><code>let ch = buffered(64)
-
-let producer = spawn (c -> {
-    c.send({ id: "e1", score: 4, })
-    c.send({ id: "e2", score: 9, })
-    c.send({ id: "e3", score: 7, })
-    c.done()
-})(ch)
-
-let consumed = for true with res = ch.recv(), acc = [] {
-    let [msg, done] = res
-    if done { break acc }
-    if msg.score &gt;= 5 {
-        acc += [msg.id]
-    }
-    res = ch.recv()
-} then acc
-
-wait producer
-log(consumed)
-</code></pre>
-
-            <h3 id="runtime">10. Runtime + Signals Pattern</h3>
-            <pre><code>// CLI-oriented pattern
-let mode = match env("MODE") {
-    case null -> "dev"
-    case v -> v
-}
-
-let sigs = signalWatch(["SIGINT", "SIGTERM"])
-let worker = spawn (() -> {
+            <h3 id="shutdown">8. Graceful shutdown pattern</h3>
+            <pre><code>let worker = spawn (() -> {
     for true with running = true {
         sleep(1000)
-        log("tick", mode)
+        tick()
     } then ()
 })()
 
+let sigs = signalWatch(["SIGINT", "SIGTERM"])
 let [sig, closed] = sigs.recv()
-if !closed {
-    log("shutdown:", sig)
-}
+if !closed { log("shutdown:", sig) }
+
 worker.cancel()
-let _ = (wait worker) ? {}
+wait worker ? {}
 </code></pre>
 
-            <h3 id="sql">11. SQL + Time Pattern</h3>
-            <pre><code>let db = sqlOpen(dsn)
-let nowMs = now()
+            <h3 id="concise">9. Conciseness rules</h3>
+            <pre><code>// good
+let mkJSONHeaders = () -> map().set("Content-Type", "application/json")
+let jsonResponse = (status, payload) -> { status: status, headers: mkJSONHeaders(), body: encodeJson(payload), }
 
-let _ = sqlExec(db,
-    "INSERT INTO users (id, email, last_email_check) VALUES ($1, $2, $3)",
-    [userId, email, nowMs]
-)
-
-let row = sqlQueryOne(db,
-    "SELECT id, email, last_email_check FROM users WHERE id = $1",
-    [userId]
-)
-
-let view = match row {
-    case null -> { found: false, }
-    case r -> {
-        found: true,
-        id: r.id,
-        email: r.email,
-        checked_at: timeFormatRFC3339(r.last_email_check),
-    }
-}
-
-log(view)
-sqlClose(db)
+// avoid redundant wrappers
+// let msToRFC3339 = ms -> timeFormatRFC3339(ms)
 </code></pre>
 
-            <h3 id="anti">12. Anti-Patterns to Avoid</h3>
+            <h3 id="anti">10. Anti-patterns</h3>
             <ul>
-                <li>One-off wrappers that only rename built-ins.</li>
-                <li>Introducing helper functions before confirming reuse.</li>
-                <li>Using <code>if/else</code> chains where <code>match + guards</code> is clearer.</li>
-                <li>Recovering every expression instead of boundary operations.</li>
-                <li>Verbose object construction when shorthand is sufficient.</li>
+                <li>Recovering every expression instead of boundary failures.</li>
+                <li>Using channels to bridge streams when direct stream consumption is enough.</li>
+                <li>Adding generic helper layers before seeing real repetition.</li>
+                <li>Wrapping simple values in extra blocks for no reason.</li>
+                <li>Ignoring <code>wait p</code> on long-lived process handles.</li>
             </ul>
-            <pre><code>// noisy
-let mk = () -> {
-    let h = map()
-    h.set("Content-Type", "application/json")
-    h
-}
-
-// idiomatic
-let mk = () -> map().set("Content-Type", "application/json")
-</code></pre>
 
             <div class="footer">
-                <span>Write Karl as compact expression flow, not ceremony.</span>
-                <span><a href="/bench/">Run snippets in bench</a></span>
+                <span>Use streams for flow, processes for host integration, channels/tasks for explicit concurrency topology.</span>
+                <span><a href="/bench/">Try snippets in bench</a></span>
             </div>
         </article>
     </main>
