@@ -305,6 +305,61 @@ merge(
 	}
 }
 
+func TestStreamMergeSourceArrayArg(t *testing.T) {
+	tempDir := t.TempDir()
+	aPath := filepath.Join(tempDir, "a.log")
+	bPath := filepath.Join(tempDir, "b.log")
+	if err := os.WriteFile(aPath, []byte("a1\na2\n"), 0o644); err != nil {
+		t.Fatalf("write a: %v", err)
+	}
+	if err := os.WriteFile(bPath, []byte("b1\nb2\n"), 0o644); err != nil {
+		t.Fatalf("write b: %v", err)
+	}
+
+	input := fmt.Sprintf(`
+let streams = [
+  read(%q) | lines(),
+  read(%q) | lines(),
+]
+merge(streams) | collect()
+`, aPath, bPath)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	if len(arr.Elements) != 4 {
+		t.Fatalf("expected 4 values, got %d", len(arr.Elements))
+	}
+	out := []string{
+		arr.Elements[0].(*String).Value,
+		arr.Elements[1].(*String).Value,
+		arr.Elements[2].(*String).Value,
+		arr.Elements[3].(*String).Value,
+	}
+	sort.Strings(out)
+	expected := []string{"a1", "a2", "b1", "b2"}
+	for i := range expected {
+		if out[i] != expected[i] {
+			t.Fatalf("unexpected merged value at %d: got %q want %q", i, out[i], expected[i])
+		}
+	}
+}
+
+func TestStreamMergeSourceEmptyArrayArg(t *testing.T) {
+	_, err := evalInput(t, `merge([]) | collect()`)
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "merge expects at least one stream source or plan") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestStreamZipSource(t *testing.T) {
 	tempDir := t.TempDir()
 	leftPath := filepath.Join(tempDir, "left.log")

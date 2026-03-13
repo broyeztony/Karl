@@ -125,7 +125,7 @@ let last = now()
 render(counts, names)
 
 // Single stream statement: pull 3 pods, merge, count, and render.
-merge(feeds[0].stream, feeds[1].stream, feeds[2].stream)
+merge(feeds.map(f -> f.stream))
     | forEach(event -> {
         bump(counts, event.pod, event.level)
         let t = now()

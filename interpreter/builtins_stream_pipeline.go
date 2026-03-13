@@ -123,6 +123,14 @@ func builtinMergeSource(_ *Evaluator, args []Value) (Value, error) {
 		return nil, &RuntimeError{Message: "merge expects at least one stream source or plan"}
 	}
 	streamArgs := append([]Value(nil), args...)
+	if len(args) == 1 {
+		if arr, ok := args[0].(*Array); ok {
+			if len(arr.Elements) == 0 {
+				return nil, &RuntimeError{Message: "merge expects at least one stream source or plan"}
+			}
+			streamArgs = append([]Value(nil), arr.Elements...)
+		}
+	}
 	return &StreamSourceValue{
 		name: "merge",
 		open: func(e *Evaluator) (streamIterator, error) {

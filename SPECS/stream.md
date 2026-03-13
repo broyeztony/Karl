@@ -144,6 +144,7 @@ buffering that violates backpressure guarantees.
 - `fromChannel(ch) -> <stream-source>`
   - `ch: <channel>`
 - `merge(sourceOrPlanA, sourceOrPlanB, ... ) -> <stream-source>`
+  - also supports `merge(arrayOfSourcesOrPlans)`
   - fan-in source combinator
 - `zip(sourceOrPlanA, sourceOrPlanB) -> <stream-source>`
   - paired source combinator, stops at first EOF
