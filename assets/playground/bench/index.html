@@ -332,6 +332,7 @@
                     <option value="tasks_then">Tasks + then()</option>
                     <option value="join_group">Join Group (&amp; { ... })</option>
                     <option value="channels_stream">Channels Stream</option>
+                    <option value="sim_k8s_fan_in">Simulated K8s: Pod Logs Fan-in</option>
                     <option value="landing_fibonacci">Landing: Fibonacci</option>
                     <option value="landing_concurrency_race">Landing: Concurrency + Race</option>
                     <option value="landing_tasks_then">Landing: Tasks + then()</option>
@@ -541,6 +542,66 @@ let stream = for true with res = ch.recv(), acc = [] {
 
 wait producer
 stream`,
+            sim_k8s_fan_in: `// Simulated Kubernetes logs fan-in (browser-safe)
+// NOTE: this does not call kubectl in bench.
+let listPods = () -> ["api-a", "api-b", "api-c"]
+
+let levelOf = line -> if line.contains("ERROR") {
+    "ERROR"
+} else if line.contains("WARN") {
+    "WARN"
+} else if line.contains("INFO") {
+    "INFO"
+} else if line.contains("DEBUG") {
+    "DEBUG"
+} else {
+    "OTHER"
+}
+
+let bump = (counts, pod, level) -> {
+    let k = pod + "|" + level
+    let v = get(counts, k) ? 0
+    set(counts, k, v + 1)
+}
+
+let simulatePod = pod -> {
+    let ch = channel()
+    & (() -> {
+        [
+            "INFO boot",
+            "DEBUG init",
+            "WARN retry",
+            "ERROR timeout",
+            "INFO recovered",
+        ].forEach(line -> {
+            sleep(40)
+            ch.send({ pod, level: levelOf(line), line, })
+        })
+        ch.done()
+    })()
+    fromChannel(ch)
+}
+
+let counts = map()
+let last = now()
+let render = () -> {
+    log({
+        podA: { INFO: get(counts, "api-a|INFO") ? 0, WARN: get(counts, "api-a|WARN") ? 0, ERROR: get(counts, "api-a|ERROR") ? 0, },
+        podB: { INFO: get(counts, "api-b|INFO") ? 0, WARN: get(counts, "api-b|WARN") ? 0, ERROR: get(counts, "api-b|ERROR") ? 0, },
+        podC: { INFO: get(counts, "api-c|INFO") ? 0, WARN: get(counts, "api-c|WARN") ? 0, ERROR: get(counts, "api-c|ERROR") ? 0, },
+    })
+}
+
+merge(listPods().map(simulatePod))
+    | forEach(event -> {
+        bump(counts, event.pod, event.level)
+        if now() - last >= 120 {
+            render()
+            last = now()
+        }
+    })
+
+render()`,
             landing_fibonacci: `// Fibonacci (expression-based loop)
 let fib = n -> {
     if n <= 1 { n } else {
