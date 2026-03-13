@@ -5,6 +5,11 @@ on:
     branches: ["main"]
     paths:
       - "assets/playground/**"
+      - "wasm/**"
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
       - ".github/workflows/static.yml"
   workflow_dispatch:
 
@@ -41,6 +46,18 @@ jobs:
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "::notice::GitHub Pages is not enabled. Enable Settings > Pages and choose GitHub Actions as source to activate deployment."
           fi
+
+      - name: Set up Go
+        if: steps.pages_check.outputs.enabled == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build playground WASM
+        if: steps.pages_check.outputs.enabled == 'true'
+        run: |
+          make build-wasm
 
       - name: Setup Pages
         if: steps.pages_check.outputs.enabled == 'true'
