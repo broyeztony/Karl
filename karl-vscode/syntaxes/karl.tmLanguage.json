@@ -150,7 +150,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.karl",
-                    "match": "\\b(log|sleep|fail|http|httpServe|httpServerStop|decodeJson|encodeJson|sqlOpen|sqlClose|sqlExec|sqlQuery|sqlQueryOne|sqlBegin|sqlCommit|sqlRollback|sha256|uuidNew|uuidValid|uuidParse|now|timeParseRFC3339|timeFormatRFC3339|timeAdd|timeDiff|signalWatch|map|set|rendezvous)\\b"
+                    "match": "\\b(log|sleep|fail|http|httpServe|httpServerStop|fromJson|toJson|fromUtf8|toUtf8|sqlOpen|sqlClose|sqlExec|sqlQuery|sqlQueryOne|sqlBegin|sqlCommit|sqlRollback|sha256|uuidNew|uuidValid|uuidParse|now|timeParseRFC3339|timeFormatRFC3339|timeAdd|timeDiff|signalWatch|map|set|forEach|rendezvous)\\b"
                 },
                 {
                     "name": "support.function.string.karl",

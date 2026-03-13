@@ -2,7 +2,7 @@ package interpreter
 
 func (e *Evaluator) arrayMethod(arr *Array, name string) (Value, *Signal, error) {
 	switch name {
-	case "map", "filter", "reduce", "sum", "find", "sort":
+	case "map", "filter", "reduce", "forEach", "sum", "find", "sort":
 		builtin := getBuiltin(name)
 		if builtin == nil {
 			return nil, nil, &RuntimeError{Message: "unknown builtin: " + name}

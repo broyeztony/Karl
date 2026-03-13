@@ -46,27 +46,25 @@ func TestStreamJSONStage(t *testing.T) {
 	input := fmt.Sprintf(`
 read(%q, { type: TEXT, })
 | lines()
-| json()
+| fromJson()
 | map(x -> x.id)
 | collect()
 `, inPath)
 
 	val, err := evalInput(t, input)
-	if err == nil {
-		// Keep as failing test until json() stage is implemented.
-		arr, ok := val.(*Array)
-		if !ok {
-			t.Fatalf("expected array, got %T", val)
-		}
-		if len(arr.Elements) != 3 {
-			t.Fatalf("expected 3 values, got %d", len(arr.Elements))
-		}
-		assertInteger(t, arr.Elements[0], 1)
-		assertInteger(t, arr.Elements[1], 2)
-		assertInteger(t, arr.Elements[2], 3)
-		return
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
 	}
-	t.Fatalf("eval error: %v", err)
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	if len(arr.Elements) != 3 {
+		t.Fatalf("expected 3 values, got %d", len(arr.Elements))
+	}
+	assertInteger(t, arr.Elements[0], 1)
+	assertInteger(t, arr.Elements[1], 2)
+	assertInteger(t, arr.Elements[2], 3)
 }
 
 func TestStreamDistinctAndGroupCount(t *testing.T) {

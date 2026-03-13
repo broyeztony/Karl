@@ -69,7 +69,7 @@ kubectl delete -f examples/features/streams/k8s
 
 - `new_stream_builtins.k`
   - Demonstrates the newly added stream builtins on local NDJSON data.
-  - Uses `json()`, `distinct()`, `sort()`, `group_count()`, `reduce_by_key()`, `top()`, `split()`, `exec(...)`.
+  - Uses `fromJson()`, `distinct()`, `sort()`, `group_count()`, `reduce_by_key()`, `top()`, `split()`, `exec(...)`.
 
 - `stdin_numbers_top.k`
   - Stream integers from stdin and keep top values.
@@ -77,7 +77,7 @@ kubectl delete -f examples/features/streams/k8s
 
 - `http_stream_json_lines.k`
   - Serve NDJSON locally, stream it with `http(url)`, decode, aggregate.
-  - Uses `httpServe(...)`, `http(url)`, `json()`, `group_count(...)`.
+  - Uses `httpServe(...)`, `http(url)`, `fromJson()`, `group_count(...)`.
 
 - `exec_sink_wc.k`
   - Pipe stream content into a subprocess and inspect run status.

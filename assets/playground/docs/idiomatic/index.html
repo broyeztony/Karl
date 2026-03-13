@@ -61,7 +61,7 @@
             <pre><code>let ns = trim(env("K8S_NS")) ? "default"
 let pollMs = parseInt(trim(env("POLL_MS")) ? "1000") ? 1000
 
-let cfg = decodeJson(readFile("config.json")) ? {
+let cfg = fromJson(readFile("config.json")) ? {
     { mode: "safe", retries: 3, }
 }
 </code></pre>
@@ -161,7 +161,7 @@ wait worker ? {}
             <h3 id="concise">9. Conciseness rules</h3>
             <pre><code>// good
 let mkJSONHeaders = () -> map().set("Content-Type", "application/json")
-let jsonResponse = (status, payload) -> { status: status, headers: mkJSONHeaders(), body: encodeJson(payload), }
+let jsonResponse = (status, payload) -> { status: status, headers: mkJSONHeaders(), body: toJson(payload), }
 
 // avoid redundant wrappers
 // let msToRFC3339 = ms -> timeFormatRFC3339(ms)

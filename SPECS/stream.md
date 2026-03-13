@@ -104,7 +104,7 @@ let producer = & (() -> {
   for true with r = p.stdout.read() {
     let [chunk, eof] = r
     if eof { break () }
-    c.send(decodeUtf8(chunk))
+    c.send(fromUtf8(chunk))
     r = p.stdout.read()
   } then ()
 })()
@@ -154,8 +154,14 @@ buffering that violates backpressure guarantees.
 
 - `lines() -> <stream-stage>`
   - converts byte/text chunks into line-oriented text values
-- `json() -> <stream-stage>`
+- `fromJson() -> <stream-stage>`
   - decodes each upstream text/bytes item as one JSON value
+- `toJson() -> <stream-stage>`
+  - encodes each upstream item as one JSON text value
+- `fromUtf8() -> <stream-stage>`
+  - decodes each upstream bytes item as UTF-8 text
+- `toUtf8() -> <stream-stage>`
+  - encodes each upstream text item as bytes
 - `map(fn) -> <stream-stage>`
 - `filter(pred) -> <stream-stage>`
 - `flatMap(fn) -> <stream-stage>` (`fn` must return `Array`)
@@ -182,6 +188,7 @@ buffering that violates backpressure guarantees.
 - `collect() -> <stream-sink>` (execution result: `Array`)
 - `send(ch) -> <stream-sink>` (execution result: `Unit`, closes `ch` on completion)
 - `reduce(init, fn) -> <stream-sink>` (execution result: reduced value)
+- `forEach(fn) -> <stream-sink>` (execution result: `Unit`)
 - `count() -> <stream-sink>` (execution result: `Int`)
 - `group_count(keyFn?) -> <stream-sink>` (execution result: `Map<Key, Int>`)
 - `reduce_by_key(keyFn, init, reducerFn) -> <stream-sink>` (execution result: `Map<Key, Value>`)
@@ -374,7 +381,7 @@ JSON objects + keyed aggregation:
 ```karl
 read("events.ndjson", { type: TEXT, })
 | lines()
-| json()
+| fromJson()
 | reduce_by_key(e -> e.kind, 0, (acc, e) -> acc + 1)
 ```
 

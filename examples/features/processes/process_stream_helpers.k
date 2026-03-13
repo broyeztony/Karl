@@ -3,7 +3,7 @@
 let readStreamText = s -> for true with acc = "" {
     let [chunk, eof] = s.read()
     if eof { break acc }
-    let part = decodeUtf8(chunk) ? chunk
+    let part = fromUtf8(chunk) ? chunk
     acc = acc + part
 } then acc
 

@@ -20,7 +20,7 @@ let srv = httpServe({
 
 let counts = http("http://" + addr + "/events", { type: TEXT, })
     | lines()
-    | json()
+    | fromJson()
     | group_count(_.team)
 
 httpServerStop(srv)

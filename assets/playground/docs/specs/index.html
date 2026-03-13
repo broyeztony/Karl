@@ -186,7 +186,7 @@ let st = wait p
                 Karl uses explicit recovery with postfix <code>?</code>.
                 Recover blocks receive implicit <code>error</code> with <code>kind</code> and <code>message</code>.
             </p>
-            <pre><code>let cfg = decodeJson(raw) ? {
+            <pre><code>let cfg = fromJson(raw) ? {
     log(error.kind, error.message)
     { mode: "safe", }
 }

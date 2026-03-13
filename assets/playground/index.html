@@ -314,7 +314,7 @@ log(result.output.trim())`,
 let teams = http("http://127.0.0.1:8080/events", { type: TEXT, })
     | lines()
     | filter(_ != "")
-    | json()
+    | fromJson()
     | group_count(_.team)
 
 log(teams)`,
@@ -344,7 +344,7 @@ if !done { log("shutdown:", sig) }
 worker.cancel()
 wait worker ? {}`,
             `// Recover at IO/parse boundaries
-let config = decodeJson(readFile("config.json")) ? {
+let config = fromJson(readFile("config.json")) ? {
     log("bad config:", error.message)
     { mode: "safe", poll_ms: 1000, }
 }

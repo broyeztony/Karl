@@ -43,7 +43,7 @@ let kMust = args -> {
 }
 
 // Parse kubectl JSON responses with recoverable error context.
-let kJson = args -> decodeJson(kMust(args).output) ? {
+let kJson = args -> fromJson(kMust(args).output) ? {
     fail("kubectl returned invalid JSON: " + error.message)
 }
 
@@ -113,4 +113,4 @@ let report = (() -> {
     }
 })() ? { generatedAt: timeFormatRFC3339(now()), error: { kind: error.kind, message: error.message, }, }
 
-log(encodeJson(report))
+log(toJson(report))

@@ -14,7 +14,6 @@ func registerStreamPipelineBuiltins() {
 	builtins["zip"] = &Builtin{Name: "zip", Fn: builtinZipSource}
 	builtins["debounce"] = &Builtin{Name: "debounce", Fn: builtinDebounceStage}
 	builtins["lines"] = &Builtin{Name: "lines", Fn: builtinLinesStage}
-	builtins["json"] = &Builtin{Name: "json", Fn: builtinJSONStage}
 	builtins["tee"] = &Builtin{Name: "tee", Fn: builtinTeeStage}
 	builtins["spill"] = &Builtin{Name: "spill", Fn: builtinSpillStage}
 	builtins["stdout"] = &Builtin{Name: "stdout", Fn: builtinStdoutSink}
@@ -254,13 +253,6 @@ func builtinLinesStage(_ *Evaluator, args []Value) (Value, error) {
 			return &linesIterator{upstream: upstream}
 		},
 	}, nil
-}
-
-func builtinJSONStage(_ *Evaluator, args []Value) (Value, error) {
-	if len(args) != 0 {
-		return nil, &RuntimeError{Message: "json expects no arguments"}
-	}
-	return newStreamJSONStage(), nil
 }
 
 func builtinDebounceStage(e *Evaluator, args []Value) (Value, error) {

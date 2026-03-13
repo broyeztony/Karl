@@ -262,7 +262,7 @@ let s = set([1, 2, 2])
 let o = { x: 1, y: 2, }
 let arr = [1, 2]
 let a = len("hé")
-let b = len(encodeUtf8("hé"))
+let b = len(toUtf8("hé"))
 let c = len(arr)
 let d = len(m)
 let e = len(s)
@@ -311,17 +311,17 @@ func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
 }
 
 func TestEvalUtf8EncodeDecodeHelpers(t *testing.T) {
-	val := mustEval(t, `decodeUtf8(encodeUtf8("karl"))`)
+	val := mustEval(t, `fromUtf8(toUtf8("karl"))`)
 	assertString(t, val, "karl")
 }
 
 func TestEvalBytesJoin(t *testing.T) {
-	val := mustEval(t, `decodeUtf8(bytesJoin([encodeUtf8("kar"), encodeUtf8("l")]))`)
+	val := mustEval(t, `fromUtf8(bytesJoin([toUtf8("kar"), toUtf8("l")]))`)
 	assertString(t, val, "karl")
 }
 
-func TestEvalEncodeDecodeJsonAliases(t *testing.T) {
-	val := mustEval(t, `decodeJson(encodeJson({ a: 1, b: [true, "x"], }))`)
+func TestEvalToFromJSON(t *testing.T) {
+	val := mustEval(t, `fromJson(toJson({ a: 1, b: [true, "x"], }))`)
 	expected := &Object{Pairs: map[string]Value{
 		"a": &Integer{Value: 1},
 		"b": &Array{Elements: []Value{
@@ -332,8 +332,40 @@ func TestEvalEncodeDecodeJsonAliases(t *testing.T) {
 	assertEquivalent(t, val, expected)
 }
 
+func TestEvalRemovedJSONBuiltins(t *testing.T) {
+	_, err := evalInput(t, `decodeJson("{}")`)
+	if err == nil {
+		t.Fatalf("expected undefined identifier error")
+	}
+	if !strings.Contains(err.Error(), "undefined identifier: decodeJson") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, err = evalInput(t, `encodeJson({ a: 1, })`)
+	if err == nil {
+		t.Fatalf("expected undefined identifier error")
+	}
+	if !strings.Contains(err.Error(), "undefined identifier: encodeJson") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalArrayForEach(t *testing.T) {
+	val := mustEval(t, `
+let out = []
+let src = [1, 2, 3]
+src.forEach(x -> out.push(x * 2))
+out
+`)
+	expected := &Array{Elements: []Value{
+		&Integer{Value: 2},
+		&Integer{Value: 4},
+		&Integer{Value: 6},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
 func TestEvalEncodeDecodeJSON(t *testing.T) {
-	val := mustEval(t, `decodeJson(encodeJson({ a: 1, b: [true, null, "x"] }))`)
+	val := mustEval(t, `fromJson(toJson({ a: 1, b: [true, null, "x"] }))`)
 	expected := &Object{Pairs: map[string]Value{
 		"a": &Integer{Value: 1},
 		"b": &Array{Elements: []Value{
@@ -447,7 +479,7 @@ func TestTruthyFalsyMatchGuard(t *testing.T) {
 }
 
 func TestEvalObjectStringIndexRead(t *testing.T) {
-	val := mustEval(t, `let obj = decodeJson("{\"a-field\": 42}"); obj["a-field"]`)
+	val := mustEval(t, `let obj = fromJson("{\"a-field\": 42}"); obj["a-field"]`)
 	assertInteger(t, val, 42)
 }
 
@@ -508,7 +540,7 @@ func TestEvalArrayIndexStillRequiresInteger(t *testing.T) {
 }
 
 func TestEvalDecodeJSONOverflow(t *testing.T) {
-	_, err := evalInput(t, `decodeJson("999999999999999999999")`)
+	_, err := evalInput(t, `fromJson("999999999999999999999")`)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -560,7 +592,7 @@ func TestEvalRecoverDivisionByZero(t *testing.T) {
 }
 
 func TestEvalRecoverDecodeJSON(t *testing.T) {
-	val := mustEval(t, `decodeJson("{\"foo\": }") ? { foo: "bar", }`)
+	val := mustEval(t, `fromJson("{\"foo\": }") ? { foo: "bar", }`)
 	expected := &Object{Pairs: map[string]Value{
 		"foo": &String{Value: "bar"},
 	}}

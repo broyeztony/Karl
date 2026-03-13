@@ -396,10 +396,10 @@ let p = proc(stage, {
 let collect = s -> for true with acc = "" {
     let [chunk, eof] = s.read()
     if eof { break acc }
-    acc = acc + decodeUtf8(chunk)
+    acc = acc + fromUtf8(chunk)
 } then acc
 
-let n = p.stdin.write(encodeUtf8("ping"))
+let n = p.stdin.write(toUtf8("ping"))
 p.stdin.close()
 let out = collect(p.stdout)
 let st = wait p
@@ -441,7 +441,7 @@ let p = proc({
     stderr: NULL,
 })
 
-p.stdin.write(encodeUtf8("hello\n"))
+p.stdin.write(toUtf8("hello\n"))
 p.stdin.close()
 
 let r = for true with data = [] {
@@ -454,7 +454,7 @@ let st = wait p
 
 let ok = st.ok
 let count = len(r)
-let first = decodeUtf8(r[0])
+let first = fromUtf8(r[0])
 { ok, count, first, }
 `, bin)
 
@@ -526,7 +526,7 @@ let p = proc(stage, {
 })
 let [chunk, _] = p.stdout.read()
 let _ = wait p
-decodeUtf8(chunk) ? { error.kind }
+fromUtf8(chunk) ? { error.kind }
 `, bin)
 
 	val, err := evalInput(t, input)

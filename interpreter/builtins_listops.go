@@ -14,6 +14,7 @@ func registerListBuiltins() {
 	builtins["distinct"] = &Builtin{Name: "distinct", Fn: builtinDistinct}
 	builtins["partition"] = &Builtin{Name: "partition", Fn: builtinPartition}
 	builtins["reduce"] = &Builtin{Name: "reduce", Fn: builtinReduce}
+	builtins["forEach"] = &Builtin{Name: "forEach", Fn: builtinForEach}
 	builtins["count"] = &Builtin{Name: "count", Fn: builtinCount}
 	builtins["group_count"] = &Builtin{Name: "group_count", Fn: builtinGroupCount}
 	builtins["reduce_by_key"] = &Builtin{Name: "reduce_by_key", Fn: builtinReduceByKey}
@@ -146,6 +147,36 @@ func builtinReduce(e *Evaluator, args []Value) (Value, error) {
 		acc = val
 	}
 	return acc, nil
+}
+
+func builtinForEach(e *Evaluator, args []Value) (Value, error) {
+	if len(args) == 1 {
+		if !isCallable(args[0]) {
+			return nil, &RuntimeError{Message: "forEach sink expects function"}
+		}
+		return newStreamForEachSink(e, args[0]), nil
+	}
+	if len(args) != 2 {
+		return nil, &RuntimeError{Message: "forEach expects (array, fn) or (fn)"}
+	}
+	arr, ok := args[0].(*Array)
+	if !ok {
+		return nil, &RuntimeError{Message: "forEach expects array"}
+	}
+	fn := args[1]
+	if !isCallable(fn) {
+		return nil, &RuntimeError{Message: "forEach expects function"}
+	}
+	for _, el := range arr.Elements {
+		_, sig, err := e.applyFunction(fn, []Value{el})
+		if err != nil {
+			return nil, err
+		}
+		if sig != nil {
+			return nil, &RuntimeError{Message: "break/continue outside loop"}
+		}
+	}
+	return UnitValue, nil
 }
 
 func builtinCount(_ *Evaluator, args []Value) (Value, error) {

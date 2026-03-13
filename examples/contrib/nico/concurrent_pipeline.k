@@ -72,7 +72,7 @@ let parser_worker = (worker_id, input_ch, output_ch) -> {
         } else {
             log("  → Parser", worker_id, "parsing data from:", data.url)
             
-            let parsed = decodeJson(data.body) ? { error: "parse_failed", }
+            let parsed = fromJson(data.body) ? { error: "parse_failed", }
             
             let result = {
                 url: data.url,

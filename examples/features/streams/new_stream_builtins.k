@@ -1,5 +1,5 @@
 // Stream feature sweep:
-// json(), distinct(), sort(), group_count(), reduce_by_key(), top(), split(), exec()
+// fromJson(), distinct(), sort(), group_count(), reduce_by_key(), top(), split(), exec()
 
 let path = "/tmp/karl-stream-new-features.ndjson"
 
@@ -11,7 +11,7 @@ writeFile(path,
     "{\"team\":\"worker\",\"ms\":180}\n"
 )
 
-let events = read(path, { type: TEXT, }) | lines() | json()
+let events = read(path, { type: TEXT, }) | lines() | fromJson()
 
 let teams = events | map(_.team) | distinct() | sort() | collect()
 let counts = events | map(_.team) | group_count()

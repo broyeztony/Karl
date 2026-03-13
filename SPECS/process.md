@@ -222,10 +222,10 @@ let p = proc(
   { stdin: PIPE, stdout: PIPE, stderr: PIPE, stdinType: BYTES, stdoutType: BYTES, stderrType: BYTES, }
 )
 
-p.stdin.write(encodeUtf8("hello\n"))
+p.stdin.write(toUtf8("hello\n"))
 p.stdin.close()
 let [chunk, eof] = p.stdout.read()
-if !eof { log(decodeUtf8(chunk)) }
+if !eof { log(fromUtf8(chunk)) }
 let st = wait p
 log(st)
 ```

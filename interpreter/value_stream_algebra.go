@@ -107,11 +107,38 @@ func newStreamThrottleStage(e *Evaluator, ms int64) *StreamStageValue {
 	}
 }
 
-func newStreamJSONStage() *StreamStageValue {
+func newStreamFromJSONStage() *StreamStageValue {
 	return &StreamStageValue{
-		name: "json",
+		name: "fromJson",
 		apply: func(upstream streamIterator) streamIterator {
-			return &streamJSONIterator{upstream: upstream}
+			return &streamFromJSONIterator{upstream: upstream}
+		},
+	}
+}
+
+func newStreamToJSONStage() *StreamStageValue {
+	return &StreamStageValue{
+		name: "toJson",
+		apply: func(upstream streamIterator) streamIterator {
+			return &streamToJSONIterator{upstream: upstream}
+		},
+	}
+}
+
+func newStreamFromUTF8Stage() *StreamStageValue {
+	return &StreamStageValue{
+		name: "fromUtf8",
+		apply: func(upstream streamIterator) streamIterator {
+			return &streamFromUTF8Iterator{upstream: upstream}
+		},
+	}
+}
+
+func newStreamToUTF8Stage() *StreamStageValue {
+	return &StreamStageValue{
+		name: "toUtf8",
+		apply: func(upstream streamIterator) streamIterator {
+			return &streamToUTF8Iterator{upstream: upstream}
 		},
 	}
 }
@@ -181,6 +208,30 @@ func newStreamCountSink() *StreamSinkValue {
 					return &Integer{Value: count}, nil
 				}
 				count++
+			}
+		},
+	}
+}
+
+func newStreamForEachSink(e *Evaluator, fn Value) *StreamSinkValue {
+	return &StreamSinkValue{
+		name: "forEach",
+		run: func(_ *Evaluator, upstream streamIterator) (Value, error) {
+			for {
+				item, eof, err := upstream.Next()
+				if err != nil {
+					return nil, recoverableError("stream_read", "stream read error: "+err.Error())
+				}
+				if eof {
+					return UnitValue, nil
+				}
+				_, sig, err := e.applyFunction(fn, []Value{item})
+				if err != nil {
+					return nil, err
+				}
+				if sig != nil {
+					return nil, &RuntimeError{Message: "break/continue outside loop"}
+				}
 			}
 		},
 	}
@@ -690,12 +741,12 @@ func (s *streamThrottleIterator) Close() error {
 	return nil
 }
 
-type streamJSONIterator struct {
+type streamFromJSONIterator struct {
 	upstream streamIterator
 	closed   bool
 }
 
-func (s *streamJSONIterator) Next() (Value, bool, error) {
+func (s *streamFromJSONIterator) Next() (Value, bool, error) {
 	if s == nil || s.upstream == nil {
 		return nil, true, nil
 	}
@@ -707,14 +758,119 @@ func (s *streamJSONIterator) Next() (Value, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	decoded, err := builtinDecodeJSON(nil, []Value{&String{Value: text}})
+	decoded, err := builtinFromJSON(nil, []Value{&String{Value: text}})
 	if err != nil {
 		return nil, false, err
 	}
 	return decoded, false, nil
 }
 
-func (s *streamJSONIterator) Close() error {
+func (s *streamFromJSONIterator) Close() error {
+	if s == nil || s.closed {
+		return nil
+	}
+	s.closed = true
+	if s.upstream != nil {
+		return s.upstream.Close()
+	}
+	return nil
+}
+
+type streamToJSONIterator struct {
+	upstream streamIterator
+	closed   bool
+}
+
+func (s *streamToJSONIterator) Next() (Value, bool, error) {
+	if s == nil || s.upstream == nil {
+		return nil, true, nil
+	}
+	item, eof, err := s.upstream.Next()
+	if err != nil || eof {
+		return nil, eof, err
+	}
+	encoded, err := builtinToJSON(nil, []Value{item})
+	if err != nil {
+		return nil, false, err
+	}
+	text, ok := encoded.(*String)
+	if !ok {
+		return nil, false, &RuntimeError{Message: "toJson stage produced non-string value"}
+	}
+	return &String{Value: text.Value}, false, nil
+}
+
+func (s *streamToJSONIterator) Close() error {
+	if s == nil || s.closed {
+		return nil
+	}
+	s.closed = true
+	if s.upstream != nil {
+		return s.upstream.Close()
+	}
+	return nil
+}
+
+type streamFromUTF8Iterator struct {
+	upstream streamIterator
+	closed   bool
+}
+
+func (s *streamFromUTF8Iterator) Next() (Value, bool, error) {
+	if s == nil || s.upstream == nil {
+		return nil, true, nil
+	}
+	item, eof, err := s.upstream.Next()
+	if err != nil || eof {
+		return nil, eof, err
+	}
+	bytesVal, ok := item.(*Bytes)
+	if !ok {
+		return nil, false, recoverableError("stream_state", "fromUtf8() expects bytes input")
+	}
+	decoded, err := builtinFromUtf8(nil, []Value{bytesVal})
+	if err != nil {
+		return nil, false, err
+	}
+	return decoded, false, nil
+}
+
+func (s *streamFromUTF8Iterator) Close() error {
+	if s == nil || s.closed {
+		return nil
+	}
+	s.closed = true
+	if s.upstream != nil {
+		return s.upstream.Close()
+	}
+	return nil
+}
+
+type streamToUTF8Iterator struct {
+	upstream streamIterator
+	closed   bool
+}
+
+func (s *streamToUTF8Iterator) Next() (Value, bool, error) {
+	if s == nil || s.upstream == nil {
+		return nil, true, nil
+	}
+	item, eof, err := s.upstream.Next()
+	if err != nil || eof {
+		return nil, eof, err
+	}
+	textVal, ok := item.(*String)
+	if !ok {
+		return nil, false, recoverableError("stream_state", "toUtf8() expects text input")
+	}
+	encoded, err := builtinToUtf8(nil, []Value{textVal})
+	if err != nil {
+		return nil, false, err
+	}
+	return encoded, false, nil
+}
+
+func (s *streamToUTF8Iterator) Close() error {
 	if s == nil || s.closed {
 		return nil
 	}

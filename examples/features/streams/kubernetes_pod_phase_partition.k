@@ -24,7 +24,7 @@ if !st.ok { fail("kubectl get pods failed: exit " + str(st.code)) }
 
 let sample = xs -> if xs.length <= 5 { xs } else { xs[..5] }
 
-log(encodeJson({
+log(toJson({
     runningCount: grouped.left.length,
     notRunningCount: grouped.right.length,
     runningSample: sample(grouped.left),

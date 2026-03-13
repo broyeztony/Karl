@@ -83,7 +83,7 @@ func TestStreamBytesModeUsesBytesValues(t *testing.T) {
 
 	input := fmt.Sprintf(`
 let w = writer(%q)
-let n = w.write(encodeUtf8("hé"))
+let n = w.write(toUtf8("hé"))
 w.close()
 
 let r = reader(%q)
@@ -92,7 +92,7 @@ let [tail, eofB] = r.read(8)
 r.close()
 
 ;
-[n, len(chunk), chunk.length, decodeUtf8(chunk), eofA, tail, eofB]
+[n, len(chunk), chunk.length, fromUtf8(chunk), eofA, tail, eofB]
 `, path, path)
 
 	val, err := evalInput(t, input)
@@ -120,14 +120,14 @@ func TestStreamCollectPreservesBytesChunks(t *testing.T) {
 
 	input := fmt.Sprintf(`
 let w = writer(%q)
-let _ = w.write(encodeUtf8("abc"))
+let _ = w.write(toUtf8("abc"))
 w.close()
 
 let chunks = read(%q) | collect()
 let bytes = bytesJoin(chunks)
 
 ;
-[len(chunks), bytes.length, decodeUtf8(bytes)]
+[len(chunks), bytes.length, fromUtf8(bytes)]
 `, path, path)
 
 	val, err := evalInput(t, input)
@@ -252,4 +252,100 @@ s.close()
 	}
 	assertString(t, arr.Elements[1], "x")
 	assertBoolean(t, arr.Elements[2], false)
+}
+
+func TestStreamFromJsonToJsonStages(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "json-lines.log")
+	content := "{\"id\":1}\n{\"id\":2}\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	input := fmt.Sprintf(`
+let out = read(%q, { type: TEXT, })
+  | lines()
+  | fromJson()
+  | map(x -> { id: x.id + 10, })
+  | toJson()
+  | collect()
+;
+[len(out), out[0], out[1]]
+`, path)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	assertInteger(t, arr.Elements[0], 2)
+	assertString(t, arr.Elements[1], "{\"id\":11}")
+	assertString(t, arr.Elements[2], "{\"id\":12}")
+}
+
+func TestStreamUtf8Stages(t *testing.T) {
+	tempDir := t.TempDir()
+	inPath := filepath.Join(tempDir, "in-bytes.bin")
+	outPath := filepath.Join(tempDir, "out-bytes.bin")
+	if err := os.WriteFile(inPath, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	input := fmt.Sprintf(`
+read(%q, { type: BYTES, })
+  | fromUtf8()
+  | lines()
+  | map(x -> x + "!\n")
+  | toUtf8()
+  | write(%q, { type: BYTES, })
+;
+readFile(%q)
+`, inPath, outPath, outPath)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "alpha!\nbeta!\n")
+}
+
+func TestStreamForEachSink(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "for-each.log")
+	content := "a\nb\nc\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	input := fmt.Sprintf(`
+let out = []
+let done = read(%q, { type: TEXT, }) | lines() | forEach(x -> out.push(x + "!"))
+;
+[done, out]
+`, path)
+
+	val, err := evalInput(t, input)
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	arr, ok := val.(*Array)
+	if !ok {
+		t.Fatalf("expected array, got %T", val)
+	}
+	if arr.Elements[0] == nil || arr.Elements[0].Inspect() != "()" {
+		t.Fatalf("expected Unit for forEach sink, got %v", arr.Elements[0])
+	}
+	out, ok := arr.Elements[1].(*Array)
+	if !ok {
+		t.Fatalf("expected output array, got %T", arr.Elements[1])
+	}
+	if len(out.Elements) != 3 {
+		t.Fatalf("expected 3 output values, got %d", len(out.Elements))
+	}
+	assertString(t, out.Elements[0], "a!")
+	assertString(t, out.Elements[1], "b!")
+	assertString(t, out.Elements[2], "c!")
 }

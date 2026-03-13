@@ -42,7 +42,7 @@ let runSequential = outPath -> {
         if eof { break { seen, kept, bytesWritten, chunks, } }
 
         chunks++
-        let lines = (carry + decodeUtf8(chunk)).split("\n")
+        let lines = (carry + fromUtf8(chunk)).split("\n")
 
         let i = 0
         for i < lines.length - 1 && seen < maxSeen with i = 0 {
@@ -54,7 +54,7 @@ let runSequential = outPath -> {
                 if n % 2 == 0 {
                     log("sequential even:", n)
                     sleep(writeCostMs)
-                    bytesWritten += out.write(encodeUtf8(line + "\n"))
+                    bytesWritten += out.write(toUtf8(line + "\n"))
                     kept++
                 } else {
                     log("sequential odd:", n)
@@ -110,7 +110,7 @@ let runConcurrent = outPath -> {
 
             if n % 2 == 0 {
                 log("worker", id, "even:", n)
-                evenLines.send(encodeUtf8(str(n) + "\n"))
+                evenLines.send(toUtf8(str(n) + "\n"))
                 kept++
             } else {
                 log("worker", id, "odd:", n)
@@ -131,7 +131,7 @@ let runConcurrent = outPath -> {
             if eof { break { seen, chunks, } }
 
             chunks++
-            let lines = (carry + decodeUtf8(chunk)).split("\n")
+            let lines = (carry + fromUtf8(chunk)).split("\n")
 
             let i = 0
             for i < lines.length - 1 && seen < maxSeen with i = 0 {

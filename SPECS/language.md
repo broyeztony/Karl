@@ -157,13 +157,13 @@ let found = for true with msg = null {
 // - Non-recoverable errors still call exit(), even if wrapped in `? {}`.
 
 // Builtins that can produce recoverable errors:
-// decodeJson, readFile, writeFile, appendFile, deleteFile, exists, listDir, http,
+// fromJson, readFile, writeFile, appendFile, deleteFile, exists, listDir, http,
 // sqlOpen, sqlClose, sqlExec, sqlQuery, sqlQueryOne, sqlBegin, sqlCommit, sqlRollback,
 // uuidParse, timeParseRFC3339, fail, readLine, proc, run
 
 // Example: recover from bad JSON
 let raw = "{\"foo\":\"bar\"}"
-let parsed = decodeJson(raw) ? {
+let parsed = fromJson(raw) ? {
     log("bad json:", error.message)
     { foo: "default" }
 }
@@ -176,9 +176,9 @@ let divide = (a, b) -> {
 let quotient = divide(10, 0) ? { 0 }
 
 // Example: nested recoverable errors
-let config = decodeJson(readFile("config.json")) ? {
+let config = fromJson(readFile("config.json")) ? {
     log("config error:", error.message)
-    decodeJson("{\"mode\":\"safe\"}") ? { mode: "safe", }
+    fromJson("{\"mode\":\"safe\"}") ? { mode: "safe", }
 }
 
 // Explicit checks before calling fallible operations
@@ -216,10 +216,10 @@ log(st.output)
 // mode/type constants are available: PIPE, INHERIT, NULL, TEXT, BYTES
 let p = proc({ command: "cat", }, { stdin: PIPE, stdout: PIPE, stderr: PIPE, })
 let inStream = p.stdin
-inStream.write(encodeUtf8("hello\\n"))
+inStream.write(toUtf8("hello\\n"))
 inStream.close()
 let [line, eof] = p.stdout.read()
-if !eof { log(decodeUtf8(line)) }
+if !eof { log(fromUtf8(line)) }
 wait p
 
 // recoverable process error kinds:

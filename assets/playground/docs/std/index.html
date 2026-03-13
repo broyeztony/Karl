@@ -147,6 +147,7 @@
                     <tr><td><code>filter</code></td><td><code>filter(array, pred)</code> or <code>filter(pred)</code></td><td>Array / stream stage</td></tr>
                     <tr><td><code>flatMap</code></td><td><code>flatMap(array, fn)</code> or <code>flatMap(fn)</code></td><td>Array / stream stage</td></tr>
                     <tr><td><code>reduce</code></td><td><code>reduce(array, fn, init)</code> or <code>reduce(init, fn)</code></td><td>Value / stream sink</td></tr>
+                    <tr><td><code>forEach</code></td><td><code>forEach(array, fn)</code> or <code>forEach(fn)</code></td><td>Unit / stream sink</td></tr>
                     <tr><td><code>sum</code></td><td><code>sum(array)</code></td><td>Int|Float</td></tr>
                     <tr><td><code>find</code></td><td><code>find(array, pred)</code></td><td>Value|null</td></tr>
                     <tr><td><code>sort</code></td><td><code>sort(array, cmp)</code> or <code>sort()</code>/<code>sort(cmp)</code></td><td>Array / stream stage</td></tr>
@@ -190,10 +191,10 @@
                     <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>decodeJson</code></td><td><code>decodeJson(text)</code></td><td>Value</td><td>Recoverable parse failures.</td></tr>
-                    <tr><td><code>encodeJson</code></td><td><code>encodeJson(value)</code></td><td>String</td><td>JSON encoding of Karl value.</td></tr>
-                    <tr><td><code>decodeUtf8</code></td><td><code>decodeUtf8(bytes)</code></td><td>String</td><td>UTF-8 decode.</td></tr>
-                    <tr><td><code>encodeUtf8</code></td><td><code>encodeUtf8(text)</code></td><td>Bytes</td><td>UTF-8 encode.</td></tr>
+                    <tr><td><code>fromJson</code></td><td><code>fromJson(text)</code> or <code>fromJson()</code></td><td>Value / stream stage</td><td>Recoverable parse failures.</td></tr>
+                    <tr><td><code>toJson</code></td><td><code>toJson(value)</code> or <code>toJson()</code></td><td>String / stream stage</td><td>JSON encoding of Karl value.</td></tr>
+                    <tr><td><code>fromUtf8</code></td><td><code>fromUtf8(bytes)</code> or <code>fromUtf8()</code></td><td>String / stream stage</td><td>UTF-8 decode.</td></tr>
+                    <tr><td><code>toUtf8</code></td><td><code>toUtf8(text)</code> or <code>toUtf8()</code></td><td>Bytes / stream stage</td><td>UTF-8 encode.</td></tr>
                     <tr><td><code>bytesJoin</code></td><td><code>bytesJoin(arrayOfBytes)</code></td><td>Bytes</td><td>Concatenate chunks.</td></tr>
                     <tr><td><code>parseInt</code></td><td><code>parseInt(text)</code></td><td>Int</td><td>Base-10, recoverable on invalid input.</td></tr>
                 </tbody>
@@ -335,7 +336,10 @@ join(left, right, leftKeyFn, rightKeyFn)
 
             <h4>16.2 Stages</h4>
             <pre><code>lines()
-json()
+fromJson()
+toJson()
+fromUtf8()
+toUtf8()
 map(fn)
 filter(fn)
 flatMap(fn)
@@ -358,6 +362,7 @@ collect()
 toChannel(ch)
 send(ch)
 reduce(init, fn)
+forEach(fn)
 count()
 group_count([keyFn])
 reduce_by_key(keyFn, init, reducerFn)
@@ -387,7 +392,7 @@ w.close()
                     <tr><th>Type</th><th>Properties</th><th>Methods</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>Array</code></td><td><code>.length</code></td><td><code>.map .filter .reduce .sum .find .sort .push</code></td></tr>
+                    <tr><td><code>Array</code></td><td><code>.length</code></td><td><code>.map .filter .reduce .forEach .sum .find .sort .push</code></td></tr>
                     <tr><td><code>String</code></td><td><code>.length</code></td><td><code>.split .chars .trim .toLower .toUpper .contains .startsWith .endsWith .replace</code></td></tr>
                     <tr><td><code>Bytes</code></td><td><code>.length</code></td><td>-</td></tr>
                     <tr><td><code>Map</code></td><td>-</td><td><code>.get .set .has .delete .keys .values</code></td></tr>

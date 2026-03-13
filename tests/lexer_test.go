@@ -17,7 +17,7 @@ x += 1
 x++
 arr[1..]
 obj.field
-decodeJson("{}") ? { foo: "bar", }
+fromJson("{}") ? { foo: "bar", }
 & taskA()
 spawn taskA()
 !& { taskA(), taskB() }
@@ -81,7 +81,7 @@ race { taskA(), taskB() }
 		{token.DOT, "."},
 		{token.IDENT, "field"},
 
-		{token.IDENT, "decodeJson"},
+		{token.IDENT, "fromJson"},
 		{token.LPAREN, "("},
 		{token.STRING, "{}"},
 		{token.RPAREN, ")"},
