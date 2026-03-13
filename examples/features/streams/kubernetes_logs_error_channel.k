@@ -16,16 +16,13 @@ let listPods = () -> {
         "--field-selector=status.phase=Running",
         "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}",
     ) ? { fail("kubectl get pods failed: " + error.message) }
+
     if !st.ok { fail("kubectl get pods failed: exit " + str(st.code) + " " + st.error) }
     st.output.split("\n").filter(_ != "")
 }
 
 let pods = listPods()
 if pods.length < 3 { fail("expected at least 3 running pods for selector " + selector) }
-
-let pod1 = pods[0]
-let pod2 = pods[1]
-let pod3 = pods[2]
 
 let levelOf = line -> if line.contains("ERROR") {
     "ERROR"
@@ -40,33 +37,19 @@ let levelOf = line -> if line.contains("ERROR") {
 }
 
 let key = (pod, level) -> pod + "|" + level
-
 let bump = (counts, pod, level) -> {
     let k = key(pod, level)
     let cur = get(counts, k)
     set(counts, k, if cur == null { 1 } else { cur + 1 })
 }
+let at = (counts, pod, level) -> get(counts, key(pod, level)) ? 0
 
-let at = (counts, pod, level) -> {
-    let v = get(counts, key(pod, level))
-    if v == null { 0 } else { v }
-}
-
-let spaces = n -> for i < n with i = 0, out = "" {
-    out = out + " "
-    i++
-} then out
-
-let fill = (ch, n) -> for i < n with i = 0, out = "" {
-    out = out + ch
-    i++
-} then out
-
+let spaces = n -> for i < n with i = 0, out = "" { out = out + " "; i++ } then out
+let fill = (ch, n) -> for i < n with i = 0, out = "" { out = out + ch; i++ } then out
 let pad = (text, width) -> if text.length >= width { text } else { text + spaces(width - text.length) }
 
 let levelW = 7
 let countW = 6
-
 let border =
     "+"
     + fill("-", levelW + 2)
@@ -89,12 +72,12 @@ let row = (a, b, c, d) ->
     + pad(d, countW)
     + " |"
 
-let render = counts -> {
+let render = (counts, names) -> {
     log("\u001b[2J\u001b[H")
     log("ns=" + ns + " selector=" + selector)
-    log("pod1=" + pod1)
-    log("pod2=" + pod2)
-    log("pod3=" + pod3)
+    log("pod1=" + names[0])
+    log("pod2=" + names[1])
+    log("pod3=" + names[2])
     log("")
     log(border)
     log(row("LEVEL", "POD1", "POD2", "POD3"))
@@ -108,7 +91,7 @@ let render = counts -> {
 }
 
 let feed = (podName, podLabel) -> {
-    let process = proc(
+    let p = proc(
         "kubectl", "logs", "-f",
         "-n", ns,
         podName,
@@ -117,56 +100,45 @@ let feed = (podName, podLabel) -> {
         { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
     )
     {
-        process,
-        stream: process
-            | lines()
-            | filter(_ != "")
-            | map(line -> { kind: "log", pod: podLabel, level: levelOf(line), }),
+        proc: p,
+        stream: p | lines() | filter(_ != "") | map(line -> { pod: podLabel, level: levelOf(line), }),
     }
 }
 
-let f1 = feed(pod1, "pod1")
-let f2 = feed(pod2, "pod2")
-let f3 = feed(pod3, "pod3")
-
-let producer = merge(f1.stream, f2.stream, f3.stream)
+let feeds = [
+    feed(pods[0], "pod1"),
+    feed(pods[1], "pod2"),
+    feed(pods[2], "pod3"),
+]
+let names = [pods[0], pods[1], pods[2]]
 
 let signaler = & (() -> {
     let [signal, done] = signalWatch(["SIGINT", "SIGTERM"]).recv()
     if !done {
         log("stopping", signal)
-        f1.process.abort() ? {}
-        f2.process.abort() ? {}
-        f3.process.abort() ? {}
+        feeds.forEach(f -> f.proc.abort() ? {})
     }
 })()
 
 let counts = map()
-render(counts)
+let last = now()
+render(counts, names)
 
-for true with pair = producer.read(), last = now() {
-    let [event, eof] = pair
-    if eof { break () }
+// Single stream statement: pull 3 pods, merge, count, and render.
+merge(feeds[0].stream, feeds[1].stream, feeds[2].stream)
+    | forEach(event -> {
+        bump(counts, event.pod, event.level)
+        let t = now()
+        if t - last >= matrixMs {
+            render(counts, names)
+            last = t
+        }
+    })
 
-    bump(counts, event.pod, event.level)
-
-    let t = now()
-    if t - last >= matrixMs {
-        render(counts)
-        last = t
-    }
-    pair = producer.read()
-} then ()
-
-f1.process.abort() ? {}
-f2.process.abort() ? {}
-f3.process.abort() ? {}
-
-(wait f1.process) ? {}
-(wait f2.process) ? {}
-(wait f3.process) ? {}
+feeds.forEach(f -> f.proc.abort() ? {})
+feeds.forEach(f -> (wait f.proc) ? {})
 
 signaler.cancel()
 (wait signaler) ? {}
 
-render(counts)
+render(counts, names)

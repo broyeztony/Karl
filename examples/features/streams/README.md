@@ -41,7 +41,7 @@ kubectl delete -f examples/features/streams/k8s
 
 - `kubernetes_logs_error_channel.k`
   - Follow logs from 3 pods and build a live log-level matrix (`pod1/pod2/pod3` x levels).
-  - Uses `proc(... -f)`, `merge(...)`, direct stream `read()` consumption, and periodic matrix rendering.
+  - Uses `proc(... -f)`, `merge(...)`, `forEach(...)`, and periodic matrix rendering.
 
 - `kubernetes_merge_cluster_feed.k`
   - Merge pod and node feeds into one stream for unified inspection.
