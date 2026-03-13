@@ -288,6 +288,25 @@ let first100 = merge(a, b, c)
     | collect()
 
 log({ count: len(first100), })`,
+            `// Pod logs fan-in in one statement
+merge(
+  listPods()
+    .map(pod ->
+      proc(
+        "kubectl", "logs", "-f", "-n", ns, pod, "--all-containers=true", "--tail=100",
+        { stdout: PIPE, stderr: NULL, stdoutType: TEXT, }
+      )
+      | lines()
+      | filter(_ != "")
+      | map(line -> { pod, level: levelOf(line), })
+    )
+) | forEach(event -> {
+    bump(counts, event.pod, event.level)
+    if now() - last >= matrixMs {
+        render(counts)
+        last = now()
+    }
+})`,
             `// Stream side effects: spill + tee
 let n = proc(
     "kubectl", "get", "pods", "-A",
