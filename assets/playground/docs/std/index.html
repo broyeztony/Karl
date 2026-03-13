@@ -28,45 +28,65 @@
         <aside class="toc" aria-label="Std table of contents">
             <h3>Contents</h3>
             <ul>
-                <li><a href="#availability">Availability</a></li>
+                <li><a href="#model">Language Model</a></li>
+                <li><a href="#availability">Runtime Availability</a></li>
                 <li><a href="#constants">Constants</a></li>
                 <li><a href="#core">Core Runtime</a></li>
-                <li><a href="#tasks-channels">Tasks + Channels</a></li>
-                <li><a href="#runtime-system">Program Runtime</a></li>
-                <li><a href="#collections">Collections + List</a></li>
+                <li><a href="#concurrency">Concurrency Helpers</a></li>
+                <li><a href="#runtime">Program Runtime</a></li>
+                <li><a href="#collections">Collections</a></li>
+                <li><a href="#sequence">Sequence Operators</a></li>
                 <li><a href="#strings">Strings</a></li>
                 <li><a href="#encoding">Encoding + Data</a></li>
-                <li><a href="#time-uuid-crypto">Time / UUID / Crypto</a></li>
+                <li><a href="#time-crypto">Time / UUID / Crypto</a></li>
                 <li><a href="#math-random">Math + Random</a></li>
                 <li><a href="#fs">Filesystem</a></li>
-                <li><a href="#http">HTTP + Server</a></li>
+                <li><a href="#http">HTTP</a></li>
                 <li><a href="#sql">SQL</a></li>
                 <li><a href="#signals">Signals</a></li>
                 <li><a href="#process">Process API</a></li>
                 <li><a href="#streams">Stream API</a></li>
                 <li><a href="#methods">Method Sugar</a></li>
-                <li><a href="#examples">Non-Obvious Examples</a></li>
+                <li><a href="#examples">Examples</a></li>
+                <li><a href="#compat">Compatibility Notes</a></li>
             </ul>
         </aside>
 
         <article>
             <h2>Standard Library Reference</h2>
             <p>
-                Exhaustive built-in API reference for current runtime behavior.
-                This page is aligned with <code>interpreter/builtins_*.go</code> and the canonical stream/process specs.
+                Canonical built-in reference aligned with <code>interpreter/builtins_*.go</code>.
+                Karl is expression-based, functions-first, and concurrency-native.
+                Streams/processes are major features, but part of a broader language model.
             </p>
 
-            <h3 id="availability">1. Runtime Availability</h3>
+            <h3 id="model">1. Language Model</h3>
             <p>
-                Karl has two execution environments: CLI/native runtime and browser/WASM bench runtime.
+                These are language forms (not regular built-ins):
             </p>
-            <div>
-                <span class="badge ok">CLI native: full standard library</span>
-                <span class="badge ok">Bench WASM: core language + safe built-ins</span>
-                <span class="badge">Bench unsupported: process/sql/signals/httpServe/filesystem streams</span>
-            </div>
+            <ul>
+                <li><code>if / match / for</code> are expressions (produce values).</li>
+                <li><code>spawn</code> and <code>&amp;</code> start tasks.</li>
+                <li><code>race</code> and <code>!&amp;</code> race tasks.</li>
+                <li><code>wait</code> awaits <code>&lt;task&gt;</code> and <code>&lt;process&gt;</code>.</li>
+                <li><code>|</code> composes stream sources, stages, and sinks.</li>
+            </ul>
 
-            <h3 id="constants">2. Prebound Constants</h3>
+            <h3 id="availability">2. Runtime Availability</h3>
+            <table>
+                <thead>
+                    <tr><th>Feature</th><th>CLI / Native</th><th>Bench / WASM</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Core language + collections + strings + math</td><td>Yes</td><td>Yes</td></tr>
+                    <tr><td>Tasks/channels + stream algebra on in-memory/channel/http sources</td><td>Yes</td><td>Yes</td></tr>
+                    <tr><td>Filesystem (<code>readFile</code>, <code>writeFile</code>, <code>read</code>, <code>writer</code>, ...)</td><td>Yes</td><td>No</td></tr>
+                    <tr><td>Process API (<code>proc</code>, <code>run</code>, <code>exec</code> sink)</td><td>Yes</td><td>No</td></tr>
+                    <tr><td>SQL + signals + <code>httpServe</code></td><td>Yes</td><td>No</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="constants">3. Prebound Constants</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Value</th><th>Used for</th></tr>
@@ -75,31 +95,27 @@
                     <tr><td><code>PIPE</code></td><td><code>"pipe"</code></td><td>Process stdio mode</td></tr>
                     <tr><td><code>INHERIT</code></td><td><code>"inherit"</code></td><td>Process stdio mode</td></tr>
                     <tr><td><code>NULL</code></td><td><code>"null"</code></td><td>Process stdio mode</td></tr>
-                    <tr><td><code>TEXT</code></td><td><code>"text"</code></td><td>Stream/process text mode</td></tr>
-                    <tr><td><code>BYTES</code></td><td><code>"bytes"</code></td><td>Stream/process bytes mode</td></tr>
+                    <tr><td><code>TEXT</code></td><td><code>"text"</code></td><td>Stream mode</td></tr>
+                    <tr><td><code>BYTES</code></td><td><code>"bytes"</code></td><td>Stream mode</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="core">3. Core Runtime</h3>
+            <h3 id="core">4. Core Runtime</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
                     <tr><td><code>log</code></td><td><code>log(...values)</code></td><td><code>()</code></td><td>Print inspected values.</td></tr>
-                    <tr><td><code>logt</code></td><td><code>logt(...values)</code></td><td><code>()</code></td><td>Timestamped log line (UTC RFC3339 prefix).</td></tr>
+                    <tr><td><code>logt</code></td><td><code>logt(...values)</code></td><td><code>()</code></td><td>Prefixes RFC3339 UTC timestamp.</td></tr>
                     <tr><td><code>str</code></td><td><code>str(value)</code></td><td><code>String</code></td><td>Value stringification.</td></tr>
-                    <tr><td><code>sleep</code></td><td><code>sleep(ms)</code></td><td><code>()</code></td><td>Cooperative delay in ms.</td></tr>
-                    <tr><td><code>fail</code></td><td><code>fail([message])</code></td><td><code>recoverable error</code></td><td>Recover with <code>? { ... }</code>.</td></tr>
-                    <tr><td><code>exit</code></td><td><code>exit([message])</code></td><td><code>never</code></td><td>Terminates execution.</td></tr>
+                    <tr><td><code>sleep</code></td><td><code>sleep(ms)</code></td><td><code>()</code></td><td>Cooperative delay in milliseconds.</td></tr>
+                    <tr><td><code>fail</code></td><td><code>fail([message])</code></td><td>recoverable error</td><td>Recover with <code>? { ... }</code>.</td></tr>
+                    <tr><td><code>exit</code></td><td><code>exit([message])</code></td><td>never</td><td>Terminates execution.</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="tasks-channels">4. Tasks + Channels</h3>
-            <p>
-                <code>spawn</code>, <code>&amp;</code>, <code>race</code>, <code>!&amp;</code>, and <code>wait</code> are language operators/keywords.
-                Built-ins below are channel/task helpers.
-            </p>
+            <h3 id="concurrency">5. Concurrency Helpers (Built-ins)</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
@@ -107,50 +123,62 @@
                 <tbody>
                     <tr><td><code>channel</code></td><td><code>channel()</code></td><td><code>Channel</code></td><td>Alias of <code>rendezvous()</code>.</td></tr>
                     <tr><td><code>rendezvous</code></td><td><code>rendezvous()</code></td><td><code>Channel</code></td><td>Unbuffered channel.</td></tr>
-                    <tr><td><code>buffered</code></td><td><code>buffered(size)</code></td><td><code>Channel</code></td><td>Buffered channel with <code>size &gt;= 0</code>.</td></tr>
-                    <tr><td><code>send</code></td><td><code>send(ch, value)</code></td><td><code>()</code></td><td>Also <code>ch.send(v)</code>.</td></tr>
+                    <tr><td><code>buffered</code></td><td><code>buffered(size)</code></td><td><code>Channel</code></td><td>Buffered channel.</td></tr>
+                    <tr><td><code>send</code></td><td><code>send(ch, value)</code> or <code>send(ch)</code></td><td><code>()</code> or stream sink</td><td><code>send(ch)</code> drains stream into channel.</td></tr>
                     <tr><td><code>recv</code></td><td><code>recv(ch)</code></td><td><code>[value|null, doneBool]</code></td><td>Also <code>ch.recv()</code>.</td></tr>
                     <tr><td><code>done</code></td><td><code>done(ch)</code></td><td><code>()</code></td><td>Also <code>ch.done()</code>.</td></tr>
                     <tr><td><code>then</code></td><td><code>then(task, fn)</code></td><td><code>Task</code></td><td>Also <code>task.then(fn)</code>.</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="runtime-system">5. Program Runtime</h3>
+            <h3 id="runtime">6. Program Runtime</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>argv</code></td><td><code>argv()</code></td><td><code>Array&lt;String&gt;</code></td><td>Arguments after <code>--</code> in <code>karl run</code>.</td></tr>
-                    <tr><td><code>programPath</code></td><td><code>programPath()</code></td><td><code>String|null</code></td><td>Current script path or null.</td></tr>
-                    <tr><td><code>environ</code></td><td><code>environ()</code></td><td><code>Array&lt;String&gt;</code></td><td>Environment snapshot entries <code>KEY=value</code>.</td></tr>
-                    <tr><td><code>env</code></td><td><code>env(name)</code></td><td><code>String|null</code></td><td>Single env lookup.</td></tr>
+                    <tr><td><code>argv</code></td><td><code>argv()</code></td><td><code>Array&lt;String&gt;</code></td><td>Arguments after <code>--</code> with <code>karl run</code>.</td></tr>
+                    <tr><td><code>programPath</code></td><td><code>programPath()</code></td><td><code>String|null</code></td><td>Current script path.</td></tr>
+                    <tr><td><code>environ</code></td><td><code>environ()</code></td><td><code>Array&lt;String&gt;</code></td><td><code>KEY=value</code> entries.</td></tr>
+                    <tr><td><code>env</code></td><td><code>env(name)</code></td><td><code>String|null</code></td><td>Single lookup.</td></tr>
                     <tr><td><code>readLine</code></td><td><code>readLine()</code></td><td><code>String|null</code></td><td>Reads one line from stdin.</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="collections">6. Collections + List</h3>
+            <h3 id="collections">7. Collections</h3>
             <table>
                 <thead>
-                    <tr><th>Name</th><th>Signatures</th><th>Return</th></tr>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>map</code></td><td><code>map()</code> or <code>map(array, fn)</code> or <code>map(fn)</code></td><td>Map / Array / stream stage</td></tr>
-                    <tr><td><code>set</code></td><td><code>set()</code>, <code>set(array)</code>, <code>set(map,key,value)</code></td><td>Set / Map</td></tr>
-                    <tr><td><code>get</code></td><td><code>get(map, key)</code></td><td>Value|null</td></tr>
-                    <tr><td><code>add</code></td><td><code>add(set, value)</code></td><td>Set</td></tr>
-                    <tr><td><code>has</code></td><td><code>has(mapOrSet, key)</code></td><td>Bool</td></tr>
-                    <tr><td><code>delete</code></td><td><code>delete(mapOrSet, key)</code></td><td>Bool</td></tr>
-                    <tr><td><code>keys</code></td><td><code>keys(mapOrObject)</code></td><td>Array</td></tr>
-                    <tr><td><code>values</code></td><td><code>values(mapOrSet)</code></td><td>Array</td></tr>
-                    <tr><td><code>len</code></td><td><code>len(string|bytes|array|map|set|object)</code></td><td>Int</td></tr>
+                    <tr><td><code>map</code></td><td><code>map()</code> or <code>map(array, fn)</code> or <code>map(fn)</code></td><td>Map / Array / stream stage</td><td>Overloaded constructor + transform + stage.</td></tr>
+                    <tr><td><code>set</code></td><td><code>set()</code>, <code>set(array)</code>, <code>set(map,key,value)</code></td><td>Set / Map</td><td>Overloaded constructor + map update.</td></tr>
+                    <tr><td><code>get</code></td><td><code>get(map, key)</code></td><td>Value|null</td><td>Map lookup only.</td></tr>
+                    <tr><td><code>add</code></td><td><code>add(set, value)</code></td><td>Set</td><td>Mutates set.</td></tr>
+                    <tr><td><code>has</code></td><td><code>has(mapOrSet, key)</code></td><td>Bool</td><td>-</td></tr>
+                    <tr><td><code>delete</code></td><td><code>delete(mapOrSet, key)</code></td><td>Bool</td><td>-</td></tr>
+                    <tr><td><code>keys</code></td><td><code>keys(mapOrObject)</code></td><td>Array</td><td>-</td></tr>
+                    <tr><td><code>values</code></td><td><code>values(mapOrSet)</code></td><td>Array</td><td>-</td></tr>
+                    <tr><td><code>len</code></td><td><code>len(string|bytes|array|map|set|object)</code></td><td>Int</td><td>For sets, use <code>.size</code> property if preferred.</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="sequence">8. Sequence Operators</h3>
+            <p>
+                These are overloaded between arrays and streams (where noted).
+            </p>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
+                </thead>
+                <tbody>
                     <tr><td><code>filter</code></td><td><code>filter(array, pred)</code> or <code>filter(pred)</code></td><td>Array / stream stage</td></tr>
                     <tr><td><code>flatMap</code></td><td><code>flatMap(array, fn)</code> or <code>flatMap(fn)</code></td><td>Array / stream stage</td></tr>
                     <tr><td><code>reduce</code></td><td><code>reduce(array, fn, init)</code> or <code>reduce(init, fn)</code></td><td>Value / stream sink</td></tr>
                     <tr><td><code>forEach</code></td><td><code>forEach(array, fn)</code> or <code>forEach(fn)</code></td><td>Unit / stream sink</td></tr>
-                    <tr><td><code>sum</code></td><td><code>sum(array)</code></td><td>Int|Float</td></tr>
-                    <tr><td><code>find</code></td><td><code>find(array, pred)</code></td><td>Value|null</td></tr>
                     <tr><td><code>sort</code></td><td><code>sort(array, cmp)</code> or <code>sort()</code>/<code>sort(cmp)</code></td><td>Array / stream stage</td></tr>
+                    <tr><td><code>find</code></td><td><code>find(array, pred)</code></td><td>Value|null</td></tr>
+                    <tr><td><code>sum</code></td><td><code>sum(array)</code></td><td>Int|Float</td></tr>
                     <tr><td><code>take</code></td><td><code>take(n)</code></td><td>stream stage</td></tr>
                     <tr><td><code>drop</code></td><td><code>drop(n)</code></td><td>stream stage</td></tr>
                     <tr><td><code>chunk</code></td><td><code>chunk(size)</code></td><td>stream stage</td></tr>
@@ -158,16 +186,16 @@
                     <tr><td><code>throttle</code></td><td><code>throttle(ms)</code></td><td>stream stage</td></tr>
                     <tr><td><code>debounce</code></td><td><code>debounce(ms)</code></td><td>stream stage</td></tr>
                     <tr><td><code>distinct</code></td><td><code>distinct()</code></td><td>stream stage</td></tr>
-                    <tr><td><code>partition</code></td><td><code>partition(array, pred)</code> or <code>partition(selectorFn[, keys])</code></td><td>Array pair / stream sink</td></tr>
-                    <tr><td><code>split</code></td><td><code>split(array, pred)</code> or stream sink <code>split(pred)</code></td><td>Object</td></tr>
                     <tr><td><code>count</code></td><td><code>count()</code></td><td>stream sink Int</td></tr>
                     <tr><td><code>group_count</code></td><td><code>group_count([keyFn])</code></td><td>stream sink Map</td></tr>
                     <tr><td><code>reduce_by_key</code></td><td><code>reduce_by_key(keyFn, init, reducerFn)</code></td><td>stream sink Map</td></tr>
                     <tr><td><code>top</code></td><td><code>top(n[, scoreFn])</code></td><td>stream sink Array</td></tr>
+                    <tr><td><code>partition</code></td><td><code>partition(array, pred)</code> or <code>partition(selector[, keys])</code></td><td>Array pair / branch object</td></tr>
+                    <tr><td><code>split</code></td><td><code>split(pred)</code> (stream) or <code>split(text, sep)</code> (string)</td><td>Object / Array&lt;String&gt;</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="strings">7. Strings</h3>
+            <h3 id="strings">9. Strings</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
@@ -185,22 +213,22 @@
                 </tbody>
             </table>
 
-            <h3 id="encoding">8. Encoding + Data</h3>
+            <h3 id="encoding">10. Encoding + Data</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
                     <tr><td><code>fromJson</code></td><td><code>fromJson(text)</code> or <code>fromJson()</code></td><td>Value / stream stage</td><td>Recoverable parse failures.</td></tr>
-                    <tr><td><code>toJson</code></td><td><code>toJson(value)</code> or <code>toJson()</code></td><td>String / stream stage</td><td>JSON encoding of Karl value.</td></tr>
-                    <tr><td><code>fromUtf8</code></td><td><code>fromUtf8(bytes)</code> or <code>fromUtf8()</code></td><td>String / stream stage</td><td>UTF-8 decode.</td></tr>
-                    <tr><td><code>toUtf8</code></td><td><code>toUtf8(text)</code> or <code>toUtf8()</code></td><td>Bytes / stream stage</td><td>UTF-8 encode.</td></tr>
-                    <tr><td><code>bytesJoin</code></td><td><code>bytesJoin(arrayOfBytes)</code></td><td>Bytes</td><td>Concatenate chunks.</td></tr>
-                    <tr><td><code>parseInt</code></td><td><code>parseInt(text)</code></td><td>Int</td><td>Base-10, recoverable on invalid input.</td></tr>
+                    <tr><td><code>toJson</code></td><td><code>toJson(value)</code> or <code>toJson()</code></td><td>String / stream stage</td><td>Encoding fails on unsupported values.</td></tr>
+                    <tr><td><code>fromUtf8</code></td><td><code>fromUtf8(bytes)</code> or <code>fromUtf8()</code></td><td>String / stream stage</td><td>Recoverable on invalid UTF-8.</td></tr>
+                    <tr><td><code>toUtf8</code></td><td><code>toUtf8(text)</code> or <code>toUtf8()</code></td><td>Bytes / stream stage</td><td>-</td></tr>
+                    <tr><td><code>bytesJoin</code></td><td><code>bytesJoin(arrayOfBytes)</code></td><td>Bytes</td><td>Concatenates byte chunks.</td></tr>
+                    <tr><td><code>parseInt</code></td><td><code>parseInt(text)</code></td><td>Int</td><td>Runtime error on invalid input.</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="time-uuid-crypto">9. Time / UUID / Crypto</h3>
+            <h3 id="time-crypto">11. Time / UUID / Crypto</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
@@ -218,7 +246,7 @@
                 </tbody>
             </table>
 
-            <h3 id="math-random">10. Math + Random</h3>
+            <h3 id="math-random">12. Math + Random</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
@@ -241,54 +269,55 @@
                 </tbody>
             </table>
 
-            <h3 id="fs">11. Filesystem</h3>
-            <table>
-                <thead>
-                    <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
-                </thead>
-                <tbody>
-                    <tr><td><code>readFile</code></td><td><code>readFile(path)</code></td><td>String</td></tr>
-                    <tr><td><code>writeFile</code></td><td><code>writeFile(path, text)</code></td><td>()</td></tr>
-                    <tr><td><code>appendFile</code></td><td><code>appendFile(path, text)</code></td><td>()</td></tr>
-                    <tr><td><code>deleteFile</code></td><td><code>deleteFile(path)</code></td><td>()</td></tr>
-                    <tr><td><code>exists</code></td><td><code>exists(path)</code></td><td>Bool</td></tr>
-                    <tr><td><code>listDir</code></td><td><code>listDir(path)</code></td><td>Array&lt;String&gt;</td></tr>
-                    <tr><td><code>reader</code></td><td><code>reader(path, opts?)</code></td><td><code>&lt;stream-reader&gt;</code></td></tr>
-                    <tr><td><code>writer</code></td><td><code>writer(path, opts?)</code></td><td><code>&lt;stream-writer&gt;</code></td></tr>
-                </tbody>
-            </table>
-
-            <h3 id="http">12. HTTP + Server</h3>
+            <h3 id="fs">13. Filesystem</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>http</code></td><td><code>http({ method?, url, headers?, body? })</code></td><td>Object response</td><td>Blocking request form.</td></tr>
-                    <tr><td><code>http</code></td><td><code>http(url, opts?)</code></td><td><code>&lt;stream-source&gt;</code></td><td>Stream source form for pipeline consumption.</td></tr>
-                    <tr><td><code>httpServe</code></td><td><code>httpServe({ addr, routes })</code></td><td>Server</td><td>Native runtime only.</td></tr>
-                    <tr><td><code>httpServerStop</code></td><td><code>httpServerStop(server)</code></td><td>()</td><td>Graceful stop.</td></tr>
+                    <tr><td><code>readFile</code></td><td><code>readFile(path)</code></td><td>String</td><td>Whole-file read as text.</td></tr>
+                    <tr><td><code>writeFile</code></td><td><code>writeFile(path, text)</code></td><td><code>()</code></td><td>Overwrite.</td></tr>
+                    <tr><td><code>appendFile</code></td><td><code>appendFile(path, text)</code></td><td><code>()</code></td><td>Append.</td></tr>
+                    <tr><td><code>deleteFile</code></td><td><code>deleteFile(path)</code></td><td><code>()</code></td><td>-</td></tr>
+                    <tr><td><code>exists</code></td><td><code>exists(path)</code></td><td>Bool</td><td>-</td></tr>
+                    <tr><td><code>listDir</code></td><td><code>listDir(path)</code></td><td>Array&lt;String&gt;</td><td>-</td></tr>
+                    <tr><td><code>reader</code></td><td><code>reader(path, opts?)</code></td><td><code>&lt;stream-reader&gt;</code></td><td>Low-level stream handle.</td></tr>
+                    <tr><td><code>writer</code></td><td><code>writer(path, opts?)</code></td><td><code>&lt;stream-writer&gt;</code></td><td>Low-level stream handle.</td></tr>
+                    <tr><td><code>read</code></td><td><code>read(path, opts?)</code></td><td><code>&lt;stream-source&gt;</code></td><td>Preferred pipeline source.</td></tr>
+                    <tr><td><code>write</code></td><td><code>write(path, opts?)</code></td><td><code>&lt;stream-sink&gt;</code></td><td>Preferred pipeline sink.</td></tr>
                 </tbody>
             </table>
 
-            <h3 id="sql">13. SQL</h3>
+            <h3 id="http">14. HTTP</h3>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>http</code></td><td><code>http(url, opts?)</code></td><td><code>&lt;stream-source&gt;</code></td><td>Preferred HTTP form.</td></tr>
+                    <tr><td><code>httpServe</code></td><td><code>httpServe({ addr, routes })</code></td><td>Server</td><td>Native runtime only.</td></tr>
+                    <tr><td><code>httpServerStop</code></td><td><code>httpServerStop(server)</code></td><td><code>()</code></td><td>Graceful stop.</td></tr>
+                </tbody>
+            </table>
+
+            <h3 id="sql">15. SQL</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
                 </thead>
                 <tbody>
                     <tr><td><code>sqlOpen</code></td><td><code>sqlOpen(dsn)</code></td><td>Db</td></tr>
-                    <tr><td><code>sqlClose</code></td><td><code>sqlClose(db)</code></td><td>()</td></tr>
+                    <tr><td><code>sqlClose</code></td><td><code>sqlClose(db)</code></td><td><code>()</code></td></tr>
                     <tr><td><code>sqlExec</code></td><td><code>sqlExec(connOrTx, query, paramsArray)</code></td><td><code>{ rowsAffected }</code></td></tr>
                     <tr><td><code>sqlQuery</code></td><td><code>sqlQuery(connOrTx, query, paramsArray)</code></td><td>Array&lt;Object&gt;</td></tr>
                     <tr><td><code>sqlQueryOne</code></td><td><code>sqlQueryOne(connOrTx, query, paramsArray)</code></td><td>Object|null</td></tr>
                     <tr><td><code>sqlBegin</code></td><td><code>sqlBegin(db)</code></td><td>Tx</td></tr>
-                    <tr><td><code>sqlCommit</code></td><td><code>sqlCommit(tx)</code></td><td>()</td></tr>
-                    <tr><td><code>sqlRollback</code></td><td><code>sqlRollback(tx)</code></td><td>()</td></tr>
+                    <tr><td><code>sqlCommit</code></td><td><code>sqlCommit(tx)</code></td><td><code>()</code></td></tr>
+                    <tr><td><code>sqlRollback</code></td><td><code>sqlRollback(tx)</code></td><td><code>()</code></td></tr>
                 </tbody>
             </table>
 
-            <h3 id="signals">14. Signals</h3>
+            <h3 id="signals">16. Signals</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th></tr>
@@ -298,43 +327,40 @@
                 </tbody>
             </table>
 
-            <h3 id="process">15. Process API</h3>
+            <h3 id="process">17. Process API</h3>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>proc</code></td><td><code>proc(spec, opts?)</code> or <code>proc(command, ...args, opts?)</code></td><td><code>&lt;process&gt;</code></td><td>Starts immediately; non-blocking handle.</td></tr>
-                    <tr><td><code>run</code></td><td><code>run(spec, opts?)</code> or <code>run(command, ...args, opts?)</code></td><td>RunStatus</td><td>Blocking capture convenience.</td></tr>
+                    <tr><td><code>proc</code></td><td><code>proc(spec, opts?)</code> or <code>proc(command, ...args, opts?)</code></td><td><code>&lt;process&gt;</code></td><td>Starts immediately.</td></tr>
+                    <tr><td><code>run</code></td><td><code>run(spec, opts?)</code> or <code>run(command, ...args, opts?)</code></td><td>RunStatus</td><td>Blocking convenience form.</td></tr>
                 </tbody>
             </table>
-            <p>Process status fields from <code>wait p</code>:</p>
-            <pre><code>{ ok, code, signal, timedOut, aborted, durationMs, }</code></pre>
-            <p>RunStatus extends with:</p>
-            <pre><code>{ output, error, outputTruncated, errorTruncated, }</code></pre>
             <p>Process members:</p>
             <pre><code>p.pid
 p.running
-p.stdin   // only with stdin: PIPE
-p.stdout  // only with stdout: PIPE
-p.stderr  // only with stderr: PIPE
+p.stdin   // available when stdin: PIPE
+p.stdout  // available when stdout: PIPE
+p.stderr  // available when stderr: PIPE
 p.abort()
 p.kill()
-p.signal("SIGTERM")
-</code></pre>
+p.signal("SIGTERM")</code></pre>
+            <p>Status objects:</p>
+            <pre><code>wait p -> { ok, code, signal, timedOut, aborted, durationMs, }
+run(...) -> { ok, code, signal, timedOut, aborted, durationMs, output, error, outputTruncated, errorTruncated, }</code></pre>
 
-            <h3 id="streams">16. Stream API</h3>
-            <h4>16.1 Sources</h4>
+            <h3 id="streams">18. Stream API</h3>
+            <h4>18.1 Sources</h4>
             <pre><code>read(path, opts?)
 stdin(opts?)
 http(url, opts?)
 fromChannel(ch)
 merge(a, b, ...) or merge([a, b, ...])
 zip(a, b)
-join(left, right, leftKeyFn, rightKeyFn)
-</code></pre>
+join(left, right, leftKeyFn, rightKeyFn)</code></pre>
 
-            <h4>16.2 Stages</h4>
+            <h4>18.2 Stages</h4>
             <pre><code>lines()
 fromJson()
 toJson()
@@ -352,10 +378,9 @@ window(size, step)
 throttle(ms)
 debounce(ms)
 tee(sink)
-spill(path, opts?)
-</code></pre>
+spill(path, opts?)</code></pre>
 
-            <h4>16.3 Sinks</h4>
+            <h4>18.3 Sinks</h4>
             <pre><code>stdout()
 write(path, opts?)
 collect()
@@ -369,11 +394,10 @@ reduce_by_key(keyFn, init, reducerFn)
 top(n[, scoreFn])
 partition(selector[, branchKeys])
 split(pred)
-exec(specOrCommand...)
-</code></pre>
+exec(specOrCommand...)</code></pre>
 
-            <h4>16.4 Stream members</h4>
-            <pre><code>// source / plan
+            <h4>18.4 Stream Handle Members</h4>
+            <pre><code>// source or plan
 s.read()      // [item, eof]
 s.close()
 
@@ -383,10 +407,9 @@ r.close()
 
 // writer
 w.write(chunk) // bytes written
-w.close()
-</code></pre>
+w.close()</code></pre>
 
-            <h3 id="methods">17. Method Sugar</h3>
+            <h3 id="methods">19. Method Sugar</h3>
             <table>
                 <thead>
                     <tr><th>Type</th><th>Properties</th><th>Methods</th></tr>
@@ -406,41 +429,66 @@ w.close()
                 </tbody>
             </table>
 
-            <h3 id="examples">18. Non-Obvious Examples</h3>
-            <h4>map overloads: constructor vs array transform vs stream stage</h4>
+            <h3 id="examples">20. Non-Obvious Examples</h3>
+            <h4>Overloaded map: constructor, array transform, stream stage</h4>
             <pre><code>let m = map()
 let xs = map([1, 2, 3], x -> x * 2)
-let ys = read("items.txt", { type: TEXT, }) | lines() | map(_ + "!") | collect()
-</code></pre>
+let ys = read("items.txt", { type: TEXT, }) | lines() | map(_ + "!") | collect()</code></pre>
 
-            <h4>http overloads: blocking object request vs stream source</h4>
-            <pre><code>let r = http({ method: "GET", url: "https://api.github.com", })
-let rows = http("https://example.com/events.ndjson", { type: TEXT, }) | lines() | collect()
-</code></pre>
+            <h4>partition(selector, keys): branch into named streams</h4>
+            <pre><code>let branches = read("events.ndjson", { type: TEXT, })
+    | lines()
+    | filter(_ != "")
+    | fromJson()
+    | partition(e -> e.level, ["ERROR", "WARN", "INFO"])
+
+let errors = branches.ERROR | count()
+let warns = branches.WARN | count()
+log({ errors, warns, })</code></pre>
+
+            <h4>join(left, right, leftKeyFn, rightKeyFn)</h4>
+            <pre><code>let users = read("users.ndjson", { type: TEXT, }) | lines() | filter(_ != "") | fromJson()
+let orders = read("orders.ndjson", { type: TEXT, }) | lines() | filter(_ != "") | fromJson()
+
+let joined = join(users, orders, u -> u.id, o -> o.user_id) | collect()</code></pre>
 
             <h4>run vs proc</h4>
             <pre><code>let st = run("kubectl", "get", "ns") // blocking capture
 
 let p = proc("kubectl", "logs", "-f", "deploy/api", { stdout: PIPE, stderr: NULL, stdoutType: TEXT, })
 let [line, eof] = p.stdout.read()
-let final = wait p
-</code></pre>
+let final = wait p</code></pre>
 
-            <h4>stream.read() cursor semantics</h4>
+            <h4>HTTP stream + JSON stage</h4>
+            <pre><code>let byTeam = http("https://example.com/events.ndjson", { type: TEXT, })
+    | lines()
+    | filter(_ != "")
+    | fromJson()
+    | group_count(_.team)</code></pre>
+
+            <h4>exec sink: pipe stream output into external command</h4>
+            <pre><code>let st = read("app.log", { type: TEXT, })
+    | lines()
+    | filter(_.contains("ERROR"))
+    | exec("wc", "-l", { maxOutputBytes: 1024, })
+
+log(st.output.trim())</code></pre>
+
+            <h4>stream cursor semantics</h4>
             <pre><code>let s = read("events.log", { type: TEXT, }) | lines()
 let [a, eofA] = s.read()
 let [b, eofB] = s.read()
 s.close()
-let [c, eofC] = s.read() // [null, true]
-</code></pre>
+let [c, eofC] = s.read() // [null, true]</code></pre>
 
-            <h4>run overflow mode</h4>
-            <pre><code>let st = run("cat", "huge.log", { maxOutputBytes: 4096, overflow: "truncate", })
-log({ truncated: st.outputTruncated, size: len(st.output), })
-</code></pre>
+            <h3 id="compat">21. Compatibility Notes</h3>
+            <ul>
+                <li>Prefer <code>http(url, opts?)</code>. Legacy blocking <code>http({ method, url, ... })</code> remains for compatibility but is not the recommended style.</li>
+                <li>Some built-ins are overloaded intentionally (<code>map</code>, <code>split</code>, <code>send</code>). This page lists each valid shape explicitly.</li>
+            </ul>
 
             <div class="footer">
-                <span>Canonical semantics are defined in <code>SPECS/stream.md</code> and <code>SPECS/process.md</code>.</span>
+                <span>Semantics source of truth: <code>SPECS/</code>, plus runtime tests in <code>tests/</code>.</span>
                 <span><a href="/docs/idiomatic/">Next: idiomatic patterns</a></span>
             </div>
         </article>
