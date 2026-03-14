@@ -39,7 +39,11 @@ func builtinSignalWatch(e *Evaluator, args []Value) (Value, error) {
 		names[sig] = canonical
 	}
 
-	out := &Channel{Ch: make(chan Value, len(watch)+4), closeCh: make(chan struct{})}
+	out := &Channel{
+		Ch:                 make(chan Value, len(watch)+4),
+		closeCh:            make(chan struct{}),
+		allowTopLevelBlock: true,
+	}
 	osCh := make(chan os.Signal, len(watch)+4)
 	watchDone := make(chan struct{})
 	signal.Notify(osCh, watch...)

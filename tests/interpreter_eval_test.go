@@ -1183,6 +1183,68 @@ c.recv()
 	}
 }
 
+func TestSignalWatchRecvAtTopLevelDoesNotFalseDeadlock(t *testing.T) {
+	evalDone := make(chan struct{})
+	var val Value
+	var evalErr error
+	go func() {
+		defer close(evalDone)
+		val, evalErr = evalInput(t, `
+let sigs = signalWatch(["SIGINT"])
+let [sig, done] = sigs.recv()
+if done { "closed" } else { sig }
+`)
+	}()
+
+	signalDone := make(chan struct{})
+	sendErrCh := make(chan error, 1)
+	go func() {
+		defer close(signalDone)
+		timer := time.NewTimer(200 * time.Millisecond)
+		defer timer.Stop()
+
+		select {
+		case <-evalDone:
+			return
+		case <-timer.C:
+		}
+
+		proc, err := os.FindProcess(os.Getpid())
+		if err != nil {
+			sendErrCh <- err
+			return
+		}
+		sendErrCh <- proc.Signal(os.Interrupt)
+	}()
+
+	select {
+	case <-evalDone:
+	case <-time.After(2 * time.Second):
+		<-signalDone
+		select {
+		case sendErr := <-sendErrCh:
+			if sendErr != nil {
+				t.Skipf("signal delivery not supported on this platform: %v", sendErr)
+			}
+		default:
+		}
+		t.Fatalf("evaluation timed out")
+	}
+	<-signalDone
+	select {
+	case sendErr := <-sendErrCh:
+		if sendErr != nil {
+			t.Skipf("signal delivery not supported on this platform: %v", sendErr)
+		}
+	default:
+	}
+
+	if evalErr != nil {
+		t.Fatalf("expected top-level signal recv to block for signal, got error: %v", evalErr)
+	}
+	assertString(t, val, "SIGINT")
+}
+
 func TestChannelDeadlockSendReturnsRuntimeError(t *testing.T) {
 	done := make(chan struct{})
 	var err error

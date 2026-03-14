@@ -75,6 +75,8 @@ Additional non-negotiables:
 - No implicit lifecycle/runtime magic without explicit approval.
 - No aliases by default unless explicitly requested.
 - Keep behavior predictable across CLI, REPL, Playground, and tests.
+- Runtime deadlock probing must not misclassify external-event waits as
+  deadlocks (for example, top-level `signalWatch(...).recv()` must wait).
 - Prefer single-instance module import shorthand:
   - `let x = (import "path/module.k")()`
 - Use two-step factory imports only when multiple independent instances are needed:
@@ -104,6 +106,7 @@ Tests should validate, when applicable:
 - cancellation behavior
 - concurrency correctness
 - memory safety characteristics
+- deadlock probe correctness (true deadlocks vs valid external waits)
 
 Suggested command flow:
 - targeted tests first

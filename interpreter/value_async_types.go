@@ -40,6 +40,9 @@ type Channel struct {
 	closedMu  sync.RWMutex
 	closeOnce sync.Once
 	onClose   func()
+	// Some channels are fed by external event sources (OS signals, etc.).
+	// Top-level recv on those channels is not a deadlock even with no Karl tasks.
+	allowTopLevelBlock bool
 }
 
 func (c *Channel) Type() ValueType { return CHANNEL }

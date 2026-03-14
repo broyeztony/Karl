@@ -123,6 +123,9 @@ func builtinRecv(e *Evaluator, args []Value) (Value, error) {
 			if !isTopLevelRuntimeDeadlocked(e) {
 				continue
 			}
+			if ch.allowTopLevelBlock {
+				continue
+			}
 			// If data/close became ready while ticker fired, consume it first.
 			select {
 			case val := <-ch.Ch:
