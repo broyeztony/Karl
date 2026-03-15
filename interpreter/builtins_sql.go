@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+const (
+	defaultSQLMaxOpenConns = 32
+	defaultSQLMaxIdleConns = 16
+)
+
+type sqlOpenOptions struct {
+	maxOpenConns      int
+	maxIdleConns      int
+	connMaxLifetimeMs int64
+	connMaxIdleTimeMs int64
+}
+
 func registerSQLBuiltins() {
 	builtins["sqlOpen"] = &Builtin{Name: "sqlOpen", Fn: builtinSQLOpen}
 	builtins["sqlClose"] = &Builtin{Name: "sqlClose", Fn: builtinSQLClose}
@@ -21,18 +33,23 @@ func registerSQLBuiltins() {
 }
 
 func builtinSQLOpen(e *Evaluator, args []Value) (Value, error) {
-	if len(args) != 1 {
-		return nil, &RuntimeError{Message: "sqlOpen expects dsn"}
+	if len(args) != 1 && len(args) != 2 {
+		return nil, &RuntimeError{Message: "sqlOpen expects dsn and optional options object"}
 	}
 	dsn, ok := stringArg(args[0])
 	if !ok {
 		return nil, &RuntimeError{Message: "sqlOpen expects string dsn"}
+	}
+	opts, err := parseSQLOpenOptions(args[1:])
+	if err != nil {
+		return nil, err
 	}
 	driver := runtimeSQLDriver(e)
 	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		return nil, recoverableError("sqlOpen", "sqlOpen error: "+err.Error())
 	}
+	applySQLOpenOptions(db, opts)
 	ctx, done := runtimeCancelableContext(e)
 	defer done()
 	if err := db.PingContext(ctx); err != nil {
@@ -43,6 +60,114 @@ func builtinSQLOpen(e *Evaluator, args []Value) (Value, error) {
 		return nil, recoverableError("sqlOpen", "sqlOpen error: "+err.Error())
 	}
 	return &SQLDB{DB: db}, nil
+}
+
+func parseSQLOpenOptions(extra []Value) (sqlOpenOptions, error) {
+	opts := sqlOpenOptions{
+		maxOpenConns: defaultSQLMaxOpenConns,
+		maxIdleConns: defaultSQLMaxIdleConns,
+	}
+	if len(extra) == 0 {
+		return opts, nil
+	}
+
+	pairs, ok := objectPairs(extra[0])
+	if !ok {
+		return sqlOpenOptions{}, &RuntimeError{Message: "sqlOpen options must be object"}
+	}
+	if err := rejectUnknownObjectKeys(pairs, "sqlOpen options", []string{
+		"maxOpenConns",
+		"maxIdleConns",
+		"connMaxLifetimeMs",
+		"connMaxIdleTimeMs",
+	}); err != nil {
+		return sqlOpenOptions{}, err
+	}
+
+	if val, ok := pairs["maxOpenConns"]; ok && !Equivalent(val, NullValue) {
+		n, err := parseSQLOpenIntOption(val, "maxOpenConns")
+		if err != nil {
+			return sqlOpenOptions{}, err
+		}
+		opts.maxOpenConns = n
+	}
+	if val, ok := pairs["maxIdleConns"]; ok && !Equivalent(val, NullValue) {
+		n, err := parseSQLOpenIntOption(val, "maxIdleConns")
+		if err != nil {
+			return sqlOpenOptions{}, err
+		}
+		opts.maxIdleConns = n
+	}
+	if val, ok := pairs["connMaxLifetimeMs"]; ok && !Equivalent(val, NullValue) {
+		n, err := parseSQLOpenInt64Option(val, "connMaxLifetimeMs")
+		if err != nil {
+			return sqlOpenOptions{}, err
+		}
+		opts.connMaxLifetimeMs = n
+	}
+	if val, ok := pairs["connMaxIdleTimeMs"]; ok && !Equivalent(val, NullValue) {
+		n, err := parseSQLOpenInt64Option(val, "connMaxIdleTimeMs")
+		if err != nil {
+			return sqlOpenOptions{}, err
+		}
+		opts.connMaxIdleTimeMs = n
+	}
+
+	return opts, nil
+}
+
+func parseSQLOpenIntOption(val Value, field string) (int, error) {
+	raw, ok := val.(*Integer)
+	if !ok {
+		return 0, &RuntimeError{Message: "sqlOpen " + field + " must be integer"}
+	}
+	if raw.Value < 0 {
+		return 0, &RuntimeError{Message: "sqlOpen " + field + " must be >= 0"}
+	}
+	maxInt := int64(^uint(0) >> 1)
+	if raw.Value > maxInt {
+		return 0, &RuntimeError{Message: "sqlOpen " + field + " is too large"}
+	}
+	return int(raw.Value), nil
+}
+
+func parseSQLOpenInt64Option(val Value, field string) (int64, error) {
+	raw, ok := val.(*Integer)
+	if !ok {
+		return 0, &RuntimeError{Message: "sqlOpen " + field + " must be integer"}
+	}
+	if raw.Value < 0 {
+		return 0, &RuntimeError{Message: "sqlOpen " + field + " must be >= 0"}
+	}
+	return raw.Value, nil
+}
+
+func applySQLOpenOptions(db *sql.DB, opts sqlOpenOptions) {
+	if db == nil {
+		return
+	}
+
+	maxOpen := opts.maxOpenConns
+	if maxOpen < 0 {
+		maxOpen = defaultSQLMaxOpenConns
+	}
+	maxIdle := opts.maxIdleConns
+	if maxIdle < 0 {
+		maxIdle = defaultSQLMaxIdleConns
+	}
+	if maxOpen > 0 && maxIdle > maxOpen {
+		maxIdle = maxOpen
+	}
+
+	db.SetMaxOpenConns(maxOpen)
+	db.SetMaxIdleConns(maxIdle)
+
+	if opts.connMaxLifetimeMs > 0 {
+		db.SetConnMaxLifetime(time.Duration(opts.connMaxLifetimeMs) * time.Millisecond)
+	}
+	if opts.connMaxIdleTimeMs > 0 {
+		db.SetConnMaxIdleTime(time.Duration(opts.connMaxIdleTimeMs) * time.Millisecond)
+	}
 }
 
 func builtinSQLClose(_ *Evaluator, args []Value) (Value, error) {

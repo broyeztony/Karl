@@ -105,6 +105,41 @@ sqlClose(db);
 	assertString(t, arr.Elements[2], "u3")
 }
 
+func TestVigilBuiltinsSQLOpenOptions(t *testing.T) {
+	ensureFakeSQLDriverRegistered()
+	dsn := fmt.Sprintf("open-opts-%d", time.Now().UnixNano())
+	fakeDriverResetDSN(dsn)
+
+	input := fmt.Sprintf(`
+let db = sqlOpen("%s", {
+	maxOpenConns: 24,
+	maxIdleConns: 12,
+	connMaxLifetimeMs: 120000,
+	connMaxIdleTimeMs: 30000,
+})
+sqlClose(db)
+"ok"
+`, dsn)
+
+	val, err := evalWithConfiguredEvaluator(t, input, func(eval *interpreter.Evaluator) {
+		eval.SetSQLDriver(fakeSQLDriverName)
+	})
+	if err != nil {
+		t.Fatalf("eval error: %v", err)
+	}
+	assertString(t, val, "ok")
+
+	_, err = evalInput(t, `sqlOpen("x", { mystery: 1, })`)
+	if err == nil || !strings.Contains(err.Error(), "sqlOpen options has unknown field(s): mystery") {
+		t.Fatalf("expected unknown field error, got: %v", err)
+	}
+
+	_, err = evalInput(t, `sqlOpen("x", { maxOpenConns: "32", })`)
+	if err == nil || !strings.Contains(err.Error(), "sqlOpen maxOpenConns must be integer") {
+		t.Fatalf("expected maxOpenConns type error, got: %v", err)
+	}
+}
+
 func TestVigilBuiltinsSHAUUIDTime(t *testing.T) {
 	val := mustEval(t, `
 let hash = sha256("abc")
