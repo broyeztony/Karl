@@ -90,3 +90,15 @@ func (s *Set) Inspect() string {
 	return out.String()
 }
 
+type Tree struct {
+	kind       string
+	root       *treeNode
+	size       int
+	keyType    ValueType
+	keyTypeSet bool
+}
+
+func (t *Tree) Type() ValueType { return TREE }
+func (t *Tree) Inspect() string {
+	return "tree(" + t.kind + ", size=" + (&Integer{Value: int64(t.size)}).Inspect() + ")"
+}

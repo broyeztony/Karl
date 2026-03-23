@@ -14,6 +14,7 @@ Each example demonstrates one specific capability.
 - `examples/features/lists_basic.k` - arrays + map/filter/reduce/sum/find/sort/length
 - `examples/features/maps_basic.k` - map set/get/has/delete/keys/values
 - `examples/features/sets_basic.k` - set add/has/delete/values/size
+- `examples/features/tree_basic.k` - ordered tree collections (AVL/Treap), bounds, and in-order traversal
 - `examples/features/strings_basic.k` - string helpers
 - `examples/features/runtime_args_env.k` - argv/programPath/environ/env
 - `examples/features/stdin_readline.k` - readLine with EOF flow

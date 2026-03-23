@@ -76,6 +76,152 @@ func (e *Evaluator) setMethod(s *Set, name string) (Value, *Signal, error) {
 	}
 }
 
+func (e *Evaluator) treeMethod(t *Tree, name string) (Value, *Signal, error) {
+	switch name {
+	case "set":
+		return &Builtin{
+			Name: "set",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 2 {
+					return nil, &RuntimeError{Message: "set expects key and value"}
+				}
+				if err := t.Set(args[0], args[1]); err != nil {
+					return nil, err
+				}
+				return t, nil
+			},
+		}, nil, nil
+	case "get":
+		return &Builtin{
+			Name: "get",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "get expects key"}
+				}
+				return t.Get(args[0])
+			},
+		}, nil, nil
+	case "has":
+		return &Builtin{
+			Name: "has",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "has expects key"}
+				}
+				ok, err := t.Has(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return &Boolean{Value: ok}, nil
+			},
+		}, nil, nil
+	case "delete":
+		return &Builtin{
+			Name: "delete",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "delete expects key"}
+				}
+				ok, err := t.Delete(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return &Boolean{Value: ok}, nil
+			},
+		}, nil, nil
+	case "kind":
+		return &Builtin{
+			Name: "kind",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "kind expects no arguments"}
+				}
+				return &String{Value: t.kind}, nil
+			},
+		}, nil, nil
+	case "min":
+		return &Builtin{
+			Name: "min",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "min expects no arguments"}
+				}
+				return treeItemValue(t.MinNode()), nil
+			},
+		}, nil, nil
+	case "max":
+		return &Builtin{
+			Name: "max",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "max expects no arguments"}
+				}
+				return treeItemValue(t.MaxNode()), nil
+			},
+		}, nil, nil
+	case "lowerBound":
+		return &Builtin{
+			Name: "lowerBound",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "lowerBound expects key"}
+				}
+				n, err := t.LowerBound(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return treeItemValue(n), nil
+			},
+		}, nil, nil
+	case "upperBound":
+		return &Builtin{
+			Name: "upperBound",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "upperBound expects key"}
+				}
+				n, err := t.UpperBound(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return treeItemValue(n), nil
+			},
+		}, nil, nil
+	case "keys":
+		return &Builtin{
+			Name: "keys",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "keys expects no arguments"}
+				}
+				return &Array{Elements: t.Keys()}, nil
+			},
+		}, nil, nil
+	case "values":
+		return &Builtin{
+			Name: "values",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "values expects no arguments"}
+				}
+				return &Array{Elements: t.Values()}, nil
+			},
+		}, nil, nil
+	case "items":
+		return &Builtin{
+			Name: "items",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "items expects no arguments"}
+				}
+				return &Array{Elements: t.Items()}, nil
+			},
+		}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "unknown tree member: " + name}
+	}
+}
+
 func (e *Evaluator) taskMethod(t *Task, name string) (Value, *Signal, error) {
 	switch name {
 	case "then":

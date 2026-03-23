@@ -84,6 +84,7 @@ Falsy values:
 - `{}` (empty object)
 - `map()` (empty map)
 - `set()` (empty set)
+- `tree()` (empty AVL tree)
 
 Everything else is truthy.
 Logical `!`, `&&`, and `||` operate on truthy/falsy and return `Bool`.
@@ -583,6 +584,7 @@ Implementation details (current runtime):
 - `done(rendezvous)` -> Unit (closes rendezvous)
 - `map()` -> Map
 - `set()` -> Set
+- `tree(kind?)` -> Tree (`kind`: `"avl"` or `"treap"`, default `"avl"`)
 - `map(list, fn)` remains the array map function.
 - `sort(list, cmp)` -> Array (returns new array)
 - `split(string, sep)` -> Array
@@ -604,6 +606,18 @@ Implementation details (current runtime):
 - `keys(map)` -> Array
 - `values(map)` -> Array
 - `values(set)` -> Array
+- `tree.set(key, value)` -> Tree
+- `tree.get(key)` -> value or `null`
+- `tree.has(key)` -> Bool
+- `tree.delete(key)` -> Bool
+- `tree.kind()` -> String
+- `tree.min()` -> `{ key, value }` or `null`
+- `tree.max()` -> `{ key, value }` or `null`
+- `tree.lowerBound(key)` -> `{ key, value }` or `null` (`>= key`)
+- `tree.upperBound(key)` -> `{ key, value }` or `null` (`> key`)
+- `tree.keys()` -> Array (in-order)
+- `tree.values()` -> Array (in-order by key)
+- `tree.items()` -> Array of `{ key, value }` (in-order)
 - `abs(number)` -> Number
 - `sqrt(number)` -> Float
 - `pow(base, exp)` -> Float
@@ -621,6 +635,7 @@ Implementation details (current runtime):
 
 Notes:
 - `http` accepts `headers` as an object or map; the response `headers` is a `Map` so header names like `Content-Type` are accessible via `headers.get("Content-Type")`.
+- Tree key types are ordered scalars only: `int`, `float`, `string`, `char`; mixed key domains are rejected.
 
 ## Equality Semantics
 
