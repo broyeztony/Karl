@@ -140,6 +140,6 @@ Agents must preserve these principles.
 - `tests/` - language/runtime behavior tests
 - `debugger/` - DAP/debugger
 - `playground/`, `assets/playground/` - bench + wasm assets
-- `karl-vscode/` - editor extension
+- `plugins/` - editor plugins (VS Code, Sublime)
 - `examples/` - feature and workflow examples
 - `SPECS/` - design specifications

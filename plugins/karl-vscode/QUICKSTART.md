@@ -8,7 +8,7 @@
 2. **Copy the extension folder:**
    ```bash
    # Mac/Linux
-   cp -r karl-vscode ~/.vscode/extensions/
+   cp -r plugins/karl-vscode ~/.vscode/extensions/
    
    # Or manually copy to:
    # Mac: ~/.vscode/extensions/
@@ -29,7 +29,7 @@
 
 1. **Install dependencies:**
    ```bash
-   cd karl-vscode
+   cd plugins/karl-vscode
    npm install
    ```
 
@@ -49,7 +49,7 @@
 
 1. **Open extension in VS Code:**
    ```bash
-   cd karl-vscode
+   cd plugins/karl-vscode
    code .
    ```
 

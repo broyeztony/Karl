@@ -40,8 +40,8 @@ go.work.sum
 karl
 
 # Karl VS Code extension build artifacts
-karl-vscode/node_modules/
-karl-vscode/*.vsix
+plugins/karl-vscode/node_modules/
+plugins/karl-vscode/*.vsix
 
 # Local tooling binaries
 minikube-darwin-arm64

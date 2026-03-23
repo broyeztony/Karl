@@ -29,7 +29,7 @@ After reloading, try this:
 code examples/nico/concurrent_pipeline.k
 
 # Or the test file
-code karl-vscode/test.k
+code plugins/karl-vscode/test.k
 ```
 
 **You should see:**
@@ -45,7 +45,7 @@ code karl-vscode/test.k
 ## 📁 What You Have
 
 ```
-karl-vscode/
+plugins/karl-vscode/
 ├── package.json                 # Extension config
 ├── language-configuration.json  # Brackets, auto-close
 ├── syntaxes/
@@ -175,7 +175,7 @@ ls ~/.vscode/extensions/ | grep karl
 ### Create VSIX for others:
 
 ```bash
-cd karl-vscode
+cd plugins/karl-vscode
 npm install
 npm install -g vsce
 vsce package

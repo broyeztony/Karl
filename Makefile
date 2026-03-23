@@ -5,7 +5,7 @@ GOCACHE_DIR ?= /tmp/karl-go-cache
 KARL_BIN ?= ./karl
 WASM_OUT ?= assets/playground/karl.wasm
 SHEETS_WASM_OUT ?= assets/playground/sheets/karl-sheets.wasm
-VSCODE_EXT_DIR ?= karl-vscode
+VSCODE_EXT_DIR ?= plugins/karl-vscode
 VSCODE_CLI ?= code
 CURSOR_CLI ?= cursor
 GO_CMD = GOCACHE=$(GOCACHE_DIR) $(GO)

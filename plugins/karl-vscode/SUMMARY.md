@@ -7,7 +7,7 @@ A **professional VS Code extension** with comprehensive syntax highlighting for 
 ### 📁 Extension Structure
 
 ```
-karl-vscode/
+plugins/karl-vscode/
 ├── package.json                    # Extension manifest
 ├── language-configuration.json     # Bracket matching, auto-close
 ├── syntaxes/
@@ -97,7 +97,7 @@ karl-vscode/
 
 Open the test file to see all features:
 ```bash
-code karl-vscode/test.k
+code plugins/karl-vscode/test.k
 ```
 
 You should see:
@@ -164,7 +164,7 @@ Add to your VS Code `settings.json`:
 ### Package as VSIX:
 
 ```bash
-cd karl-vscode
+cd plugins/karl-vscode
 npm install
 npm install -g vsce
 vsce package

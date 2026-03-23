@@ -30,7 +30,7 @@ Beautiful syntax highlighting for the Karl programming language!
 
 ### From Source
 ```bash
-cd karl-vscode
+cd plugins/karl-vscode
 npm install
 npm run package
 code --install-extension karl-lang-0.1.0.vsix

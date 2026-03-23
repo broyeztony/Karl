@@ -50,9 +50,12 @@ karl loom
 `bench` is Karl's browser-first playground experience: run Karl instantly at [karl-lang.org/bench](https://karl-lang.org/bench), no install needed.  
 Run it locally with `karl playground` (default `http://localhost:8081/bench`). See [playground/README.md](playground/README.md).
 
-### VS Code Plugin
-Karl ships with a VS Code extension in `karl-vscode/` for syntax highlighting and editor support.  
-Setup and usage: [karl-vscode/README.md](karl-vscode/README.md).
+### Editor Plugins (VS Code + Sublime)
+Karl ships with editor plugins in `plugins/`:
+- VS Code/Cursor extension: `plugins/karl-vscode/`
+- Sublime Text syntax/theme: `plugins/karl-sublime/`
+
+Install instructions: [plugins/README.md](plugins/README.md).
 
 ### Notebook + Jupyter Integration
 Run `.knb` notebooks with `karl notebook`, or use Karl from Jupyter Lab/Notebook through the Karl kernel.  

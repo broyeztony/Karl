@@ -1,0 +1,64 @@
+{
+  "name": "Karl (Bench Light)",
+  "author": "Karl",
+  "globals": {
+    "background": "#FFFFFF",
+    "foreground": "#1E1E1E",
+    "caret": "#1E1E1E",
+    "line_highlight": "#F7F7F7",
+    "selection": "#E6E6E6",
+    "selection_border": "#E6E6E6",
+    "inactive_selection": "#F1F1F1",
+    "gutter": "#F7F7F7",
+    "gutter_foreground": "#949494",
+    "guide": "#E6E6E6",
+    "stack_guide": "#D9D9D9",
+    "active_guide": "#CFCFCF"
+  },
+  "rules": [
+    {
+      "scope": "source.karl",
+      "font_style": ""
+    },
+    {
+      "scope": "comment.line.double-slash.karl",
+      "foreground": "#7C7C7C",
+      "font_style": ""
+    },
+    {
+      "scope": "keyword.control.karl, keyword.other.karl, keyword.operator.karl, keyword.operator.arrow.karl, keyword.operator.async.karl, keyword.operator.race.karl, keyword.operator.logical.karl, keyword.operator.comparison.karl, keyword.operator.assignment.karl, keyword.operator.arithmetic.karl, keyword.operator.range.karl, keyword.operator.error-recovery.karl, keyword.operator.pipe.karl, keyword.operator.increment.karl",
+      "foreground": "#BD93F9",
+      "font_style": ""
+    },
+    {
+      "scope": "string.quoted.double.karl, string.quoted.single.karl, constant.character.escape.karl",
+      "foreground": "#FF79C6",
+      "font_style": ""
+    },
+    {
+      "scope": "constant.numeric.decimal.karl, constant.numeric.hex.karl",
+      "foreground": "#FF79C6",
+      "font_style": ""
+    },
+    {
+      "scope": "constant.language.boolean.karl, constant.language.null.karl, constant.language.karl",
+      "foreground": "#FF79C6",
+      "font_style": ""
+    },
+    {
+      "scope": "entity.name.karl.builtin",
+      "foreground": "#FF79C6",
+      "font_style": ""
+    },
+    {
+      "scope": "entity.name.karl.call",
+      "foreground": "#FF79C6",
+      "font_style": ""
+    },
+    {
+      "scope": "punctuation.separator.comma.karl, punctuation.terminator.semicolon.karl, punctuation.accessor.karl, meta.brace.curly.karl, meta.brace.square.karl, meta.brace.round.karl",
+      "foreground": "#1E1E1E",
+      "font_style": ""
+    }
+  ]
+}
