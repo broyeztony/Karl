@@ -364,7 +364,74 @@ let config = fromJson(readFile("config.json")) ? {
 }
 
 let pollMs = parseInt(str(config.poll_ms)) ? 1000
-log({ mode: config.mode, pollMs, })`
+log({ mode: config.mode, pollMs, })`,
+            `// Rate limiter: sliding window
+let hm = {}
+let T = 500
+let N = 3
+
+let rateLimiter = userId -> {
+    hm[userId] ? hm[userId] = []
+
+    let nowTs = now()
+    let cutoff = nowTs - T
+    let ts = hm[userId]
+
+    let firstAlive = for i < ts.length with i = 0 {
+        if ts[i] >= cutoff { break i }
+        i++
+    } then ts.length
+
+    ts = ts[firstAlive..]
+
+    if ts.length >= N {
+        hm[userId] = ts
+        true
+    } else {
+        ts += [nowTs]
+        hm[userId] = ts
+        false
+    }
+}
+
+log("limited ?", rateLimiter("abc"))
+sleep(100)
+log("limited ?", rateLimiter("abc"))
+sleep(100)
+log("limited ?", rateLimiter("abc"))
+sleep(100)
+log("limited ?", rateLimiter("abc"))`,
+            `// Rate limiter: token bucket
+let hm = {}
+let CAP = 3.0
+let REFILL_PER_MS = 4.0 / 1000.0
+
+let rateLimiter = userId -> {
+    let t = now()
+    hm[userId] ? hm[userId] = { tokens: CAP, ts: t, }
+
+    let b = hm[userId]
+    let replenished = b.tokens + (t - b.ts) * REFILL_PER_MS
+    let tokens = if replenished > CAP { CAP } else { replenished }
+
+    if tokens < 1 {
+        hm[userId] = { tokens: tokens, ts: t, }
+        true
+    } else {
+        hm[userId] = { tokens: tokens - 1, ts: t, }
+        false
+    }
+}
+
+log("limited ?", rateLimiter("abc"))
+sleep(50)
+log("limited ?", rateLimiter("abc"))
+sleep(50)
+log("limited ?", rateLimiter("abc"))
+sleep(50)
+log("limited ?", rateLimiter("abc"))
+sleep(450)
+log("limited ?", rateLimiter("abc"))`
         ];
 
         const KEYWORDS = new Set([
