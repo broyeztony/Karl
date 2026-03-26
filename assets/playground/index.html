@@ -33,41 +33,17 @@
         .page {
             width: 100%;
             height: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            overflow: hidden;
-        }
-
-        .left {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 0;
-            min-height: 0;
-        }
-
-        .left a {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-            text-decoration: none;
-        }
-
-        .left img {
-            width: min(36%, 260px);
-            height: auto;
             display: block;
-            user-select: none;
-            -webkit-user-drag: none;
+            overflow: hidden;
         }
 
         .right {
             border-left: none;
             min-width: 0;
             min-height: 0;
-            padding: 34px 40px;
+            width: 100%;
+            height: 100%;
+            padding: 34px 56px;
             display: flex;
             align-items: stretch;
             justify-content: stretch;
@@ -128,10 +104,9 @@
 
         .progress {
             position: fixed;
-            left: 50%;
+            right: 10px;
             top: 0;
             bottom: 0;
-            transform: translateX(-50%);
             width: 2px;
             height: 100vh;
             background: transparent;
@@ -165,14 +140,6 @@
         }
 
         @media (max-width: 980px) {
-            .page {
-                grid-template-columns: 1fr;
-            }
-
-            .left {
-                display: none;
-            }
-
             .right {
                 border-left: none;
                 padding: 18px 16px;
@@ -189,7 +156,6 @@
             }
 
             .progress {
-                left: auto;
                 right: 8px;
                 top: 0;
                 bottom: 0;
@@ -206,11 +172,6 @@
 
 <body>
     <main class="page" aria-label="Karl landing page">
-        <section class="left" aria-label="Karl logo">
-            <a href="/bench/" aria-label="Open Karl bench playground">
-                <img src="karl.png" alt="Karl logo">
-            </a>
-        </section>
         <section class="right" aria-label="Karl feature examples">
             <a class="github-link" href="https://github.com/broyeztony/Karl">Github</a>
             <nav class="cta-links" aria-label="Karl quick links">
