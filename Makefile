@@ -3,6 +3,7 @@ SHELL := /bin/sh
 GO ?= go
 GOCACHE_DIR ?= /tmp/karl-go-cache
 KARL_BIN ?= ./karl
+RELEASE_LDFLAGS ?= -s -w
 WASM_OUT ?= assets/playground/karl.wasm
 SHEETS_WASM_OUT ?= assets/playground/sheets/karl-sheets.wasm
 VSCODE_EXT_DIR ?= plugins/karl-vscode
@@ -11,12 +12,13 @@ CURSOR_CLI ?= cursor
 GO_CMD = GOCACHE=$(GOCACHE_DIR) $(GO)
 LATEST_VSIX = $$(ls -t $(VSCODE_EXT_DIR)/*.vsix 2>/dev/null | head -1)
 
-.PHONY: help build build-karl build-wasm build-all test test-nocache test-debugger test-debugger-stress bench-copy lint examples workflow ci clean \
+.PHONY: help build build-karl build-release build-wasm build-all test test-nocache test-debugger test-debugger-stress bench-copy lint examples workflow ci clean \
 	vscode-package vscode-install vscode-install-cursor vscode-reinstall
 
 help:
 	@echo "Karl dev commands:"
 	@echo "  make build         # build karl binary (./karl)"
+	@echo "  make build-release # build stripped release binary (CGO_ENABLED=0, -trimpath, -ldflags '-s -w')"
 	@echo "  make build-wasm    # rebuild playground + sheets wasm ($(WASM_OUT), $(SHEETS_WASM_OUT))"
 	@echo "  make build-all     # build binary + wasm"
 	@echo "  make test          # run go tests"
@@ -37,6 +39,9 @@ build: build-karl
 
 build-karl:
 	$(GO_CMD) build -o karl .
+
+build-release:
+	CGO_ENABLED=0 $(GO_CMD) build -trimpath -ldflags "$(RELEASE_LDFLAGS)" -o karl .
 
 build-wasm:
 	@mkdir -p "$$(dirname $(WASM_OUT))" "$$(dirname $(SHEETS_WASM_OUT))"
