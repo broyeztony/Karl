@@ -795,13 +795,12 @@ let rateLimiter = userId -> {
     }
 }
 
-log("limited ?", rateLimiter("abc"))
-sleep(100)
-log("limited ?", rateLimiter("abc"))
-sleep(100)
-log("limited ?", rateLimiter("abc"))
-sleep(100)
-log("limited ?", rateLimiter("abc"))`,
+let pauses = [100, 100, 100, 0]
+for i < pauses.length with i = 0 {
+    log("limited ?", rateLimiter("abc"))
+    if pauses[i] > 0 { sleep(pauses[i]) }
+    i++
+} then ()`,
             landing_rate_limit_token: `// Rate limiter: token bucket
 let hm = {}
 let CAP = 3.0
@@ -824,15 +823,12 @@ let rateLimiter = userId -> {
     }
 }
 
-log("limited ?", rateLimiter("abc"))
-sleep(50)
-log("limited ?", rateLimiter("abc"))
-sleep(50)
-log("limited ?", rateLimiter("abc"))
-sleep(50)
-log("limited ?", rateLimiter("abc"))
-sleep(450)
-log("limited ?", rateLimiter("abc"))`
+let pauses = [50, 50, 50, 450, 0]
+for i < pauses.length with i = 0 {
+    log("limited ?", rateLimiter("abc"))
+    if pauses[i] > 0 { sleep(pauses[i]) }
+    i++
+} then ()`
         };
 
         const runBtn = document.getElementById('runBtn');
