@@ -104,11 +104,10 @@
 
         .progress {
             position: fixed;
-            right: 10px;
+            left: 0;
+            right: 0;
             top: 0;
-            bottom: 0;
-            width: 2px;
-            height: 100vh;
+            height: 3px;
             background: transparent;
             overflow: hidden;
             z-index: 5;
@@ -119,8 +118,8 @@
             width: 100%;
             height: 100%;
             background: rgb(30, 30, 30);
-            transform: scaleY(0);
-            transform-origin: center bottom;
+            transform: scaleX(0);
+            transform-origin: left center;
         }
 
         .tok-keyword,
@@ -153,14 +152,6 @@
             .github-link {
                 bottom: 10px;
                 left: 12px;
-            }
-
-            .progress {
-                right: 8px;
-                top: 0;
-                bottom: 0;
-                transform: none;
-                height: 100vh;
             }
 
             #example {
@@ -530,15 +521,15 @@ for i < pauses.length with i = 0 {
 
         function setProgressStatic(ratio) {
             progressBar.style.transition = "none";
-            progressBar.style.transform = `scaleY(${ratio})`;
+            progressBar.style.transform = `scaleX(${ratio})`;
         }
 
         function animateProgress(fromRatio, durationMs) {
             progressBar.style.transition = "none";
-            progressBar.style.transform = `scaleY(${fromRatio})`;
+            progressBar.style.transform = `scaleX(${fromRatio})`;
             void progressBar.offsetWidth;
             progressBar.style.transition = `transform ${durationMs}ms linear`;
-            progressBar.style.transform = "scaleY(1)";
+            progressBar.style.transform = "scaleX(1)";
         }
 
         function scheduleNext(delayMs) {
