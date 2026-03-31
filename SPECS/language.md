@@ -452,6 +452,7 @@ let next = idx.upperBound(5)      // { key: 8, value: "h", }
 
 let keys = idx.keys()         // [2, 5, 8]
 let items = idx.items()       // [{key:2,value:"b"}, ...]
+log(idx)                      // ASCII tree rendering
 
 // Tree key types: int, float, string, char.
 // Mixed key domains are rejected (for example int then string).

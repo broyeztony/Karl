@@ -152,3 +152,19 @@ let t = tree()
 	}}
 	assertEquivalent(t, val, expected)
 }
+
+func TestTreeInspectPrintsAsciiTree(t *testing.T) {
+	val := mustEval(t, `
+let t = tree()
+t.set(5, "e")
+t.set(2, "b")
+t.set(8, "h")
+t.set(3, "c")
+t
+`)
+	got := val.Inspect()
+	want := "tree(avl, size=4)\n`-- 5: \"e\"\n    |-- 2: \"b\"\n    |   `-- 3: \"c\"\n    `-- 8: \"h\""
+	if got != want {
+		t.Fatalf("unexpected inspect output:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}

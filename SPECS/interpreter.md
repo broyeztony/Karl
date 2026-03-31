@@ -618,6 +618,9 @@ Implementation details (current runtime):
 - `tree.keys()` -> Array (in-order)
 - `tree.values()` -> Array (in-order by key)
 - `tree.items()` -> Array of `{ key, value }` (in-order)
+- `tree` inspect rendering:
+  - empty: `tree(<kind>, size=0)`
+  - non-empty: `tree(<kind>, size=n)` plus ASCII branch lines (Unix `tree`-style) when printed/logged
 - `abs(number)` -> Number
 - `sqrt(number)` -> Float
 - `pow(base, exp)` -> Float

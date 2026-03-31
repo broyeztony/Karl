@@ -11,10 +11,7 @@ Each example demonstrates one specific capability.
 - `examples/features/functions_basic.k` - basic functions
 - `examples/features/recursion.k` - recursion
 - `examples/features/closures.k` - closures
-- `examples/features/lists_basic.k` - arrays + map/filter/reduce/sum/find/sort/length
-- `examples/features/maps_basic.k` - map set/get/has/delete/keys/values
-- `examples/features/sets_basic.k` - set add/has/delete/values/size
-- `examples/features/tree_basic.k` - ordered tree collections (AVL/Treap), bounds, and in-order traversal
+- `examples/features/collections/` - collection-focused examples for lists, maps, sets, and ordered trees (including pretty-print and closest-node search)
 - `examples/features/strings_basic.k` - string helpers
 - `examples/features/runtime_args_env.k` - argv/programPath/environ/env
 - `examples/features/stdin_readline.k` - readLine with EOF flow
@@ -46,6 +43,6 @@ Each example demonstrates one specific capability.
 ## Running
 
 ```
-karl run examples/features/lists_basic.k
-karl parse examples/features/lists_basic.k --format=json
+karl run examples/features/collections/list_basic.k
+karl parse examples/features/collections/list_basic.k --format=json
 ```
