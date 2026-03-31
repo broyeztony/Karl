@@ -115,20 +115,19 @@ st
 
 func TestRunVariadicCommandStyle(t *testing.T) {
 	input := `
-let st = run("echo", "hello")
-;
-[st.ok, st.output.contains("hello")]
+let st = run("test", "x", "=", "x")
+{ ok: st.ok, code: st.code, }
 `
 	val, err := evalInput(t, input)
 	if err != nil {
 		t.Fatalf("eval error: %v", err)
 	}
-	arr, ok := val.(*Array)
+	obj, ok := val.(*Object)
 	if !ok {
-		t.Fatalf("expected array, got %T", val)
+		t.Fatalf("expected object, got %T", val)
 	}
-	assertBoolean(t, arr.Elements[0], true)
-	assertBoolean(t, arr.Elements[1], true)
+	assertBoolean(t, obj.Pairs["ok"], true)
+	assertInteger(t, obj.Pairs["code"], 0)
 }
 
 func TestProcVariadicCommandStyle(t *testing.T) {
