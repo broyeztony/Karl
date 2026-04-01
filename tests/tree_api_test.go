@@ -168,3 +168,100 @@ t
 		t.Fatalf("unexpected inspect output:\n--- got ---\n%s\n--- want ---\n%s", got, want)
 	}
 }
+
+func TestTreeOrderedSearchExtensions(t *testing.T) {
+	val := mustEval(t, `
+let t = tree()
+t.set(10, "a")
+t.set(20, "b")
+t.set(30, "c")
+t.set(40, "d")
+{
+  floor25: t.floor(25),
+  ceil25: t.ceil(25),
+  pred30: t.predecessor(30),
+  succ30: t.successor(30),
+  closest25: t.closest(25),
+  closest25Up: t.closest(25, { tie: "upper", }),
+  closest30: t.closest(30),
+}
+`)
+	expected := &Object{Pairs: map[string]Value{
+		"floor25": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 20},
+			"value": &String{Value: "b"},
+		}},
+		"ceil25": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 30},
+			"value": &String{Value: "c"},
+		}},
+		"pred30": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 20},
+			"value": &String{Value: "b"},
+		}},
+		"succ30": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 40},
+			"value": &String{Value: "d"},
+		}},
+		"closest25": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 20},
+			"value": &String{Value: "b"},
+			"exact": &Boolean{Value: false},
+		}},
+		"closest25Up": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 30},
+			"value": &String{Value: "c"},
+			"exact": &Boolean{Value: false},
+		}},
+		"closest30": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 30},
+			"value": &String{Value: "c"},
+			"exact": &Boolean{Value: true},
+		}},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestTreeRangeOptions(t *testing.T) {
+	val := mustEval(t, `
+let t = tree()
+t.set(10, "a")
+t.set(20, "b")
+t.set(30, "c")
+t.set(40, "d")
+{
+  inc: t.range(20, 40),
+  exc: t.range(20, 40, { includeFrom: false, includeTo: false, }),
+  lim: t.range(10, 40, { limit: 2, }),
+}
+`)
+	expected := &Object{Pairs: map[string]Value{
+		"inc": &Array{Elements: []Value{
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 20}, "value": &String{Value: "b"}}},
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 30}, "value": &String{Value: "c"}}},
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 40}, "value": &String{Value: "d"}}},
+		}},
+		"exc": &Array{Elements: []Value{
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 30}, "value": &String{Value: "c"}}},
+		}},
+		"lim": &Array{Elements: []Value{
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 10}, "value": &String{Value: "a"}}},
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 20}, "value": &String{Value: "b"}}},
+		}},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestTreeClosestRejectsNonNumericKeys(t *testing.T) {
+	_, err := evalInput(t, `
+let t = tree()
+t.set("a", 1)
+t.closest("b")
+`)
+	if err == nil {
+		t.Fatalf("expected closest key type error")
+	}
+	if !strings.Contains(err.Error(), "closest expects numeric tree keys") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

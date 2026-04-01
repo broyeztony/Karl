@@ -18,6 +18,7 @@ const (
 	MAP           ValueType = "MAP"
 	SET           ValueType = "SET"
 	TREE          ValueType = "TREE"
+	NTREE         ValueType = "NTREE"
 	FUNC          ValueType = "FUNCTION"
 	BUILTIN       ValueType = "BUILTIN"
 	TASK          ValueType = "TASK"

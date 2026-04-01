@@ -5,6 +5,7 @@ import "unicode/utf8"
 func registerCollectionBuiltins() {
 	builtins["map"] = &Builtin{Name: "map", Fn: builtinMap}
 	builtins["tree"] = &Builtin{Name: "tree", Fn: builtinTree}
+	builtins["ntree"] = &Builtin{Name: "ntree", Fn: builtinNTree}
 	builtins["get"] = &Builtin{Name: "get", Fn: builtinMapGet}
 	builtins["set"] = &Builtin{Name: "set", Fn: builtinMapSet}
 	builtins["add"] = &Builtin{Name: "add", Fn: builtinSetAdd}
@@ -30,6 +31,21 @@ func builtinTree(_ *Evaluator, args []Value) (Value, error) {
 	return newTree(kind)
 }
 
+func builtinNTree(_ *Evaluator, args []Value) (Value, error) {
+	if len(args) < 1 || len(args) > 2 {
+		return nil, &RuntimeError{Message: "ntree expects (rootId, rootValue?)"}
+	}
+	rootID, ok := stringArg(args[0])
+	if !ok {
+		return nil, &RuntimeError{Message: "ntree root id must be string"}
+	}
+	rootValue := Value(NullValue)
+	if len(args) == 2 {
+		rootValue = args[1]
+	}
+	return newNTree(rootID, rootValue)
+}
+
 func builtinLen(_ *Evaluator, args []Value) (Value, error) {
 	if len(args) != 1 {
 		return nil, &RuntimeError{Message: "len expects 1 argument"}
@@ -47,9 +63,11 @@ func builtinLen(_ *Evaluator, args []Value) (Value, error) {
 		return &Integer{Value: int64(len(arg.Elements))}, nil
 	case *Tree:
 		return &Integer{Value: int64(arg.size)}, nil
+	case *NTree:
+		return &Integer{Value: int64(len(arg.nodes))}, nil
 	case *Object:
 		return &Integer{Value: int64(len(arg.Pairs))}, nil
 	default:
-		return nil, &RuntimeError{Message: "len expects string, bytes, array, map, set, tree, or object"}
+		return nil, &RuntimeError{Message: "len expects string, bytes, array, map, set, tree, ntree, or object"}
 	}
 }

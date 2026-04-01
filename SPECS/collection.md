@@ -20,7 +20,7 @@ Karl collections should be:
 Karl has two different tree families with different purposes:
 
 1. Ordered index tree (`tree`) for O(log n) key lookup and bounds.
-2. Hierarchical node tree (`ntree`, proposed) for parent/children/siblings graph-like navigation.
+2. Hierarchical node tree (`ntree`) for parent/children/siblings graph-like navigation.
 
 Do not conflate these two models.
 
@@ -78,7 +78,7 @@ Core API (current):
 - `s.values() -> []`
 - `s.size`
 
-## 4. Ordered Index Tree: `tree(kind?)` (Current + Extensions)
+## 4. Ordered Index Tree: `tree(kind?)` (Current)
 
 Purpose: ordered key-value index with logarithmic operations.
 
@@ -105,6 +105,21 @@ Current API:
 - `idx.max() -> { key, value } | null`
 - `idx.lowerBound(key) -> { key, value } | null` (`>= key`)
 - `idx.upperBound(key) -> { key, value } | null` (`> key`)
+- `idx.floor(key) -> { key, value } | null` (`<= key`)
+- `idx.ceil(key) -> { key, value } | null` (`>= key`)
+- `idx.predecessor(key) -> { key, value } | null` (`< key`)
+- `idx.successor(key) -> { key, value } | null` (`> key`)
+- `idx.closest(key, opts?) -> { key, value, exact } | null`
+  - exact match: `exact=true`
+  - tie behavior is deterministic:
+    - default: choose lower key on equal distance
+    - optional: `opts.tie = "lower" | "upper"`
+  - numeric distance is defined for `int`/`float`
+  - for non-numeric key domains, `closest` raises runtime error
+- `idx.range(from, to, opts?) -> [{ key, value }]`
+  - `opts.includeFrom` default `true`
+  - `opts.includeTo` default `true`
+  - `opts.limit` optional positive int
 - `idx.keys() -> []`
 - `idx.values() -> []`
 - `idx.items() -> [{ key, value }]`
@@ -115,43 +130,12 @@ Inspect rendering:
 - empty tree: `tree(<kind>, size=0)`
 - non-empty tree: header + ASCII branch rendering (Unix `tree` style)
 
-### 4.1 Ordered Tree API Gaps
-
-Current gaps for practical search:
-
-- no `closest(key)` method
-- no explicit predecessor/successor
-- no floor/ceil naming (currently only lower/upper bound)
-
-### 4.2 Ordered Tree Extensions (Proposed)
-
-Add optimized search methods:
-
-- `idx.floor(key) -> { key, value } | null` (`<= key`)
-- `idx.ceil(key) -> { key, value } | null` (`>= key`)
-- `idx.predecessor(key) -> { key, value } | null` (`< key`)
-- `idx.successor(key) -> { key, value } | null` (`> key`)
-- `idx.closest(key, opts?) -> { key, value, exact } | null`
-  - exact match: `exact=true`
-  - tie behavior must be deterministic:
-    - default: choose lower key on equal distance
-    - optional: `opts.tie = "lower" | "upper"`
-  - numeric distance is defined for `int`/`float`
-  - for non-numeric key domains, `closest` is invalid and raises runtime error
-
-Optional range API:
-
-- `idx.range(from, to, opts?) -> [{ key, value }]`
-  - `opts.includeFrom` default `true`
-  - `opts.includeTo` default `true`
-  - `opts.limit` optional positive int
-
 Complexity targets:
 
 - `set/get/has/delete/floor/ceil/predecessor/successor/closest`: O(log n)
 - `keys/values/items/range`: O(k + log n), where `k` is output size
 
-## 5. Hierarchical Node Tree: `ntree(...)` (Proposed)
+## 5. Hierarchical Node Tree: `ntree(...)` (Current)
 
 Purpose: mutable hierarchy with stable node identity and relationship navigation.
 
@@ -167,7 +151,7 @@ A dedicated hierarchical tree keeps parent/children as user-level semantics.
 
 ### 5.2 Constructor and Node Model
 
-Constructor (proposed):
+Constructor:
 
 ```karl
 let t = ntree("root", { label: "Root", })
@@ -186,7 +170,7 @@ Where:
 - `value`: arbitrary Karl value
 - `children`: ordered array of child ids
 
-### 5.3 Hierarchical API (Proposed)
+### 5.3 Hierarchical API
 
 - `t.get(id) -> node|null`
 - `t.set(id, value) -> bool`
@@ -209,7 +193,7 @@ Where:
 - `t.root() -> node`
 - `t.size`
 
-Inspect rendering (proposed):
+Inspect rendering:
 
 - `log(t)` prints Unix tree-like hierarchy using node ids/labels
 
@@ -251,4 +235,3 @@ Avoid aliases unless explicitly approved.
 
 Current programs using `tree` remain valid.  
 `ntree` is additive and does not replace ordered `tree`.
-

@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"math"
 	"math/rand"
 	"strings"
 )
@@ -286,6 +287,209 @@ func (t *Tree) UpperBound(key Value) (*treeNode, error) {
 		}
 	}
 	return best, nil
+}
+
+func (t *Tree) Floor(key Value) (*treeNode, error) {
+	k, err := treeKeyForValue(key)
+	if err != nil {
+		return nil, err
+	}
+	if !t.keyTypeSet {
+		return nil, nil
+	}
+	if t.keyType != k.Type {
+		return nil, &RuntimeError{Message: "tree key type mismatch"}
+	}
+
+	var best *treeNode
+	cur := t.root
+	for cur != nil {
+		c, err := compareTreeKey(cur.key, k)
+		if err != nil {
+			return nil, err
+		}
+		if c <= 0 {
+			best = cur
+			cur = cur.right
+		} else {
+			cur = cur.left
+		}
+	}
+	return best, nil
+}
+
+func (t *Tree) Ceil(key Value) (*treeNode, error) {
+	return t.LowerBound(key)
+}
+
+func (t *Tree) Predecessor(key Value) (*treeNode, error) {
+	return t.FloorExclusive(key)
+}
+
+func (t *Tree) Successor(key Value) (*treeNode, error) {
+	return t.UpperBound(key)
+}
+
+func (t *Tree) FloorExclusive(key Value) (*treeNode, error) {
+	k, err := treeKeyForValue(key)
+	if err != nil {
+		return nil, err
+	}
+	if !t.keyTypeSet {
+		return nil, nil
+	}
+	if t.keyType != k.Type {
+		return nil, &RuntimeError{Message: "tree key type mismatch"}
+	}
+
+	var best *treeNode
+	cur := t.root
+	for cur != nil {
+		c, err := compareTreeKey(cur.key, k)
+		if err != nil {
+			return nil, err
+		}
+		if c < 0 {
+			best = cur
+			cur = cur.right
+		} else {
+			cur = cur.left
+		}
+	}
+	return best, nil
+}
+
+func (t *Tree) Closest(key Value, tieUpper bool) (*treeNode, bool, error) {
+	k, err := treeKeyForValue(key)
+	if err != nil {
+		return nil, false, err
+	}
+	if !t.keyTypeSet {
+		return nil, false, nil
+	}
+	if t.keyType != k.Type {
+		return nil, false, &RuntimeError{Message: "tree key type mismatch"}
+	}
+	if t.keyType != INTEGER && t.keyType != FLOAT {
+		return nil, false, &RuntimeError{Message: "closest expects numeric tree keys (int or float)"}
+	}
+
+	lower, err := t.Floor(key)
+	if err != nil {
+		return nil, false, err
+	}
+	upper, err := t.Ceil(key)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if lower == nil && upper == nil {
+		return nil, false, nil
+	}
+	if lower == nil {
+		return upper, false, nil
+	}
+	if upper == nil {
+		return lower, false, nil
+	}
+	if c, err := compareTreeKey(lower.key, upper.key); err == nil && c == 0 {
+		return lower, true, nil
+	}
+
+	target := numericTreeKey(k)
+	lowerDist := math.Abs(target - numericTreeKey(lower.key))
+	upperDist := math.Abs(numericTreeKey(upper.key) - target)
+	if upperDist < lowerDist {
+		return upper, false, nil
+	}
+	if lowerDist < upperDist {
+		return lower, false, nil
+	}
+	if tieUpper {
+		return upper, false, nil
+	}
+	return lower, false, nil
+}
+
+func numericTreeKey(k treeKey) float64 {
+	switch k.Type {
+	case INTEGER:
+		return float64(k.I)
+	case FLOAT:
+		return k.F
+	default:
+		return 0
+	}
+}
+
+func (t *Tree) Range(from Value, to Value, includeFrom bool, includeTo bool, limit int) ([]Value, error) {
+	fromKey, err := treeKeyForValue(from)
+	if err != nil {
+		return nil, err
+	}
+	toKey, err := treeKeyForValue(to)
+	if err != nil {
+		return nil, err
+	}
+	if !t.keyTypeSet {
+		return []Value{}, nil
+	}
+	if t.keyType != fromKey.Type || t.keyType != toKey.Type {
+		return nil, &RuntimeError{Message: "tree key type mismatch"}
+	}
+	order, err := compareTreeKey(fromKey, toKey)
+	if err != nil {
+		return nil, err
+	}
+	if order > 0 {
+		return []Value{}, nil
+	}
+
+	items := make([]Value, 0)
+	var visit func(*treeNode) error
+	visit = func(n *treeNode) error {
+		if n == nil {
+			return nil
+		}
+		if limit > 0 && len(items) >= limit {
+			return nil
+		}
+
+		cmpFrom, err := compareTreeKey(n.key, fromKey)
+		if err != nil {
+			return err
+		}
+		cmpTo, err := compareTreeKey(n.key, toKey)
+		if err != nil {
+			return err
+		}
+
+		if cmpFrom > 0 {
+			if err := visit(n.left); err != nil {
+				return err
+			}
+		}
+
+		geFrom := cmpFrom > 0 || (cmpFrom == 0 && includeFrom)
+		leTo := cmpTo < 0 || (cmpTo == 0 && includeTo)
+		if geFrom && leTo {
+			items = append(items, treeItemValue(n))
+			if limit > 0 && len(items) >= limit {
+				return nil
+			}
+		}
+
+		if cmpTo < 0 {
+			if err := visit(n.right); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := visit(t.root); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 func (t *Tree) Keys() []Value {

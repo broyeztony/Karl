@@ -305,7 +305,7 @@ func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "len expects string, bytes, array, map, set, tree, or object") {
+	if !strings.Contains(err.Error(), "len expects string, bytes, array, map, set, tree, ntree, or object") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
