@@ -546,6 +546,8 @@ Implementation details (current runtime):
 - `str(value)` -> String
 - `toUtf8(text)` -> Bytes
 - `fromUtf8(bytes)` -> String
+- `toBase58(bytes)` -> String
+- `fromBase58(text)` -> Bytes
 - `parseInt(string)` -> Int
 - `sha256(text)` -> String (hex digest)
 - `uuidNew()` -> String

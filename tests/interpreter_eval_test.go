@@ -315,6 +315,21 @@ func TestEvalUtf8EncodeDecodeHelpers(t *testing.T) {
 	assertString(t, val, "karl")
 }
 
+func TestEvalBase58EncodeDecodeHelpers(t *testing.T) {
+	val := mustEval(t, `fromUtf8(fromBase58(toBase58(toUtf8("karl"))))`)
+	assertString(t, val, "karl")
+}
+
+func TestEvalBase58LeadingZeroBytesRoundTrip(t *testing.T) {
+	val := mustEval(t, `toBase58(fromBase58("1112"))`)
+	assertString(t, val, "1112")
+}
+
+func TestEvalFromBase58RecoverableDecodeError(t *testing.T) {
+	val := mustEval(t, `fromBase58("0") ? { error.kind }`)
+	assertString(t, val, "base58_decode")
+}
+
 func TestEvalBytesJoin(t *testing.T) {
 	val := mustEval(t, `fromUtf8(bytesJoin([toUtf8("kar"), toUtf8("l")]))`)
 	assertString(t, val, "karl")
