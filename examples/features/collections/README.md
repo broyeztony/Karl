@@ -9,6 +9,7 @@ Focused collection examples for arrays, maps, sets, and ordered trees.
 - `examples/features/collections/tree_pretty_print.k` - built-in ASCII tree rendering via `log(t)`
 - `examples/features/collections/tree_closest_search.k` - nearest-key lookup via `closest`
 - `examples/features/collections/tree_ordered_search.k` - floor/ceil/predecessor/successor/range
+- `examples/features/collections/tree_paths.k` - root-to-node paths (`tree.path` and `ntree.path`)
 - `examples/features/collections/ntree_navigation.k` - hierarchical parent/children/siblings navigation
 
 Run:
@@ -18,5 +19,6 @@ karl run examples/features/collections/tree_basic.k
 karl run examples/features/collections/tree_pretty_print.k
 karl run examples/features/collections/tree_closest_search.k
 karl run examples/features/collections/tree_ordered_search.k
+karl run examples/features/collections/tree_paths.k
 karl run examples/features/collections/ntree_navigation.k
 ```

@@ -349,6 +349,23 @@ func (e *Evaluator) treeMethod(t *Tree, name string) (Value, *Signal, error) {
 				return &Array{Elements: items}, nil
 			},
 		}, nil, nil
+	case "path":
+		return &Builtin{
+			Name: "path",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "path expects key"}
+				}
+				path, err := t.Path(args[0])
+				if err != nil {
+					return nil, err
+				}
+				if path == nil {
+					return NullValue, nil
+				}
+				return &Array{Elements: path}, nil
+			},
+		}, nil, nil
 	case "keys":
 		return &Builtin{
 			Name: "keys",
@@ -659,6 +676,24 @@ func (e *Evaluator) nTreeMethod(t *NTree, name string) (Value, *Signal, error) {
 					return nil, err
 				}
 				return nodeArray(ancestors), nil
+			},
+		}, nil, nil
+	case "path":
+		return &Builtin{
+			Name: "path",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "path expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				path, ok := t.Path(id)
+				if !ok {
+					return NullValue, nil
+				}
+				return nodeArray(path), nil
 			},
 		}, nil, nil
 	case "descendants":

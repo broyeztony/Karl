@@ -9,15 +9,17 @@ t.append("root", "a", { v: 1, })
 t.prepend("root", "b", { v: 2, })
 t.insertAt("root", 1, "c", { v: 3, })
 t.append("a", "a1", { v: 11, })
-{
-  size: t.size,
-  lenv: len(t),
-  root: t.root().id,
-  getA: t.get("a").id,
-  parentA1: t.parent("a1").id,
-  childrenRoot: t.children("root").map(n -> n.id),
-  siblingsC: t.siblings("c").map(n -> n.id),
-  ancA1: t.ancestors("a1").map(n -> n.id),
+	{
+	  size: t.size,
+	  lenv: len(t),
+	  root: t.root().id,
+	  getA: t.get("a").id,
+	  parentA1: t.parent("a1").id,
+	  pathA1: t.path("a1").map(n -> n.id),
+	  pathMissing: t.path("zzz"),
+	  childrenRoot: t.children("root").map(n -> n.id),
+	  siblingsC: t.siblings("c").map(n -> n.id),
+	  ancA1: t.ancestors("a1").map(n -> n.id),
   descRootDfs: t.descendants("root").map(n -> n.id),
   descRootBfs: t.descendants("root", { traversal: "bfs", }).map(n -> n.id),
   findC: t.find(n -> n.id == "c").id,
@@ -31,6 +33,12 @@ t.append("a", "a1", { v: 11, })
 		"root":     &String{Value: "root"},
 		"getA":     &String{Value: "a"},
 		"parentA1": &String{Value: "a"},
+		"pathA1": &Array{Elements: []Value{
+			&String{Value: "root"},
+			&String{Value: "a"},
+			&String{Value: "a1"},
+		}},
+		"pathMissing": NullValue,
 		"childrenRoot": &Array{Elements: []Value{
 			&String{Value: "b"},
 			&String{Value: "c"},

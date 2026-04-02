@@ -234,6 +234,26 @@ func (t *NTree) Ancestors(id string) ([]*nTreeNode, error) {
 	return out, nil
 }
 
+func (t *NTree) Path(id string) ([]*nTreeNode, bool) {
+	n, ok := t.nodeByID(id)
+	if !ok {
+		return nil, false
+	}
+	path := []*nTreeNode{}
+	cur := n
+	path = append(path, cur)
+	for cur.hasParent {
+		p, ok := t.nodeByID(cur.parent)
+		if !ok {
+			return nil, false
+		}
+		path = append(path, p)
+		cur = p
+	}
+	reverseNodes(path)
+	return path, true
+}
+
 func (t *NTree) Descendants(id string, traversal string) ([]*nTreeNode, error) {
 	root, ok := t.nodeByID(id)
 	if !ok {
@@ -440,4 +460,10 @@ func indexOfID(ids []string, id string) int {
 		}
 	}
 	return -1
+}
+
+func reverseNodes(nodes []*nTreeNode) {
+	for i, j := 0, len(nodes)-1; i < j; i, j = i+1, j-1 {
+		nodes[i], nodes[j] = nodes[j], nodes[i]
+	}
 }

@@ -562,6 +562,38 @@ func (t *Tree) MaxWidth() int {
 	return max
 }
 
+func (t *Tree) Path(key Value) ([]Value, error) {
+	k, err := treeKeyForValue(key)
+	if err != nil {
+		return nil, err
+	}
+	if !t.keyTypeSet {
+		return nil, nil
+	}
+	if t.keyType != k.Type {
+		return nil, &RuntimeError{Message: "tree key type mismatch"}
+	}
+
+	out := []Value{}
+	cur := t.root
+	for cur != nil {
+		out = append(out, treeItemValue(cur))
+		c, err := compareTreeKey(k, cur.key)
+		if err != nil {
+			return nil, err
+		}
+		if c == 0 {
+			return out, nil
+		}
+		if c < 0 {
+			cur = cur.left
+		} else {
+			cur = cur.right
+		}
+	}
+	return nil, nil
+}
+
 func inOrderTree(root *treeNode, visit func(*treeNode)) {
 	if root == nil {
 		return

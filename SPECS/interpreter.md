@@ -587,7 +587,9 @@ Implementation details (current runtime):
 - `map()` -> Map
 - `set()` -> Set
 - `tree(kind?)` -> Tree (`kind`: `"avl"` or `"treap"`, default `"avl"`)
-  - methods: `set/get/has/delete/kind/min/max/maxDepth/maxWidth/lowerBound/upperBound/floor/ceil/predecessor/successor/closest/range/keys/values/items`
+  - methods: `set/get/has/delete/kind/min/max/maxDepth/maxWidth/lowerBound/upperBound/floor/ceil/predecessor/successor/path/closest/range/keys/values/items`
+- `ntree(rootId, rootValue?)` -> NTree
+  - methods: `get/set/append/prepend/insertAt/remove/move/parent/children/path/siblings/ancestors/descendants/find/findAll/root`
 - `map(list, fn)` remains the array map function.
 - `sort(list, cmp)` -> Array (returns new array)
 - `split(string, sep)` -> Array

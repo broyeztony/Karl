@@ -111,6 +111,7 @@ Current API:
 - `idx.ceil(key) -> { key, value } | null` (`>= key`)
 - `idx.predecessor(key) -> { key, value } | null` (`< key`)
 - `idx.successor(key) -> { key, value } | null` (`> key`)
+- `idx.path(key) -> [{ key, value }] | null` (root to exact key, or `null` if not found)
 - `idx.closest(key, opts?) -> { key, value, exact } | null`
   - exact match: `exact=true`
   - tie behavior is deterministic:
@@ -135,6 +136,7 @@ Inspect rendering:
 Complexity targets:
 
 - `set/get/has/delete/floor/ceil/predecessor/successor/closest`: O(log n)
+- `path`: O(log n)
 - `keys/values/items/range`: O(k + log n), where `k` is output size
 - `maxDepth/maxWidth`: O(n)
 
@@ -186,6 +188,7 @@ Where:
   - optional insertion index
 - `t.parent(id) -> node|null`
 - `t.children(id) -> [node]`
+- `t.path(id) -> [node] | null` (root to id)
 - `t.siblings(id, opts?) -> [node]`
   - default excludes self
 - `t.ancestors(id) -> [node]` (nearest first)

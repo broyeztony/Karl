@@ -184,15 +184,17 @@ t.set(10, "a")
 t.set(20, "b")
 t.set(30, "c")
 t.set(40, "d")
-{
-  floor25: t.floor(25),
-  ceil25: t.ceil(25),
-  pred30: t.predecessor(30),
-  succ30: t.successor(30),
-  closest25: t.closest(25),
-  closest25Up: t.closest(25, { tie: "upper", }),
-  closest30: t.closest(30),
-}
+	{
+	  floor25: t.floor(25),
+	  ceil25: t.ceil(25),
+	  pred30: t.predecessor(30),
+	  succ30: t.successor(30),
+	  path30: t.path(30),
+	  path42: t.path(42),
+	  closest25: t.closest(25),
+	  closest25Up: t.closest(25, { tie: "upper", }),
+	  closest30: t.closest(30),
+	}
 `)
 	expected := &Object{Pairs: map[string]Value{
 		"floor25": &Object{Pairs: map[string]Value{
@@ -211,6 +213,11 @@ t.set(40, "d")
 			"key":   &Integer{Value: 40},
 			"value": &String{Value: "d"},
 		}},
+		"path30": &Array{Elements: []Value{
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 20}, "value": &String{Value: "b"}}},
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 30}, "value": &String{Value: "c"}}},
+		}},
+		"path42": NullValue,
 		"closest25": &Object{Pairs: map[string]Value{
 			"key":   &Integer{Value: 20},
 			"value": &String{Value: "b"},
