@@ -587,6 +587,7 @@ Implementation details (current runtime):
 - `map()` -> Map
 - `set()` -> Set
 - `tree(kind?)` -> Tree (`kind`: `"avl"` or `"treap"`, default `"avl"`)
+  - methods: `set/get/has/delete/kind/min/max/maxDepth/maxWidth/lowerBound/upperBound/floor/ceil/predecessor/successor/closest/range/keys/values/items`
 - `map(list, fn)` remains the array map function.
 - `sort(list, cmp)` -> Array (returns new array)
 - `split(string, sep)` -> Array

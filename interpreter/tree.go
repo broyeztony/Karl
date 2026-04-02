@@ -469,6 +469,9 @@ func (t *Tree) Range(from Value, to Value, includeFrom bool, includeTo bool, lim
 				return err
 			}
 		}
+		if limit > 0 && len(items) >= limit {
+			return nil
+		}
 
 		geFrom := cmpFrom > 0 || (cmpFrom == 0 && includeFrom)
 		leTo := cmpTo < 0 || (cmpTo == 0 && includeTo)
@@ -477,6 +480,9 @@ func (t *Tree) Range(from Value, to Value, includeFrom bool, includeTo bool, lim
 			if limit > 0 && len(items) >= limit {
 				return nil
 			}
+		}
+		if limit > 0 && len(items) >= limit {
+			return nil
 		}
 
 		if cmpTo < 0 {
@@ -514,6 +520,46 @@ func (t *Tree) Items() []Value {
 		out = append(out, treeItemValue(n))
 	})
 	return out
+}
+
+func (t *Tree) MaxDepth() int {
+	return treeDepth(t.root)
+}
+
+func treeDepth(n *treeNode) int {
+	if n == nil {
+		return 0
+	}
+	left := treeDepth(n.left)
+	right := treeDepth(n.right)
+	if left > right {
+		return left + 1
+	}
+	return right + 1
+}
+
+func (t *Tree) MaxWidth() int {
+	if t.root == nil {
+		return 0
+	}
+	level := []*treeNode{t.root}
+	max := 0
+	for len(level) > 0 {
+		if len(level) > max {
+			max = len(level)
+		}
+		next := make([]*treeNode, 0, len(level)*2)
+		for _, n := range level {
+			if n.left != nil {
+				next = append(next, n.left)
+			}
+			if n.right != nil {
+				next = append(next, n.right)
+			}
+		}
+		level = next
+	}
+	return max
 }
 
 func inOrderTree(root *treeNode, visit func(*treeNode)) {

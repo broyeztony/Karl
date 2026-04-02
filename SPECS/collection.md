@@ -103,6 +103,8 @@ Current API:
 - `idx.kind() -> string`
 - `idx.min() -> { key, value } | null`
 - `idx.max() -> { key, value } | null`
+- `idx.maxDepth() -> Int`
+- `idx.maxWidth() -> Int`
 - `idx.lowerBound(key) -> { key, value } | null` (`>= key`)
 - `idx.upperBound(key) -> { key, value } | null` (`> key`)
 - `idx.floor(key) -> { key, value } | null` (`<= key`)
@@ -134,6 +136,7 @@ Complexity targets:
 
 - `set/get/has/delete/floor/ceil/predecessor/successor/closest`: O(log n)
 - `keys/values/items/range`: O(k + log n), where `k` is output size
+- `maxDepth/maxWidth`: O(n)
 
 ## 5. Hierarchical Node Tree: `ntree(...)` (Current)
 

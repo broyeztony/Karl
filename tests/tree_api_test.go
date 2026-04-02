@@ -13,18 +13,20 @@ t.set(2, "b")
 t.set(8, "h")
 t.set(3, "c")
 
-{
-  kind: t.kind(),
-  get2: t.get(2),
-  has7: t.has(7),
-  has8: t.has(8),
-  min: t.min(),
-  max: t.max(),
-  lb4: t.lowerBound(4),
-  ub5: t.upperBound(5),
-  keys: t.keys(),
-  vals: t.values(),
-  size: t.size,
+	{
+	  kind: t.kind(),
+	  get2: t.get(2),
+	  has7: t.has(7),
+	  has8: t.has(8),
+	  min: t.min(),
+	  max: t.max(),
+	  maxDepth: t.maxDepth(),
+	  maxWidth: t.maxWidth(),
+	  lb4: t.lowerBound(4),
+	  ub5: t.upperBound(5),
+	  keys: t.keys(),
+	  vals: t.values(),
+	  size: t.size,
   lenv: len(t),
 }
 `)
@@ -41,6 +43,8 @@ t.set(3, "c")
 			"key":   &Integer{Value: 8},
 			"value": &String{Value: "h"},
 		}},
+		"maxDepth": &Integer{Value: 3},
+		"maxWidth": &Integer{Value: 2},
 		"lb4": &Object{Pairs: map[string]Value{
 			"key":   &Integer{Value: 5},
 			"value": &String{Value: "e"},
@@ -131,24 +135,28 @@ func TestTreeInvalidKind(t *testing.T) {
 func TestTreeItemMethodsOnEmpty(t *testing.T) {
 	val := mustEval(t, `
 let t = tree()
-{
-  min: t.min(),
-  max: t.max(),
-  lb: t.lowerBound(1),
-  ub: t.upperBound(1),
-  items: t.items(),
-  keys: t.keys(),
-  values: t.values(),
+	{
+	  min: t.min(),
+	  max: t.max(),
+	  maxDepth: t.maxDepth(),
+	  maxWidth: t.maxWidth(),
+	  lb: t.lowerBound(1),
+	  ub: t.upperBound(1),
+	  items: t.items(),
+	  keys: t.keys(),
+	  values: t.values(),
 }
 `)
 	expected := &Object{Pairs: map[string]Value{
-		"min":    NullValue,
-		"max":    NullValue,
-		"lb":     NullValue,
-		"ub":     NullValue,
-		"items":  &Array{Elements: []Value{}},
-		"keys":   &Array{Elements: []Value{}},
-		"values": &Array{Elements: []Value{}},
+		"min":      NullValue,
+		"max":      NullValue,
+		"maxDepth": &Integer{Value: 0},
+		"maxWidth": &Integer{Value: 0},
+		"lb":       NullValue,
+		"ub":       NullValue,
+		"items":    &Array{Elements: []Value{}},
+		"keys":     &Array{Elements: []Value{}},
+		"values":   &Array{Elements: []Value{}},
 	}}
 	assertEquivalent(t, val, expected)
 }
@@ -250,6 +258,16 @@ t.set(40, "d")
 		}},
 	}}
 	assertEquivalent(t, val, expected)
+}
+
+func TestTreeRangeLimitStrictRegression(t *testing.T) {
+	val := mustEval(t, `
+let t = tree()
+let seeds = [10, 20, 35, 50, 80]
+seeds.forEach(k -> t.set(k, "v" + str(k)))
+t.range(10, 80, { limit: 3, }).length
+`)
+	assertInteger(t, val, 3)
 }
 
 func TestTreeClosestRejectsNonNumericKeys(t *testing.T) {

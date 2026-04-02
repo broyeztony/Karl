@@ -159,6 +159,26 @@ func (e *Evaluator) treeMethod(t *Tree, name string) (Value, *Signal, error) {
 				return treeItemValue(t.MaxNode()), nil
 			},
 		}, nil, nil
+	case "maxDepth":
+		return &Builtin{
+			Name: "maxDepth",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "maxDepth expects no arguments"}
+				}
+				return &Integer{Value: int64(t.MaxDepth())}, nil
+			},
+		}, nil, nil
+	case "maxWidth":
+		return &Builtin{
+			Name: "maxWidth",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "maxWidth expects no arguments"}
+				}
+				return &Integer{Value: int64(t.MaxWidth())}, nil
+			},
+		}, nil, nil
 	case "lowerBound":
 		return &Builtin{
 			Name: "lowerBound",
