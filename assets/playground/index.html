@@ -33,41 +33,17 @@
         .page {
             width: 100%;
             height: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            overflow: hidden;
-        }
-
-        .left {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 0;
-            min-height: 0;
-        }
-
-        .left a {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-            text-decoration: none;
-        }
-
-        .left img {
-            width: min(36%, 260px);
-            height: auto;
             display: block;
-            user-select: none;
-            -webkit-user-drag: none;
+            overflow: hidden;
         }
 
         .right {
             border-left: none;
             min-width: 0;
             min-height: 0;
-            padding: 34px 40px;
+            width: 100%;
+            height: 100%;
+            padding: 34px 56px;
             display: flex;
             align-items: stretch;
             justify-content: stretch;
@@ -128,12 +104,10 @@
 
         .progress {
             position: fixed;
-            left: 50%;
+            left: 0;
+            right: 0;
             top: 0;
-            bottom: 0;
-            transform: translateX(-50%);
-            width: 2px;
-            height: 100vh;
+            height: 3px;
             background: transparent;
             overflow: hidden;
             z-index: 5;
@@ -144,8 +118,8 @@
             width: 100%;
             height: 100%;
             background: rgb(30, 30, 30);
-            transform: scaleY(0);
-            transform-origin: center bottom;
+            transform: scaleX(0);
+            transform-origin: left center;
         }
 
         .tok-keyword,
@@ -165,14 +139,6 @@
         }
 
         @media (max-width: 980px) {
-            .page {
-                grid-template-columns: 1fr;
-            }
-
-            .left {
-                display: none;
-            }
-
             .right {
                 border-left: none;
                 padding: 18px 16px;
@@ -188,15 +154,6 @@
                 left: 12px;
             }
 
-            .progress {
-                left: auto;
-                right: 8px;
-                top: 0;
-                bottom: 0;
-                transform: none;
-                height: 100vh;
-            }
-
             #example {
                 font-size: 14px;
             }
@@ -206,11 +163,6 @@
 
 <body>
     <main class="page" aria-label="Karl landing page">
-        <section class="left" aria-label="Karl logo">
-            <a href="/bench/" aria-label="Open Karl bench playground">
-                <img src="karl.png" alt="Karl logo">
-            </a>
-        </section>
         <section class="right" aria-label="Karl feature examples">
             <a class="github-link" href="https://github.com/broyeztony/Karl">Github</a>
             <nav class="cta-links" aria-label="Karl quick links">
@@ -378,7 +330,70 @@ let config = fromJson(readFile("config.json")) ? {
 }
 
 let pollMs = parseInt(str(config.poll_ms)) ? 1000
-log({ mode: config.mode, pollMs, })`
+log({ mode: config.mode, pollMs, })`,
+            `// Rate limiter: sliding window
+let hm = {}
+let T = 500
+let N = 3
+
+let rateLimiter = userId -> {
+    hm[userId] ? hm[userId] = []
+
+    let nowTs = now()
+    let cutoff = nowTs - T
+    let ts = hm[userId]
+
+    let firstAlive = for i < ts.length with i = 0 {
+        if ts[i] >= cutoff { break i }
+        i++
+    } then ts.length
+
+    ts = ts[firstAlive..]
+
+    if ts.length >= N {
+        hm[userId] = ts
+        true
+    } else {
+        ts += [nowTs]
+        hm[userId] = ts
+        false
+    }
+}
+
+let pauses = [100, 100, 100, 0]
+for i < pauses.length with i = 0 {
+    log("limited ?", rateLimiter("abc"))
+    if pauses[i] > 0 { sleep(pauses[i]) }
+    i++
+} then ()`,
+            `// Rate limiter: token bucket
+let hm = {}
+let CAP = 3.0
+let REFILL_PER_MS = 4.0 / 1000.0
+
+let rateLimiter = userId -> {
+    let t = now()
+    hm[userId] ? hm[userId] = { tokens: CAP, ts: t, }
+
+    let b = hm[userId]
+    let replenished = b.tokens + (t - b.ts) * REFILL_PER_MS
+    let tokens = if replenished > CAP { CAP } else { replenished }
+
+    if tokens < 1 {
+        hm[userId] = { tokens: tokens, ts: t, }
+        true
+    } else {
+        hm[userId] = { tokens: tokens - 1, ts: t, }
+        false
+    }
+}
+
+let pauses = [50, 50, 50, 450, 0]
+for i < pauses.length with i = 0 {
+    log("limited ?", rateLimiter("abc"))
+    if pauses[i] > 0 { sleep(pauses[i]) }
+    i++
+} then ()`
         ];
 
         const KEYWORDS = new Set([
@@ -520,15 +535,15 @@ log({ mode: config.mode, pollMs, })`
 
         function setProgressStatic(ratio) {
             progressBar.style.transition = "none";
-            progressBar.style.transform = `scaleY(${ratio})`;
+            progressBar.style.transform = `scaleX(${ratio})`;
         }
 
         function animateProgress(fromRatio, durationMs) {
             progressBar.style.transition = "none";
-            progressBar.style.transform = `scaleY(${fromRatio})`;
+            progressBar.style.transform = `scaleX(${fromRatio})`;
             void progressBar.offsetWidth;
             progressBar.style.transition = `transform ${durationMs}ms linear`;
-            progressBar.style.transform = "scaleY(1)";
+            progressBar.style.transform = "scaleX(1)";
         }
 
         function scheduleNext(delayMs) {
