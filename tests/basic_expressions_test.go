@@ -410,6 +410,19 @@ func TestExpressionKinds(t *testing.T) {
 			},
 		},
 		{
+			name:  "member_expression_select_keyword",
+			input: "tree.select",
+			assert: func(t *testing.T, expr ast.Expression) {
+				me, ok := expr.(*ast.MemberExpression)
+				if !ok {
+					t.Fatalf("expected MemberExpression, got %T", expr)
+				}
+				if me.Property.Value != "select" {
+					t.Fatalf("expected select, got %q", me.Property.Value)
+				}
+			},
+		},
+		{
 			name:  "index_expression",
 			input: "arr[0]",
 			assert: func(t *testing.T, expr ast.Expression) {

@@ -146,6 +146,12 @@
             </table>
 
             <h3 id="collections">7. Collections</h3>
+            <p>
+                Karl has four collection families: <code>Array</code>, <code>Map</code>, <code>Set</code>,
+                ordered <code>tree</code>, and hierarchical <code>ntree</code>.
+            </p>
+
+            <h4>7.1 Constructors and Core Shapes</h4>
             <table>
                 <thead>
                     <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
@@ -153,15 +159,106 @@
                 <tbody>
                     <tr><td><code>map</code></td><td><code>map()</code> or <code>map(array, fn)</code> or <code>map(fn)</code></td><td>Map / Array / stream stage</td><td>Overloaded constructor + transform + stage.</td></tr>
                     <tr><td><code>set</code></td><td><code>set()</code>, <code>set(array)</code>, <code>set(map,key,value)</code></td><td>Set / Map</td><td>Overloaded constructor + map update.</td></tr>
+                    <tr><td><code>tree</code></td><td><code>tree(kind?)</code></td><td>Tree</td><td><code>kind</code> is <code>"avl"</code> or <code>"treap"</code>.</td></tr>
+                    <tr><td><code>ntree</code></td><td><code>ntree(rootId, rootValue?)</code></td><td>NTree</td><td>Hierarchical tree with stable node IDs.</td></tr>
+                    <tr><td><code>len</code></td><td><code>len(string|bytes|array|map|set|object)</code></td><td>Int</td><td>For sets, use <code>.size</code> property if preferred.</td></tr>
+                </tbody>
+            </table>
+
+            <h4>7.2 Map and Set Operations</h4>
+            <table>
+                <thead>
+                    <tr><th>Name</th><th>Signature</th><th>Return</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
                     <tr><td><code>get</code></td><td><code>get(map, key)</code></td><td>Value|null</td><td>Map lookup only.</td></tr>
                     <tr><td><code>add</code></td><td><code>add(set, value)</code></td><td>Set</td><td>Mutates set.</td></tr>
                     <tr><td><code>has</code></td><td><code>has(mapOrSet, key)</code></td><td>Bool</td><td>-</td></tr>
                     <tr><td><code>delete</code></td><td><code>delete(mapOrSet, key)</code></td><td>Bool</td><td>-</td></tr>
                     <tr><td><code>keys</code></td><td><code>keys(mapOrObject)</code></td><td>Array</td><td>-</td></tr>
                     <tr><td><code>values</code></td><td><code>values(mapOrSet)</code></td><td>Array</td><td>-</td></tr>
-                    <tr><td><code>len</code></td><td><code>len(string|bytes|array|map|set|object)</code></td><td>Int</td><td>For sets, use <code>.size</code> property if preferred.</td></tr>
                 </tbody>
             </table>
+
+            <h4>7.3 Ordered Tree: <code>tree(kind?)</code></h4>
+            <p>
+                Ordered key-value index (sorted by key). Key domain is homogeneous:
+                <code>int</code>, <code>float</code>, <code>string</code>, or <code>char</code>.
+            </p>
+            <table>
+                <thead>
+                    <tr><th>Method</th><th>Signature</th><th>Return</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>set</code></td><td><code>t.set(key, value)</code></td><td>Tree</td></tr>
+                    <tr><td><code>get</code></td><td><code>t.get(key)</code></td><td>Value|null</td></tr>
+                    <tr><td><code>has</code></td><td><code>t.has(key)</code></td><td>Bool</td></tr>
+                    <tr><td><code>delete</code></td><td><code>t.delete(key)</code></td><td>Bool</td></tr>
+                    <tr><td><code>kind</code></td><td><code>t.kind()</code></td><td>String</td></tr>
+                    <tr><td><code>min/max</code></td><td><code>t.min()</code>, <code>t.max()</code></td><td><code>{ key, value } | null</code></td></tr>
+                    <tr><td><code>lower/upper bound</code></td><td><code>t.lowerBound(key)</code>, <code>t.upperBound(key)</code></td><td><code>{ key, value } | null</code></td></tr>
+                    <tr><td><code>floor/ceil</code></td><td><code>t.floor(key)</code>, <code>t.ceil(key)</code></td><td><code>{ key, value } | null</code></td></tr>
+                    <tr><td><code>predecessor/successor</code></td><td><code>t.predecessor(key)</code>, <code>t.successor(key)</code></td><td><code>{ key, value } | null</code></td></tr>
+                    <tr><td><code>closest</code></td><td><code>t.closest(key, opts?)</code></td><td><code>{ key, value, exact } | null</code></td></tr>
+                    <tr><td><code>kClosest</code></td><td><code>t.kClosest(key, k, opts?)</code></td><td><code>[{ key, value, exact, distance }]</code></td></tr>
+                    <tr><td><code>rank/select</code></td><td><code>t.rank(key)</code>, <code>t.select(rank)</code></td><td><code>Int|null</code>, <code>{ key, value } | null</code></td></tr>
+                    <tr><td><code>range</code></td><td><code>t.range(from, to, opts?)</code></td><td><code>[{ key, value }]</code></td></tr>
+                    <tr><td><code>path</code></td><td><code>t.path(key)</code></td><td><code>[{ key, value }] | null</code></td></tr>
+                    <tr><td><code>popMin/popMax</code></td><td><code>t.popMin()</code>, <code>t.popMax()</code></td><td><code>{ key, value } | null</code></td></tr>
+                    <tr><td><code>bulkLoad</code></td><td><code>t.bulkLoad(items, opts?)</code></td><td>Tree</td></tr>
+                    <tr><td><code>validate</code></td><td><code>t.validate()</code></td><td><code>{ ok, reason }</code></td></tr>
+                    <tr><td><code>keys/values/items</code></td><td><code>t.keys()</code>, <code>t.values()</code>, <code>t.items()</code></td><td>Array</td></tr>
+                    <tr><td><code>metrics</code></td><td><code>t.size</code>, <code>t.maxDepth()</code>, <code>t.maxWidth()</code></td><td>Int</td></tr>
+                </tbody>
+            </table>
+            <pre><code>let prices = tree("avl")
+[18, 22, 27, 35, 44, 56, 63, 71, 89].forEach(p ->
+    prices.set(p, { sku: "p-" + str(p), price: p, })
+)
+
+log({
+    floor50: prices.floor(50),
+    ceil50: prices.ceil(50),
+    nearest42: prices.kClosest(42, 3),
+    median: prices.select(4),
+    rank35: prices.rank(35),
+    valid: prices.validate(),
+})</code></pre>
+
+            <h4>7.4 Hierarchical Tree: <code>ntree(rootId, rootValue?)</code></h4>
+            <p>
+                Explicit parent/children hierarchy for topology navigation.
+            </p>
+            <table>
+                <thead>
+                    <tr><th>Method</th><th>Signature</th><th>Return</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>get/set</code></td><td><code>t.get(id)</code>, <code>t.set(id, value)</code></td><td><code>node|null</code>, Bool</td></tr>
+                    <tr><td><code>append/prepend/insertAt</code></td><td><code>t.append(parent, child, value)</code>, ...</td><td>NTree</td></tr>
+                    <tr><td><code>remove</code></td><td><code>t.remove(id, opts?)</code></td><td>Bool</td></tr>
+                    <tr><td><code>move</code></td><td><code>t.move(id, newParent, opts?)</code></td><td>NTree</td></tr>
+                    <tr><td><code>parent/children/siblings</code></td><td><code>t.parent(id)</code>, <code>t.children(id)</code>, <code>t.siblings(id, opts?)</code></td><td><code>node|null</code>, <code>[node]</code>, <code>[node]</code></td></tr>
+                    <tr><td><code>ancestors/descendants</code></td><td><code>t.ancestors(id)</code>, <code>t.descendants(id, opts?)</code></td><td><code>[node]</code></td></tr>
+                    <tr><td><code>depth/height</code></td><td><code>t.depth(id)</code>, <code>t.height(id)</code></td><td><code>Int|null</code></td></tr>
+                    <tr><td><code>lca/pathBetween</code></td><td><code>t.lca(a, b)</code>, <code>t.pathBetween(a, b)</code></td><td><code>node|null</code>, <code>[node]|null</code></td></tr>
+                    <tr><td><code>subtreeSize</code></td><td><code>t.subtreeSize(id)</code></td><td><code>Int|null</code></td></tr>
+                    <tr><td><code>path</code></td><td><code>t.path(id)</code></td><td><code>[node]|null</code></td></tr>
+                    <tr><td><code>find/findAll/root</code></td><td><code>t.find(fn)</code>, <code>t.findAll(fn)</code>, <code>t.root()</code></td><td><code>node|null</code>, <code>[node]</code>, node</td></tr>
+                    <tr><td><code>size</code></td><td><code>t.size</code></td><td>Int</td></tr>
+                </tbody>
+            </table>
+            <pre><code>let topo = ntree("root", { label: "Root", })
+topo.append("root", "api", { label: "API", })
+topo.append("root", "worker", { label: "Worker", })
+topo.append("api", "http", { label: "HTTP", })
+topo.append("worker", "jobs", { label: "Jobs", })
+
+log({
+    depthJobs: topo.depth("jobs"),
+    lca: topo.lca("http", "jobs"),
+    path: topo.pathBetween("http", "jobs").map(n -> n.id),
+})</code></pre>
 
             <h3 id="sequence">8. Sequence Operators</h3>
             <p>
@@ -420,6 +517,8 @@ w.close()</code></pre>
                     <tr><td><code>Bytes</code></td><td><code>.length</code></td><td>-</td></tr>
                     <tr><td><code>Map</code></td><td>-</td><td><code>.get .set .has .delete .keys .values</code></td></tr>
                     <tr><td><code>Set</code></td><td><code>.size</code></td><td><code>.add .has .delete .values</code></td></tr>
+                    <tr><td><code>Tree</code></td><td><code>.size</code></td><td><code>.set .get .has .delete .kind .min .max .maxDepth .maxWidth .lowerBound .upperBound .floor .ceil .predecessor .successor .closest .kClosest .rank .select .range .path .popMin .popMax .bulkLoad .validate .keys .values .items</code></td></tr>
+                    <tr><td><code>NTree</code></td><td><code>.size</code></td><td><code>.get .set .append .prepend .insertAt .remove .move .parent .children .siblings .ancestors .descendants .depth .height .lca .pathBetween .subtreeSize .path .find .findAll .root</code></td></tr>
                     <tr><td><code>Channel</code></td><td>-</td><td><code>.send .recv .done</code></td></tr>
                     <tr><td><code>Task</code></td><td>-</td><td><code>.then .cancel</code></td></tr>
                     <tr><td><code>Process</code></td><td><code>.pid .running .stdin .stdout .stderr</code></td><td><code>.abort .kill .signal</code></td></tr>

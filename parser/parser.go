@@ -785,7 +785,7 @@ func (p *Parser) parseRecoverExpression(left ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseMemberExpression(left ast.Expression) ast.Expression {
-	if !(p.peekTokenIs(token.IDENT) || p.peekTokenIs(token.THEN)) {
+	if !(p.peekTokenIs(token.IDENT) || p.peekTokenIs(token.THEN) || p.peekTokenIs(token.SELECT)) {
 		p.addError(p.peekToken, "expected member name after '.'")
 		return nil
 	}

@@ -50,6 +50,16 @@ func (e *Evaluator) evalMemberExpression(node *ast.MemberExpression, env *Enviro
 			return &Integer{Value: int64(len(obj.Elements))}, nil, nil
 		}
 		return e.setMethod(obj, node.Property.Value)
+	case *Tree:
+		if node.Property.Value == "size" {
+			return &Integer{Value: int64(obj.size)}, nil, nil
+		}
+		return e.treeMethod(obj, node.Property.Value)
+	case *NTree:
+		if node.Property.Value == "size" {
+			return &Integer{Value: int64(len(obj.nodes))}, nil, nil
+		}
+		return e.nTreeMethod(obj, node.Property.Value)
 	case *Channel:
 		return e.channelMethod(obj, node.Property.Value)
 	case *Task:

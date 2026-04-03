@@ -1,0 +1,4 @@
+interface:
+  display_name: "Karl API-First Stdlib"
+  short_description: "Design high-level optimized Karl stdlib APIs"
+  default_prompt: "Design Karl standard library APIs at the highest useful abstraction level while preserving deterministic behavior and strong performance contracts."

@@ -76,6 +76,1018 @@ func (e *Evaluator) setMethod(s *Set, name string) (Value, *Signal, error) {
 	}
 }
 
+func (e *Evaluator) treeMethod(t *Tree, name string) (Value, *Signal, error) {
+	switch name {
+	case "set":
+		return &Builtin{
+			Name: "set",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 2 {
+					return nil, &RuntimeError{Message: "set expects key and value"}
+				}
+				if err := t.Set(args[0], args[1]); err != nil {
+					return nil, err
+				}
+				return t, nil
+			},
+		}, nil, nil
+	case "get":
+		return &Builtin{
+			Name: "get",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "get expects key"}
+				}
+				return t.Get(args[0])
+			},
+		}, nil, nil
+	case "has":
+		return &Builtin{
+			Name: "has",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "has expects key"}
+				}
+				ok, err := t.Has(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return &Boolean{Value: ok}, nil
+			},
+		}, nil, nil
+	case "delete":
+		return &Builtin{
+			Name: "delete",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "delete expects key"}
+				}
+				ok, err := t.Delete(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return &Boolean{Value: ok}, nil
+			},
+		}, nil, nil
+	case "kind":
+		return &Builtin{
+			Name: "kind",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "kind expects no arguments"}
+				}
+				return &String{Value: t.kind}, nil
+			},
+		}, nil, nil
+	case "min":
+		return &Builtin{
+			Name: "min",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "min expects no arguments"}
+				}
+				return treeItemValue(t.MinNode()), nil
+			},
+		}, nil, nil
+	case "max":
+		return &Builtin{
+			Name: "max",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "max expects no arguments"}
+				}
+				return treeItemValue(t.MaxNode()), nil
+			},
+		}, nil, nil
+	case "maxDepth":
+		return &Builtin{
+			Name: "maxDepth",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "maxDepth expects no arguments"}
+				}
+				return &Integer{Value: int64(t.MaxDepth())}, nil
+			},
+		}, nil, nil
+	case "maxWidth":
+		return &Builtin{
+			Name: "maxWidth",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "maxWidth expects no arguments"}
+				}
+				return &Integer{Value: int64(t.MaxWidth())}, nil
+			},
+		}, nil, nil
+	case "lowerBound":
+		return &Builtin{
+			Name: "lowerBound",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "lowerBound expects key"}
+				}
+				n, err := t.LowerBound(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return treeItemValue(n), nil
+			},
+		}, nil, nil
+	case "upperBound":
+		return &Builtin{
+			Name: "upperBound",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "upperBound expects key"}
+				}
+				n, err := t.UpperBound(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return treeItemValue(n), nil
+			},
+		}, nil, nil
+	case "floor":
+		return &Builtin{
+			Name: "floor",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "floor expects key"}
+				}
+				n, err := t.Floor(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return treeItemValue(n), nil
+			},
+		}, nil, nil
+	case "ceil":
+		return &Builtin{
+			Name: "ceil",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "ceil expects key"}
+				}
+				n, err := t.Ceil(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return treeItemValue(n), nil
+			},
+		}, nil, nil
+	case "predecessor":
+		return &Builtin{
+			Name: "predecessor",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "predecessor expects key"}
+				}
+				n, err := t.Predecessor(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return treeItemValue(n), nil
+			},
+		}, nil, nil
+	case "successor":
+		return &Builtin{
+			Name: "successor",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "successor expects key"}
+				}
+				n, err := t.Successor(args[0])
+				if err != nil {
+					return nil, err
+				}
+				return treeItemValue(n), nil
+			},
+		}, nil, nil
+	case "closest":
+		return &Builtin{
+			Name: "closest",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) < 1 || len(args) > 2 {
+					return nil, &RuntimeError{Message: "closest expects key and optional opts"}
+				}
+				tieUpper := false
+				if len(args) == 2 {
+					opts, ok := objectPairs(args[1])
+					if !ok {
+						return nil, &RuntimeError{Message: "closest opts must be object"}
+					}
+					if tie, ok := opts["tie"]; ok && !Equivalent(tie, NullValue) {
+						tieText, ok := stringArg(tie)
+						if !ok {
+							return nil, &RuntimeError{Message: "closest tie must be string"}
+						}
+						if tieText == "upper" {
+							tieUpper = true
+						} else if tieText != "lower" {
+							return nil, &RuntimeError{Message: "closest tie must be \"lower\" or \"upper\""}
+						}
+					}
+				}
+				n, exact, err := t.Closest(args[0], tieUpper)
+				if err != nil {
+					return nil, err
+				}
+				if n == nil {
+					return NullValue, nil
+				}
+				return &Object{Pairs: map[string]Value{
+					"key":   treeKeyToValue(n.key),
+					"value": n.value,
+					"exact": &Boolean{Value: exact},
+				}}, nil
+			},
+		}, nil, nil
+	case "kClosest":
+		return &Builtin{
+			Name: "kClosest",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) < 2 || len(args) > 3 {
+					return nil, &RuntimeError{Message: "kClosest expects key, k, and optional opts"}
+				}
+				kArg, ok := args[1].(*Integer)
+				if !ok {
+					return nil, &RuntimeError{Message: "kClosest k must be integer"}
+				}
+				if kArg.Value <= 0 {
+					return nil, &RuntimeError{Message: "kClosest k must be > 0"}
+				}
+				tieUpper := false
+				if len(args) == 3 {
+					opts, ok := objectPairs(args[2])
+					if !ok {
+						return nil, &RuntimeError{Message: "kClosest opts must be object"}
+					}
+					if tie, ok := opts["tie"]; ok && !Equivalent(tie, NullValue) {
+						tieText, ok := stringArg(tie)
+						if !ok {
+							return nil, &RuntimeError{Message: "kClosest tie must be string"}
+						}
+						if tieText == "upper" {
+							tieUpper = true
+						} else if tieText != "lower" {
+							return nil, &RuntimeError{Message: "kClosest tie must be \"lower\" or \"upper\""}
+						}
+					}
+				}
+				candidates, err := t.KClosest(args[0], int(kArg.Value), tieUpper)
+				if err != nil {
+					return nil, err
+				}
+				out := make([]Value, 0, len(candidates))
+				for _, c := range candidates {
+					out = append(out, &Object{Pairs: map[string]Value{
+						"key":      treeKeyToValue(c.node.key),
+						"value":    c.node.value,
+						"exact":    &Boolean{Value: c.exact},
+						"distance": treeDistanceValue(c.distance, t.keyType),
+					}})
+				}
+				return &Array{Elements: out}, nil
+			},
+		}, nil, nil
+	case "rank":
+		return &Builtin{
+			Name: "rank",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "rank expects key"}
+				}
+				rank, ok, err := t.Rank(args[0])
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					return NullValue, nil
+				}
+				return &Integer{Value: int64(rank)}, nil
+			},
+		}, nil, nil
+	case "select":
+		return &Builtin{
+			Name: "select",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "select expects rank"}
+				}
+				rank, ok := args[0].(*Integer)
+				if !ok {
+					return nil, &RuntimeError{Message: "select rank must be integer"}
+				}
+				if rank.Value < 0 {
+					return nil, &RuntimeError{Message: "select rank must be >= 0"}
+				}
+				return treeItemValue(t.Select(int(rank.Value))), nil
+			},
+		}, nil, nil
+	case "popMin":
+		return &Builtin{
+			Name: "popMin",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "popMin expects no arguments"}
+				}
+				item, ok, err := t.PopMin()
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					return NullValue, nil
+				}
+				return item, nil
+			},
+		}, nil, nil
+	case "popMax":
+		return &Builtin{
+			Name: "popMax",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "popMax expects no arguments"}
+				}
+				item, ok, err := t.PopMax()
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					return NullValue, nil
+				}
+				return item, nil
+			},
+		}, nil, nil
+	case "validate":
+		return &Builtin{
+			Name: "validate",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "validate expects no arguments"}
+				}
+				ok, reason := t.Validate()
+				reasonValue := Value(NullValue)
+				if !ok {
+					reasonValue = &String{Value: reason}
+				}
+				return &Object{Pairs: map[string]Value{
+					"ok":     &Boolean{Value: ok},
+					"reason": reasonValue,
+				}}, nil
+			},
+		}, nil, nil
+	case "bulkLoad":
+		return &Builtin{
+			Name: "bulkLoad",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) < 1 || len(args) > 2 {
+					return nil, &RuntimeError{Message: "bulkLoad expects items and optional opts"}
+				}
+				items, ok := args[0].(*Array)
+				if !ok {
+					return nil, &RuntimeError{Message: "bulkLoad items must be array"}
+				}
+				replace := false
+				if len(args) == 2 {
+					opts, ok := objectPairs(args[1])
+					if !ok {
+						return nil, &RuntimeError{Message: "bulkLoad opts must be object"}
+					}
+					if v, ok := opts["replace"]; ok && !Equivalent(v, NullValue) {
+						b, ok := v.(*Boolean)
+						if !ok {
+							return nil, &RuntimeError{Message: "bulkLoad replace must be bool"}
+						}
+						replace = b.Value
+					}
+				}
+				if err := t.BulkLoad(items.Elements, replace); err != nil {
+					return nil, err
+				}
+				return t, nil
+			},
+		}, nil, nil
+	case "range":
+		return &Builtin{
+			Name: "range",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) < 2 || len(args) > 3 {
+					return nil, &RuntimeError{Message: "range expects from, to, and optional opts"}
+				}
+				includeFrom := true
+				includeTo := true
+				limit := 0
+				if len(args) == 3 {
+					opts, ok := objectPairs(args[2])
+					if !ok {
+						return nil, &RuntimeError{Message: "range opts must be object"}
+					}
+					if v, ok := opts["includeFrom"]; ok && !Equivalent(v, NullValue) {
+						b, ok := v.(*Boolean)
+						if !ok {
+							return nil, &RuntimeError{Message: "range includeFrom must be bool"}
+						}
+						includeFrom = b.Value
+					}
+					if v, ok := opts["includeTo"]; ok && !Equivalent(v, NullValue) {
+						b, ok := v.(*Boolean)
+						if !ok {
+							return nil, &RuntimeError{Message: "range includeTo must be bool"}
+						}
+						includeTo = b.Value
+					}
+					if v, ok := opts["limit"]; ok && !Equivalent(v, NullValue) {
+						i, ok := v.(*Integer)
+						if !ok {
+							return nil, &RuntimeError{Message: "range limit must be integer"}
+						}
+						if i.Value <= 0 {
+							return nil, &RuntimeError{Message: "range limit must be > 0"}
+						}
+						limit = int(i.Value)
+					}
+				}
+				items, err := t.Range(args[0], args[1], includeFrom, includeTo, limit)
+				if err != nil {
+					return nil, err
+				}
+				return &Array{Elements: items}, nil
+			},
+		}, nil, nil
+	case "path":
+		return &Builtin{
+			Name: "path",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "path expects key"}
+				}
+				path, err := t.Path(args[0])
+				if err != nil {
+					return nil, err
+				}
+				if path == nil {
+					return NullValue, nil
+				}
+				return &Array{Elements: path}, nil
+			},
+		}, nil, nil
+	case "keys":
+		return &Builtin{
+			Name: "keys",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "keys expects no arguments"}
+				}
+				return &Array{Elements: t.Keys()}, nil
+			},
+		}, nil, nil
+	case "values":
+		return &Builtin{
+			Name: "values",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "values expects no arguments"}
+				}
+				return &Array{Elements: t.Values()}, nil
+			},
+		}, nil, nil
+	case "items":
+		return &Builtin{
+			Name: "items",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "items expects no arguments"}
+				}
+				return &Array{Elements: t.Items()}, nil
+			},
+		}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "unknown tree member: " + name}
+	}
+}
+
+func (e *Evaluator) nTreeMethod(t *NTree, name string) (Value, *Signal, error) {
+	nodeArray := func(nodes []*nTreeNode) *Array {
+		out := make([]Value, 0, len(nodes))
+		for _, n := range nodes {
+			if n == nil {
+				continue
+			}
+			out = append(out, n.nodeValue())
+		}
+		return &Array{Elements: out}
+	}
+
+	stringID := func(v Value, label string) (string, error) {
+		id, ok := stringArg(v)
+		if !ok {
+			return "", &RuntimeError{Message: label + " must be string"}
+		}
+		return id, nil
+	}
+
+	switch name {
+	case "get":
+		return &Builtin{
+			Name: "get",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "get expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				return t.nodeValueByID(id), nil
+			},
+		}, nil, nil
+	case "set":
+		return &Builtin{
+			Name: "set",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 2 {
+					return nil, &RuntimeError{Message: "set expects id and value"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				return &Boolean{Value: t.SetValue(id, args[1])}, nil
+			},
+		}, nil, nil
+	case "append":
+		return &Builtin{
+			Name: "append",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 3 {
+					return nil, &RuntimeError{Message: "append expects parentId, childId, value"}
+				}
+				parentID, err := stringID(args[0], "parentId")
+				if err != nil {
+					return nil, err
+				}
+				childID, err := stringID(args[1], "childId")
+				if err != nil {
+					return nil, err
+				}
+				if err := t.Append(parentID, childID, args[2]); err != nil {
+					return nil, err
+				}
+				return t, nil
+			},
+		}, nil, nil
+	case "prepend":
+		return &Builtin{
+			Name: "prepend",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 3 {
+					return nil, &RuntimeError{Message: "prepend expects parentId, childId, value"}
+				}
+				parentID, err := stringID(args[0], "parentId")
+				if err != nil {
+					return nil, err
+				}
+				childID, err := stringID(args[1], "childId")
+				if err != nil {
+					return nil, err
+				}
+				if err := t.Prepend(parentID, childID, args[2]); err != nil {
+					return nil, err
+				}
+				return t, nil
+			},
+		}, nil, nil
+	case "insertAt":
+		return &Builtin{
+			Name: "insertAt",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 4 {
+					return nil, &RuntimeError{Message: "insertAt expects parentId, index, childId, value"}
+				}
+				parentID, err := stringID(args[0], "parentId")
+				if err != nil {
+					return nil, err
+				}
+				index, ok := args[1].(*Integer)
+				if !ok {
+					return nil, &RuntimeError{Message: "index must be integer"}
+				}
+				if index.Value < 0 {
+					return nil, &RuntimeError{Message: "index must be >= 0"}
+				}
+				childID, err := stringID(args[2], "childId")
+				if err != nil {
+					return nil, err
+				}
+				if err := t.InsertAt(parentID, int(index.Value), childID, args[3]); err != nil {
+					return nil, err
+				}
+				return t, nil
+			},
+		}, nil, nil
+	case "remove":
+		return &Builtin{
+			Name: "remove",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) < 1 || len(args) > 2 {
+					return nil, &RuntimeError{Message: "remove expects id and optional opts"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				subtree := true
+				if len(args) == 2 {
+					opts, ok := objectPairs(args[1])
+					if !ok {
+						return nil, &RuntimeError{Message: "remove opts must be object"}
+					}
+					if v, ok := opts["subtree"]; ok && !Equivalent(v, NullValue) {
+						flag, ok := v.(*Boolean)
+						if !ok {
+							return nil, &RuntimeError{Message: "remove subtree must be bool"}
+						}
+						subtree = flag.Value
+					}
+				}
+				removed, err := t.Remove(id, subtree)
+				if err != nil {
+					return nil, err
+				}
+				return &Boolean{Value: removed}, nil
+			},
+		}, nil, nil
+	case "move":
+		return &Builtin{
+			Name: "move",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) < 2 || len(args) > 3 {
+					return nil, &RuntimeError{Message: "move expects id, newParentId, and optional opts"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				parentID, err := stringID(args[1], "newParentId")
+				if err != nil {
+					return nil, err
+				}
+				index := 0
+				hasIndex := false
+				if len(args) == 3 {
+					opts, ok := objectPairs(args[2])
+					if !ok {
+						return nil, &RuntimeError{Message: "move opts must be object"}
+					}
+					if v, ok := opts["index"]; ok && !Equivalent(v, NullValue) {
+						i, ok := v.(*Integer)
+						if !ok {
+							return nil, &RuntimeError{Message: "move index must be integer"}
+						}
+						if i.Value < 0 {
+							return nil, &RuntimeError{Message: "move index must be >= 0"}
+						}
+						index = int(i.Value)
+						hasIndex = true
+					}
+				}
+				if err := t.Move(id, parentID, index, hasIndex); err != nil {
+					return nil, err
+				}
+				return t, nil
+			},
+		}, nil, nil
+	case "parent":
+		return &Builtin{
+			Name: "parent",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "parent expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				parent, ok := t.Parent(id)
+				if !ok || parent == nil {
+					return NullValue, nil
+				}
+				return parent.nodeValue(), nil
+			},
+		}, nil, nil
+	case "children":
+		return &Builtin{
+			Name: "children",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "children expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				children, err := t.Children(id)
+				if err != nil {
+					return nil, err
+				}
+				return nodeArray(children), nil
+			},
+		}, nil, nil
+	case "siblings":
+		return &Builtin{
+			Name: "siblings",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) < 1 || len(args) > 2 {
+					return nil, &RuntimeError{Message: "siblings expects id and optional opts"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				includeSelf := false
+				if len(args) == 2 {
+					opts, ok := objectPairs(args[1])
+					if !ok {
+						return nil, &RuntimeError{Message: "siblings opts must be object"}
+					}
+					if v, ok := opts["includeSelf"]; ok && !Equivalent(v, NullValue) {
+						b, ok := v.(*Boolean)
+						if !ok {
+							return nil, &RuntimeError{Message: "siblings includeSelf must be bool"}
+						}
+						includeSelf = b.Value
+					}
+				}
+				siblings, err := t.Siblings(id, includeSelf)
+				if err != nil {
+					return nil, err
+				}
+				return nodeArray(siblings), nil
+			},
+		}, nil, nil
+	case "ancestors":
+		return &Builtin{
+			Name: "ancestors",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "ancestors expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				ancestors, err := t.Ancestors(id)
+				if err != nil {
+					return nil, err
+				}
+				return nodeArray(ancestors), nil
+			},
+		}, nil, nil
+	case "path":
+		return &Builtin{
+			Name: "path",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "path expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				path, ok := t.Path(id)
+				if !ok {
+					return NullValue, nil
+				}
+				return nodeArray(path), nil
+			},
+		}, nil, nil
+	case "depth":
+		return &Builtin{
+			Name: "depth",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "depth expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				depth, ok := t.Depth(id)
+				if !ok {
+					return NullValue, nil
+				}
+				return &Integer{Value: int64(depth)}, nil
+			},
+		}, nil, nil
+	case "height":
+		return &Builtin{
+			Name: "height",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "height expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				height, ok := t.Height(id)
+				if !ok {
+					return NullValue, nil
+				}
+				return &Integer{Value: int64(height)}, nil
+			},
+		}, nil, nil
+	case "lca":
+		return &Builtin{
+			Name: "lca",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 2 {
+					return nil, &RuntimeError{Message: "lca expects a and b ids"}
+				}
+				a, err := stringID(args[0], "a")
+				if err != nil {
+					return nil, err
+				}
+				b, err := stringID(args[1], "b")
+				if err != nil {
+					return nil, err
+				}
+				n, ok := t.LCA(a, b)
+				if !ok || n == nil {
+					return NullValue, nil
+				}
+				return n.nodeValue(), nil
+			},
+		}, nil, nil
+	case "pathBetween":
+		return &Builtin{
+			Name: "pathBetween",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 2 {
+					return nil, &RuntimeError{Message: "pathBetween expects a and b ids"}
+				}
+				a, err := stringID(args[0], "a")
+				if err != nil {
+					return nil, err
+				}
+				b, err := stringID(args[1], "b")
+				if err != nil {
+					return nil, err
+				}
+				path, ok := t.PathBetween(a, b)
+				if !ok {
+					return NullValue, nil
+				}
+				return nodeArray(path), nil
+			},
+		}, nil, nil
+	case "subtreeSize":
+		return &Builtin{
+			Name: "subtreeSize",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "subtreeSize expects id"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				size, ok := t.SubtreeSize(id)
+				if !ok {
+					return NullValue, nil
+				}
+				return &Integer{Value: int64(size)}, nil
+			},
+		}, nil, nil
+	case "descendants":
+		return &Builtin{
+			Name: "descendants",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) < 1 || len(args) > 2 {
+					return nil, &RuntimeError{Message: "descendants expects id and optional opts"}
+				}
+				id, err := stringID(args[0], "id")
+				if err != nil {
+					return nil, err
+				}
+				traversal := "dfs"
+				if len(args) == 2 {
+					opts, ok := objectPairs(args[1])
+					if !ok {
+						return nil, &RuntimeError{Message: "descendants opts must be object"}
+					}
+					if v, ok := opts["traversal"]; ok && !Equivalent(v, NullValue) {
+						mode, ok := stringArg(v)
+						if !ok {
+							return nil, &RuntimeError{Message: "descendants traversal must be string"}
+						}
+						traversal = mode
+					}
+				}
+				desc, err := t.Descendants(id, traversal)
+				if err != nil {
+					return nil, err
+				}
+				return nodeArray(desc), nil
+			},
+		}, nil, nil
+	case "find":
+		return &Builtin{
+			Name: "find",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "find expects function"}
+				}
+				if !isCallable(args[0]) {
+					return nil, &RuntimeError{Message: "find expects function"}
+				}
+				if t.rootID == "" {
+					return NullValue, nil
+				}
+				stack := []string{t.rootID}
+				for len(stack) > 0 {
+					last := len(stack) - 1
+					id := stack[last]
+					stack = stack[:last]
+					n, ok := t.nodeByID(id)
+					if !ok {
+						continue
+					}
+					out, sig, err := e.applyFunction(args[0], []Value{n.nodeValue()})
+					if err != nil {
+						return nil, err
+					}
+					if sig != nil {
+						return nil, &RuntimeError{Message: "break/continue outside loop"}
+					}
+					if isTruthy(out) {
+						return n.nodeValue(), nil
+					}
+					for i := len(n.children) - 1; i >= 0; i-- {
+						stack = append(stack, n.children[i])
+					}
+				}
+				return NullValue, nil
+			},
+		}, nil, nil
+	case "findAll":
+		return &Builtin{
+			Name: "findAll",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 1 {
+					return nil, &RuntimeError{Message: "findAll expects function"}
+				}
+				if !isCallable(args[0]) {
+					return nil, &RuntimeError{Message: "findAll expects function"}
+				}
+				out := []Value{}
+				if t.rootID == "" {
+					return &Array{Elements: out}, nil
+				}
+				stack := []string{t.rootID}
+				for len(stack) > 0 {
+					last := len(stack) - 1
+					id := stack[last]
+					stack = stack[:last]
+					n, ok := t.nodeByID(id)
+					if !ok {
+						continue
+					}
+					keep, sig, err := e.applyFunction(args[0], []Value{n.nodeValue()})
+					if err != nil {
+						return nil, err
+					}
+					if sig != nil {
+						return nil, &RuntimeError{Message: "break/continue outside loop"}
+					}
+					if isTruthy(keep) {
+						out = append(out, n.nodeValue())
+					}
+					for i := len(n.children) - 1; i >= 0; i-- {
+						stack = append(stack, n.children[i])
+					}
+				}
+				return &Array{Elements: out}, nil
+			},
+		}, nil, nil
+	case "root":
+		return &Builtin{
+			Name: "root",
+			Fn: func(_ *Evaluator, args []Value) (Value, error) {
+				if len(args) != 0 {
+					return nil, &RuntimeError{Message: "root expects no arguments"}
+				}
+				if t.rootID == "" {
+					return NullValue, nil
+				}
+				return t.nodeValueByID(t.rootID), nil
+			},
+		}, nil, nil
+	default:
+		return nil, nil, &RuntimeError{Message: "unknown ntree member: " + name}
+	}
+}
+
 func (e *Evaluator) taskMethod(t *Task, name string) (Value, *Signal, error) {
 	switch name {
 	case "then":

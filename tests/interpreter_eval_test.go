@@ -305,7 +305,7 @@ func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "len expects string, bytes, array, map, set, or object") {
+	if !strings.Contains(err.Error(), "len expects string, bytes, array, map, set, tree, ntree, or object") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -313,6 +313,21 @@ func TestEvalLenBuiltinRejectsUnsupportedType(t *testing.T) {
 func TestEvalUtf8EncodeDecodeHelpers(t *testing.T) {
 	val := mustEval(t, `fromUtf8(toUtf8("karl"))`)
 	assertString(t, val, "karl")
+}
+
+func TestEvalBase58EncodeDecodeHelpers(t *testing.T) {
+	val := mustEval(t, `fromUtf8(fromBase58(toBase58(toUtf8("karl"))))`)
+	assertString(t, val, "karl")
+}
+
+func TestEvalBase58LeadingZeroBytesRoundTrip(t *testing.T) {
+	val := mustEval(t, `toBase58(fromBase58("1112"))`)
+	assertString(t, val, "1112")
+}
+
+func TestEvalFromBase58RecoverableDecodeError(t *testing.T) {
+	val := mustEval(t, `fromBase58("0") ? { error.kind }`)
+	assertString(t, val, "base58_decode")
 }
 
 func TestEvalBytesJoin(t *testing.T) {

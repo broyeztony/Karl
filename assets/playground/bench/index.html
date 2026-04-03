@@ -328,6 +328,7 @@
                     <option value="for_then">For Expression + Then Block</option>
                     <option value="match_guards">Match with Guards</option>
                     <option value="maps_sets_objects">Maps, Sets, Objects</option>
+                    <option value="collections_tree_index">Collections: Ordered Tree Index</option>
                     <option value="recover_operator">Recover Operator (?)</option>
                     <option value="tasks_then">Tasks + then()</option>
                     <option value="join_group">Join Group (&amp; { ... })</option>
@@ -486,6 +487,20 @@ let o = { team: "runtime", feature: "playground", }
     setSize: len(s),
     objectKeys: keys(o),
 }`,
+            collections_tree_index: `// Ordered tree index: nearest + bounds + rank/select
+let prices = tree("avl")
+[18, 22, 27, 35, 44, 56, 63, 71, 89].forEach(p ->
+    prices.set(p, { sku: "p-" + str(p), price: p, })
+)
+
+log({
+    floor50: prices.floor(50),
+    ceil50: prices.ceil(50),
+    nearest42: prices.kClosest(42, 3),
+    median: prices.select(4),
+    rank35: prices.rank(35),
+    valid: prices.validate(),
+})`,
             recover_operator: `// Recover operator (?) on runtime/recoverable errors
 let cfg = { retries: 3, }
 

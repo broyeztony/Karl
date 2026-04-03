@@ -28,7 +28,7 @@ jobs:
       - name: Build Karl
         run: |
           echo "Building Karl interpreter..."
-          go build -v -o karl .
+          CGO_ENABLED=0 go build -v -trimpath -ldflags "-s -w" -o karl .
           chmod +x karl
 
       - name: Run Go tests

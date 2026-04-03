@@ -434,6 +434,33 @@ let size = uniq.size                     // integer
 // Note: set() constructs a Set. set(map, key, value) still sets a Map entry.
 
 // ============================================
+// 9.7 TREE EXPRESSIONS
+// ============================================
+
+// Trees keep keys ordered and support O(log n) lookup/bounds.
+let idx = tree()              // default "avl"
+let fast = tree("treap")
+
+idx.set(5, "e")
+idx.set(2, "b")
+idx.set(8, "h")
+
+let v = idx.get(2)            // "b"
+let has = idx.has(7)          // false
+let floorish = idx.lowerBound(4) // { key: 5, value: "e", }
+let next = idx.upperBound(5)      // { key: 8, value: "h", }
+let rank = idx.rank(5)            // 1
+let nth = idx.select(0)           // { key: 2, value: "b", }
+let near = idx.kClosest(6, 2)     // nearest two entries
+
+let keys = idx.keys()         // [2, 5, 8]
+let items = idx.items()       // [{key:2,value:"b"}, ...]
+log(idx)                      // ASCII tree rendering
+
+// Tree key types: int, float, string, char.
+// Mixed key domains are rejected (for example int then string).
+
+// ============================================
 // 10. RANGE & SLICE EXPRESSIONS
 // ============================================
 
@@ -691,7 +718,7 @@ postfix         = recover_expr ;
 recover_expr    = call_expr [ "?" expr ] ;
 call_expr       = primary { call | member | index | inc_dec } ;
 call            = "(" [ expr { "," expr } [ "," ] ] ")" ;
-member          = "." ( IDENT | "then" ) ;
+member          = "." ( IDENT | "then" | "select" ) ;
 index           = "[" expr "]" ;
 inc_dec         = "++" | "--" ;
 

@@ -84,6 +84,7 @@ Falsy values:
 - `{}` (empty object)
 - `map()` (empty map)
 - `set()` (empty set)
+- `tree()` (empty AVL tree)
 
 Everything else is truthy.
 Logical `!`, `&&`, and `||` operate on truthy/falsy and return `Bool`.
@@ -545,6 +546,8 @@ Implementation details (current runtime):
 - `str(value)` -> String
 - `toUtf8(text)` -> Bytes
 - `fromUtf8(bytes)` -> String
+- `toBase58(bytes)` -> String
+- `fromBase58(text)` -> Bytes
 - `parseInt(string)` -> Int
 - `sha256(text)` -> String (hex digest)
 - `uuidNew()` -> String
@@ -583,6 +586,10 @@ Implementation details (current runtime):
 - `done(rendezvous)` -> Unit (closes rendezvous)
 - `map()` -> Map
 - `set()` -> Set
+- `tree(kind?)` -> Tree (`kind`: `"avl"` or `"treap"`, default `"avl"`)
+  - methods: `set/get/has/delete/kind/min/max/maxDepth/maxWidth/lowerBound/upperBound/floor/ceil/predecessor/successor/path/closest/kClosest/rank/select/range/popMin/popMax/validate/bulkLoad/keys/values/items`
+- `ntree(rootId, rootValue?)` -> NTree
+  - methods: `get/set/append/prepend/insertAt/remove/move/parent/children/path/depth/height/siblings/ancestors/descendants/find/findAll/lca/pathBetween/subtreeSize/root`
 - `map(list, fn)` remains the array map function.
 - `sort(list, cmp)` -> Array (returns new array)
 - `split(string, sep)` -> Array
@@ -604,6 +611,27 @@ Implementation details (current runtime):
 - `keys(map)` -> Array
 - `values(map)` -> Array
 - `values(set)` -> Array
+- `tree.set(key, value)` -> Tree
+- `tree.get(key)` -> value or `null`
+- `tree.has(key)` -> Bool
+- `tree.delete(key)` -> Bool
+- `tree.kind()` -> String
+- `tree.min()` -> `{ key, value }` or `null`
+- `tree.max()` -> `{ key, value }` or `null`
+- `tree.lowerBound(key)` -> `{ key, value }` or `null` (`>= key`)
+- `tree.upperBound(key)` -> `{ key, value }` or `null` (`> key`)
+- `tree.keys()` -> Array (in-order)
+- `tree.values()` -> Array (in-order by key)
+- `tree.items()` -> Array of `{ key, value }` (in-order)
+- `tree.rank(key)` -> zero-based in-order rank, or `null` when key is absent
+- `tree.select(rank)` -> `{ key, value }` by zero-based rank, or `null`
+- `tree.kClosest(key, k, opts?)` -> nearest items (`opts.tie = "lower" | "upper"`, numeric keys only)
+- `tree.popMin()` / `tree.popMax()` -> remove+return extreme item, or `null`
+- `tree.validate()` -> `{ ok, reason }` (`reason=null` when `ok=true`)
+- `tree.bulkLoad(items, opts?)` -> tree; accepts `{ key, value }` or `[key, value]`, `opts.replace` clears first
+- `tree` inspect rendering:
+  - empty: `tree(<kind>, size=0)`
+  - non-empty: `tree(<kind>, size=n)` plus ASCII branch lines (Unix `tree`-style) when printed/logged
 - `abs(number)` -> Number
 - `sqrt(number)` -> Float
 - `pow(base, exp)` -> Float
@@ -621,6 +649,7 @@ Implementation details (current runtime):
 
 Notes:
 - `http` accepts `headers` as an object or map; the response `headers` is a `Map` so header names like `Content-Type` are accessible via `headers.get("Content-Type")`.
+- Tree key types are ordered scalars only: `int`, `float`, `string`, `char`; mixed key domains are rejected.
 
 ## Equality Semantics
 

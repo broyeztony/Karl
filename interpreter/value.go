@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"bytes"
+	"strings"
 )
 
 type Array struct {
@@ -90,3 +91,49 @@ func (s *Set) Inspect() string {
 	return out.String()
 }
 
+type Tree struct {
+	kind       string
+	root       *treeNode
+	size       int
+	keyType    ValueType
+	keyTypeSet bool
+}
+
+func (t *Tree) Type() ValueType { return TREE }
+func (t *Tree) Inspect() string {
+	head := "tree(" + t.kind + ", size=" + (&Integer{Value: int64(t.size)}).Inspect() + ")"
+	if t.root == nil {
+		return head
+	}
+
+	lines := []string{head}
+	appendTreeInspectLines(&lines, t.root, "", true)
+	return strings.Join(lines, "\n")
+}
+
+func appendTreeInspectLines(lines *[]string, n *treeNode, prefix string, isLast bool) {
+	if n == nil {
+		return
+	}
+
+	branch := "|-- "
+	nextPrefix := prefix + "|   "
+	if isLast {
+		branch = "`-- "
+		nextPrefix = prefix + "    "
+	}
+
+	line := prefix + branch + treeKeyToValue(n.key).Inspect() + ": " + n.value.Inspect()
+	*lines = append(*lines, line)
+
+	children := make([]*treeNode, 0, 2)
+	if n.left != nil {
+		children = append(children, n.left)
+	}
+	if n.right != nil {
+		children = append(children, n.right)
+	}
+	for i, child := range children {
+		appendTreeInspectLines(lines, child, nextPrefix, i == len(children)-1)
+	}
+}

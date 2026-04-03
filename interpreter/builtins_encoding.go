@@ -5,6 +5,8 @@ import "unicode/utf8"
 func registerEncodingBuiltins() {
 	builtins["toUtf8"] = &Builtin{Name: "toUtf8", Fn: builtinToUtf8}
 	builtins["fromUtf8"] = &Builtin{Name: "fromUtf8", Fn: builtinFromUtf8}
+	builtins["toBase58"] = &Builtin{Name: "toBase58", Fn: builtinToBase58}
+	builtins["fromBase58"] = &Builtin{Name: "fromBase58", Fn: builtinFromBase58}
 	builtins["bytesJoin"] = &Builtin{Name: "bytesJoin", Fn: builtinBytesJoin}
 }
 
