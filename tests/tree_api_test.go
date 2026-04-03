@@ -290,3 +290,129 @@ t.closest("b")
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestTreeOrderStatsPopAndValidate(t *testing.T) {
+	val := mustEval(t, `
+let t = tree()
+t.bulkLoad([
+  { key: 10, value: "a", },
+  [20, "b"],
+  { key: 30, value: "c", },
+  [40, "d"],
+  [50, "e"],
+])
+{
+  rank30: t.rank(30),
+  rank99: t.rank(99),
+  sel0: t.select(0),
+  sel3: t.select(3),
+  sel9: t.select(9),
+  near33: t.kClosest(33, 3),
+  near35up: t.kClosest(35, 2, { tie: "upper", }),
+  popMin: t.popMin(),
+  popMax: t.popMax(),
+  size: t.size,
+  keys: t.keys(),
+  validate: t.validate(),
+}
+`)
+	expected := &Object{Pairs: map[string]Value{
+		"rank30": &Integer{Value: 2},
+		"rank99": NullValue,
+		"sel0": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 10},
+			"value": &String{Value: "a"},
+		}},
+		"sel3": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 40},
+			"value": &String{Value: "d"},
+		}},
+		"sel9": NullValue,
+		"near33": &Array{Elements: []Value{
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 30}, "value": &String{Value: "c"}, "exact": &Boolean{Value: false}, "distance": &Integer{Value: 3}}},
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 40}, "value": &String{Value: "d"}, "exact": &Boolean{Value: false}, "distance": &Integer{Value: 7}}},
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 20}, "value": &String{Value: "b"}, "exact": &Boolean{Value: false}, "distance": &Integer{Value: 13}}},
+		}},
+		"near35up": &Array{Elements: []Value{
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 40}, "value": &String{Value: "d"}, "exact": &Boolean{Value: false}, "distance": &Integer{Value: 5}}},
+			&Object{Pairs: map[string]Value{"key": &Integer{Value: 30}, "value": &String{Value: "c"}, "exact": &Boolean{Value: false}, "distance": &Integer{Value: 5}}},
+		}},
+		"popMin": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 10},
+			"value": &String{Value: "a"},
+		}},
+		"popMax": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 50},
+			"value": &String{Value: "e"},
+		}},
+		"size": &Integer{Value: 3},
+		"keys": &Array{Elements: []Value{
+			&Integer{Value: 20},
+			&Integer{Value: 30},
+			&Integer{Value: 40},
+		}},
+		"validate": &Object{Pairs: map[string]Value{
+			"ok":     &Boolean{Value: true},
+			"reason": NullValue,
+		}},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
+func TestTreeBulkLoadOptionsAndErrors(t *testing.T) {
+	val := mustEval(t, `
+let t = tree()
+t.set(9, "z")
+t.bulkLoad([[1, "a"], [2, "b"]], { replace: true, })
+{
+  size: t.size,
+  keys: t.keys(),
+  min: t.min(),
+}
+`)
+	expected := &Object{Pairs: map[string]Value{
+		"size": &Integer{Value: 2},
+		"keys": &Array{Elements: []Value{
+			&Integer{Value: 1},
+			&Integer{Value: 2},
+		}},
+		"min": &Object{Pairs: map[string]Value{
+			"key":   &Integer{Value: 1},
+			"value": &String{Value: "a"},
+		}},
+	}}
+	assertEquivalent(t, val, expected)
+
+	_, err := evalInput(t, `
+let t = tree()
+t.bulkLoad([1])
+`)
+	if err == nil {
+		t.Fatalf("expected bulkLoad item shape error")
+	}
+	if !strings.Contains(err.Error(), "bulkLoad items must be objects") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	_, err = evalInput(t, `
+let t = tree()
+t.select(-1)
+`)
+	if err == nil {
+		t.Fatalf("expected select rank error")
+	}
+	if !strings.Contains(err.Error(), "select rank must be >= 0") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	_, err = evalInput(t, `
+let t = tree()
+t.kClosest(1, 0)
+`)
+	if err == nil {
+		t.Fatalf("expected kClosest k error")
+	}
+	if !strings.Contains(err.Error(), "kClosest k must be > 0") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

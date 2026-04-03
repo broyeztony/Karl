@@ -126,6 +126,26 @@ Current API:
 - `idx.keys() -> []`
 - `idx.values() -> []`
 - `idx.items() -> [{ key, value }]`
+- `idx.rank(key) -> Int | null`
+  - zero-based in-order rank for exact key
+  - returns `null` when key is absent
+- `idx.select(rank) -> { key, value } | null`
+  - inverse of `rank`
+  - zero-based in-order index
+- `idx.kClosest(key, k, opts?) -> [{ key, value, exact, distance }]`
+  - returns up to `k` nearest items
+  - `opts.tie = "lower" | "upper"` for equal-distance ties
+  - numeric keys only (`int` / `float`)
+- `idx.popMin() -> { key, value } | null`
+- `idx.popMax() -> { key, value } | null`
+- `idx.validate() -> { ok, reason }`
+  - `ok=true` => `reason=null`
+  - `ok=false` => `reason` includes first detected invariant failure
+- `idx.bulkLoad(items, opts?) -> tree`
+  - item forms:
+    - `{ key, value }`
+    - `[key, value]`
+  - `opts.replace` (bool, default `false`) clears existing content before loading
 - `idx.size`
 
 Inspect rendering:
@@ -137,8 +157,11 @@ Complexity targets:
 
 - `set/get/has/delete/floor/ceil/predecessor/successor/closest`: O(log n)
 - `path`: O(log n)
+- `rank/select/kClosest` (current implementation): O(n)
 - `keys/values/items/range`: O(k + log n), where `k` is output size
 - `maxDepth/maxWidth`: O(n)
+- `validate`: O(n)
+- `bulkLoad(m items)`: O(m log(n+m)) for incremental inserts
 
 ## 5. Hierarchical Node Tree: `ntree(...)` (Current)
 
@@ -189,6 +212,8 @@ Where:
 - `t.parent(id) -> node|null`
 - `t.children(id) -> [node]`
 - `t.path(id) -> [node] | null` (root to id)
+- `t.depth(id) -> Int | null` (root depth = 0)
+- `t.height(id) -> Int | null` (leaf height = 0)
 - `t.siblings(id, opts?) -> [node]`
   - default excludes self
 - `t.ancestors(id) -> [node]` (nearest first)
@@ -196,6 +221,9 @@ Where:
   - traversal option: `dfs` (default) or `bfs`
 - `t.find(fn) -> node|null`
 - `t.findAll(fn) -> [node]`
+- `t.lca(a, b) -> node | null` (lowest common ancestor)
+- `t.pathBetween(a, b) -> [node] | null` (inclusive path `a ... b`)
+- `t.subtreeSize(id) -> Int | null` (includes node itself)
 - `t.root() -> node`
 - `t.size`
 
@@ -210,6 +238,9 @@ With internal `nodesById`, `parentById`, `childrenById` maps:
 - `get/parent/children`: O(1) (plus O(k) to materialize children list)
 - `append/prepend`: O(1) amortized
 - `insertAt/remove/move`: O(c) where `c` is affected sibling list size
+- `depth`: O(h) where `h` is tree height
+- `height/subtreeSize`: O(size of subtree)
+- `lca/pathBetween`: O(h)
 - `find/findAll/descendants`: O(n)
 
 ## 6. Error Semantics

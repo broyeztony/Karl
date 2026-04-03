@@ -254,6 +254,152 @@ func (t *NTree) Path(id string) ([]*nTreeNode, bool) {
 	return path, true
 }
 
+func (t *NTree) Depth(id string) (int, bool) {
+	n, ok := t.nodeByID(id)
+	if !ok {
+		return 0, false
+	}
+	depth := 0
+	cur := n
+	for cur.hasParent {
+		next, ok := t.nodeByID(cur.parent)
+		if !ok {
+			return 0, false
+		}
+		depth++
+		cur = next
+	}
+	return depth, true
+}
+
+func (t *NTree) Height(id string) (int, bool) {
+	n, ok := t.nodeByID(id)
+	if !ok {
+		return 0, false
+	}
+	return t.nodeHeight(n), true
+}
+
+func (t *NTree) nodeHeight(n *nTreeNode) int {
+	if n == nil {
+		return 0
+	}
+	if len(n.children) == 0 {
+		return 0
+	}
+	maxHeight := 0
+	for _, childID := range n.children {
+		child, ok := t.nodeByID(childID)
+		if !ok {
+			continue
+		}
+		h := t.nodeHeight(child) + 1
+		if h > maxHeight {
+			maxHeight = h
+		}
+	}
+	return maxHeight
+}
+
+func (t *NTree) LCA(a string, b string) (*nTreeNode, bool) {
+	if _, ok := t.nodeByID(a); !ok {
+		return nil, false
+	}
+	if _, ok := t.nodeByID(b); !ok {
+		return nil, false
+	}
+
+	ancestors := map[string]struct{}{}
+	cur, _ := t.nodeByID(a)
+	for cur != nil {
+		ancestors[cur.id] = struct{}{}
+		if !cur.hasParent {
+			break
+		}
+		next, ok := t.nodeByID(cur.parent)
+		if !ok {
+			return nil, false
+		}
+		cur = next
+	}
+
+	cur, _ = t.nodeByID(b)
+	for cur != nil {
+		if _, ok := ancestors[cur.id]; ok {
+			return cur, true
+		}
+		if !cur.hasParent {
+			break
+		}
+		next, ok := t.nodeByID(cur.parent)
+		if !ok {
+			return nil, false
+		}
+		cur = next
+	}
+	return nil, false
+}
+
+func (t *NTree) PathBetween(a string, b string) ([]*nTreeNode, bool) {
+	pathA, ok := t.Path(a)
+	if !ok {
+		return nil, false
+	}
+	pathB, ok := t.Path(b)
+	if !ok {
+		return nil, false
+	}
+	if len(pathA) == 0 || len(pathB) == 0 {
+		return nil, false
+	}
+
+	lcaIndex := -1
+	limit := len(pathA)
+	if len(pathB) < limit {
+		limit = len(pathB)
+	}
+	for i := 0; i < limit; i++ {
+		if pathA[i].id != pathB[i].id {
+			break
+		}
+		lcaIndex = i
+	}
+	if lcaIndex < 0 {
+		return nil, false
+	}
+
+	out := []*nTreeNode{}
+	for i := len(pathA) - 1; i >= lcaIndex; i-- {
+		out = append(out, pathA[i])
+	}
+	for i := lcaIndex + 1; i < len(pathB); i++ {
+		out = append(out, pathB[i])
+	}
+	return out, true
+}
+
+func (t *NTree) SubtreeSize(id string) (int, bool) {
+	root, ok := t.nodeByID(id)
+	if !ok {
+		return 0, false
+	}
+	count := 0
+	stack := []*nTreeNode{root}
+	for len(stack) > 0 {
+		last := len(stack) - 1
+		n := stack[last]
+		stack = stack[:last]
+		count++
+		for i := len(n.children) - 1; i >= 0; i-- {
+			child, ok := t.nodeByID(n.children[i])
+			if ok {
+				stack = append(stack, child)
+			}
+		}
+	}
+	return count, true
+}
+
 func (t *NTree) Descendants(id string, traversal string) ([]*nTreeNode, error) {
 	root, ok := t.nodeByID(id)
 	if !ok {

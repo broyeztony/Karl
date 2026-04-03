@@ -587,9 +587,9 @@ Implementation details (current runtime):
 - `map()` -> Map
 - `set()` -> Set
 - `tree(kind?)` -> Tree (`kind`: `"avl"` or `"treap"`, default `"avl"`)
-  - methods: `set/get/has/delete/kind/min/max/maxDepth/maxWidth/lowerBound/upperBound/floor/ceil/predecessor/successor/path/closest/range/keys/values/items`
+  - methods: `set/get/has/delete/kind/min/max/maxDepth/maxWidth/lowerBound/upperBound/floor/ceil/predecessor/successor/path/closest/kClosest/rank/select/range/popMin/popMax/validate/bulkLoad/keys/values/items`
 - `ntree(rootId, rootValue?)` -> NTree
-  - methods: `get/set/append/prepend/insertAt/remove/move/parent/children/path/siblings/ancestors/descendants/find/findAll/root`
+  - methods: `get/set/append/prepend/insertAt/remove/move/parent/children/path/depth/height/siblings/ancestors/descendants/find/findAll/lca/pathBetween/subtreeSize/root`
 - `map(list, fn)` remains the array map function.
 - `sort(list, cmp)` -> Array (returns new array)
 - `split(string, sep)` -> Array
@@ -623,6 +623,12 @@ Implementation details (current runtime):
 - `tree.keys()` -> Array (in-order)
 - `tree.values()` -> Array (in-order by key)
 - `tree.items()` -> Array of `{ key, value }` (in-order)
+- `tree.rank(key)` -> zero-based in-order rank, or `null` when key is absent
+- `tree.select(rank)` -> `{ key, value }` by zero-based rank, or `null`
+- `tree.kClosest(key, k, opts?)` -> nearest items (`opts.tie = "lower" | "upper"`, numeric keys only)
+- `tree.popMin()` / `tree.popMax()` -> remove+return extreme item, or `null`
+- `tree.validate()` -> `{ ok, reason }` (`reason=null` when `ok=true`)
+- `tree.bulkLoad(items, opts?)` -> tree; accepts `{ key, value }` or `[key, value]`, `opts.replace` clears first
 - `tree` inspect rendering:
   - empty: `tree(<kind>, size=0)`
   - non-empty: `tree(<kind>, size=n)` plus ASCII branch lines (Unix `tree`-style) when printed/logged

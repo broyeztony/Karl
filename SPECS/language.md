@@ -449,6 +449,9 @@ let v = idx.get(2)            // "b"
 let has = idx.has(7)          // false
 let floorish = idx.lowerBound(4) // { key: 5, value: "e", }
 let next = idx.upperBound(5)      // { key: 8, value: "h", }
+let rank = idx.rank(5)            // 1
+let nth = idx.select(0)           // { key: 2, value: "b", }
+let near = idx.kClosest(6, 2)     // nearest two entries
 
 let keys = idx.keys()         // [2, 5, 8]
 let items = idx.items()       // [{key:2,value:"b"}, ...]
@@ -715,7 +718,7 @@ postfix         = recover_expr ;
 recover_expr    = call_expr [ "?" expr ] ;
 call_expr       = primary { call | member | index | inc_dec } ;
 call            = "(" [ expr { "," expr } [ "," ] ] ")" ;
-member          = "." ( IDENT | "then" ) ;
+member          = "." ( IDENT | "then" | "select" ) ;
 index           = "[" expr "]" ;
 inc_dec         = "++" | "--" ;
 

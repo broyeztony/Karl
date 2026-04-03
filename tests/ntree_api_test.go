@@ -120,3 +120,62 @@ t
 		t.Fatalf("unexpected inspect output:\n--- got ---\n%s\n--- want ---\n%s", got, want)
 	}
 }
+
+func TestNTreeTopologyMethods(t *testing.T) {
+	val := mustEval(t, `
+let t = ntree("root", 0)
+t.append("root", "a", 1)
+t.append("root", "b", 2)
+t.append("root", "c", 3)
+t.append("a", "a1", 11)
+t.append("a", "a2", 12)
+t.append("a2", "a21", 121)
+t.append("c", "c1", 31)
+{
+  depthRoot: t.depth("root"),
+  depthA21: t.depth("a21"),
+  depthMissing: t.depth("nope"),
+  heightRoot: t.height("root"),
+  heightA: t.height("a"),
+  heightB: t.height("b"),
+  lcaNear: t.lca("a1", "a21").id,
+  lcaFar: t.lca("a1", "c1").id,
+  lcaMissing: t.lca("a1", "missing"),
+  pathNear: t.pathBetween("a1", "a21").map(n -> n.id),
+  pathFar: t.pathBetween("a1", "c1").map(n -> n.id),
+  pathMissing: t.pathBetween("a1", "missing"),
+  subA: t.subtreeSize("a"),
+  subRoot: t.subtreeSize("root"),
+  subMissing: t.subtreeSize("missing"),
+}
+`)
+	expected := &Object{Pairs: map[string]Value{
+		"depthRoot":    &Integer{Value: 0},
+		"depthA21":     &Integer{Value: 3},
+		"depthMissing": NullValue,
+		"heightRoot":   &Integer{Value: 3},
+		"heightA":      &Integer{Value: 2},
+		"heightB":      &Integer{Value: 0},
+		"lcaNear":      &String{Value: "a"},
+		"lcaFar":       &String{Value: "root"},
+		"lcaMissing":   NullValue,
+		"pathNear": &Array{Elements: []Value{
+			&String{Value: "a1"},
+			&String{Value: "a"},
+			&String{Value: "a2"},
+			&String{Value: "a21"},
+		}},
+		"pathFar": &Array{Elements: []Value{
+			&String{Value: "a1"},
+			&String{Value: "a"},
+			&String{Value: "root"},
+			&String{Value: "c"},
+			&String{Value: "c1"},
+		}},
+		"pathMissing": NullValue,
+		"subA":        &Integer{Value: 4},
+		"subRoot":     &Integer{Value: 8},
+		"subMissing":  NullValue,
+	}}
+	assertEquivalent(t, val, expected)
+}

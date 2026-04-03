@@ -236,6 +236,20 @@ if !st.ok {
     fail("kubectl failed: " + st.error)
 }
 log(st.output.trim())`,
+            `// Ordered tree index: fast nearest/bounds queries
+let prices = tree("avl")
+[18, 22, 27, 35, 44, 56, 63, 71, 89].forEach(p ->
+    prices.set(p, { sku: "p-" + str(p), price: p, })
+)
+
+log({
+    floor50: prices.floor(50),
+    ceil50: prices.ceil(50),
+    nearest42: prices.kClosest(42, 3),
+    median: prices.select(4),
+    rank35: prices.rank(35),
+    valid: prices.validate(),
+})`,
             `// Streams: kubectl pod phase summary
 let p = proc(
     "kubectl", "get", "pods", "-A",

@@ -3,6 +3,7 @@ package interpreter
 import (
 	"math"
 	"math/rand"
+	"sort"
 	"strings"
 )
 
@@ -592,6 +593,310 @@ func (t *Tree) Path(key Value) ([]Value, error) {
 		}
 	}
 	return nil, nil
+}
+
+func (t *Tree) Rank(key Value) (int, bool, error) {
+	k, err := treeKeyForValue(key)
+	if err != nil {
+		return 0, false, err
+	}
+	if !t.keyTypeSet {
+		return 0, false, nil
+	}
+	if t.keyType != k.Type {
+		return 0, false, &RuntimeError{Message: "tree key type mismatch"}
+	}
+
+	stack := []*treeNode{}
+	cur := t.root
+	count := 0
+	for cur != nil || len(stack) > 0 {
+		for cur != nil {
+			stack = append(stack, cur)
+			cur = cur.left
+		}
+		last := len(stack) - 1
+		n := stack[last]
+		stack = stack[:last]
+
+		c, err := compareTreeKey(n.key, k)
+		if err != nil {
+			return 0, false, err
+		}
+		if c == 0 {
+			return count, true, nil
+		}
+		if c > 0 {
+			return 0, false, nil
+		}
+		count++
+		cur = n.right
+	}
+	return 0, false, nil
+}
+
+func (t *Tree) Select(rank int) *treeNode {
+	if rank < 0 || rank >= t.size {
+		return nil
+	}
+	stack := []*treeNode{}
+	cur := t.root
+	idx := 0
+	for cur != nil || len(stack) > 0 {
+		for cur != nil {
+			stack = append(stack, cur)
+			cur = cur.left
+		}
+		last := len(stack) - 1
+		n := stack[last]
+		stack = stack[:last]
+		if idx == rank {
+			return n
+		}
+		idx++
+		cur = n.right
+	}
+	return nil
+}
+
+type treeClosestCandidate struct {
+	node     *treeNode
+	exact    bool
+	distance float64
+	side     int // -1 lower, 0 exact, 1 upper
+}
+
+func (t *Tree) KClosest(key Value, k int, tieUpper bool) ([]treeClosestCandidate, error) {
+	if k <= 0 {
+		return []treeClosestCandidate{}, nil
+	}
+	targetKey, err := treeKeyForValue(key)
+	if err != nil {
+		return nil, err
+	}
+	if !t.keyTypeSet {
+		return []treeClosestCandidate{}, nil
+	}
+	if t.keyType != targetKey.Type {
+		return nil, &RuntimeError{Message: "tree key type mismatch"}
+	}
+	if t.keyType != INTEGER && t.keyType != FLOAT {
+		return nil, &RuntimeError{Message: "kClosest expects numeric tree keys (int or float)"}
+	}
+
+	target := numericTreeKey(targetKey)
+	candidates := []treeClosestCandidate{}
+	inOrderTree(t.root, func(n *treeNode) {
+		value := numericTreeKey(n.key)
+		side := 0
+		if value < target {
+			side = -1
+		} else if value > target {
+			side = 1
+		}
+		candidates = append(candidates, treeClosestCandidate{
+			node:     n,
+			exact:    side == 0,
+			distance: math.Abs(value - target),
+			side:     side,
+		})
+	})
+
+	sort.Slice(candidates, func(i, j int) bool {
+		a := candidates[i]
+		b := candidates[j]
+		if a.distance < b.distance {
+			return true
+		}
+		if a.distance > b.distance {
+			return false
+		}
+		if a.side != b.side {
+			if a.side == 0 {
+				return true
+			}
+			if b.side == 0 {
+				return false
+			}
+			if (a.side == -1 && b.side == 1) || (a.side == 1 && b.side == -1) {
+				if tieUpper {
+					return a.side == 1
+				}
+				return a.side == -1
+			}
+		}
+		c, _ := compareTreeKey(a.node.key, b.node.key)
+		return c < 0
+	})
+
+	if k > len(candidates) {
+		k = len(candidates)
+	}
+	return candidates[:k], nil
+}
+
+func treeDistanceValue(distance float64, keyType ValueType) Value {
+	if keyType == INTEGER {
+		return &Integer{Value: int64(distance)}
+	}
+	return &Float{Value: distance}
+}
+
+func (t *Tree) PopMin() (Value, bool, error) {
+	n := t.MinNode()
+	if n == nil {
+		return NullValue, false, nil
+	}
+	item := treeItemValue(n)
+	_, err := t.Delete(treeKeyToValue(n.key))
+	if err != nil {
+		return nil, false, err
+	}
+	return item, true, nil
+}
+
+func (t *Tree) PopMax() (Value, bool, error) {
+	n := t.MaxNode()
+	if n == nil {
+		return NullValue, false, nil
+	}
+	item := treeItemValue(n)
+	_, err := t.Delete(treeKeyToValue(n.key))
+	if err != nil {
+		return nil, false, err
+	}
+	return item, true, nil
+}
+
+func (t *Tree) Validate() (bool, string) {
+	if t == nil {
+		return false, "tree is null"
+	}
+	if t.root == nil {
+		if t.size != 0 {
+			return false, "size mismatch: empty root with non-zero size"
+		}
+		if t.keyTypeSet {
+			return false, "empty tree must not keep key type"
+		}
+		return true, ""
+	}
+	if t.kind != "avl" && t.kind != "treap" {
+		return false, "unsupported tree kind"
+	}
+	if !t.keyTypeSet {
+		return false, "non-empty tree must have key type"
+	}
+	count, reason := t.validateNode(t.root, nil, nil)
+	if reason != "" {
+		return false, reason
+	}
+	if count != t.size {
+		return false, "size mismatch: node count differs from tree size"
+	}
+	return true, ""
+}
+
+func (t *Tree) validateNode(n *treeNode, min *treeKey, max *treeKey) (int, string) {
+	if n == nil {
+		return 0, ""
+	}
+	if n.key.Type != t.keyType {
+		return 0, "key type mismatch inside tree"
+	}
+	if min != nil {
+		c, err := compareTreeKey(n.key, *min)
+		if err != nil {
+			return 0, err.Error()
+		}
+		if c <= 0 {
+			return 0, "invalid BST ordering (left bound)"
+		}
+	}
+	if max != nil {
+		c, err := compareTreeKey(n.key, *max)
+		if err != nil {
+			return 0, err.Error()
+		}
+		if c >= 0 {
+			return 0, "invalid BST ordering (right bound)"
+		}
+	}
+
+	leftCount, leftReason := t.validateNode(n.left, min, &n.key)
+	if leftReason != "" {
+		return 0, leftReason
+	}
+	rightCount, rightReason := t.validateNode(n.right, &n.key, max)
+	if rightReason != "" {
+		return 0, rightReason
+	}
+
+	if t.kind == "avl" {
+		expectedHeight := nodeHeight(n.left)
+		rightHeight := nodeHeight(n.right)
+		if rightHeight > expectedHeight {
+			expectedHeight = rightHeight
+		}
+		expectedHeight++
+		if n.height != expectedHeight {
+			return 0, "invalid AVL node height"
+		}
+		b := balanceFactor(n)
+		if b < -1 || b > 1 {
+			return 0, "invalid AVL balance factor"
+		}
+	}
+	if t.kind == "treap" {
+		if n.left != nil && n.left.priority < n.priority {
+			return 0, "invalid treap heap property (left child priority)"
+		}
+		if n.right != nil && n.right.priority < n.priority {
+			return 0, "invalid treap heap property (right child priority)"
+		}
+	}
+	return 1 + leftCount + rightCount, ""
+}
+
+func (t *Tree) BulkLoad(items []Value, replace bool) error {
+	if replace {
+		t.root = nil
+		t.size = 0
+		t.keyType = ""
+		t.keyTypeSet = false
+	}
+	for _, item := range items {
+		key, value, err := treeBulkItemKV(item)
+		if err != nil {
+			return err
+		}
+		if err := t.Set(key, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func treeBulkItemKV(item Value) (Value, Value, error) {
+	switch x := item.(type) {
+	case *Object:
+		key, ok := x.Pairs["key"]
+		if !ok {
+			return nil, nil, &RuntimeError{Message: "bulkLoad object item requires key"}
+		}
+		value, ok := x.Pairs["value"]
+		if !ok {
+			return nil, nil, &RuntimeError{Message: "bulkLoad object item requires value"}
+		}
+		return key, value, nil
+	case *Array:
+		if len(x.Elements) != 2 {
+			return nil, nil, &RuntimeError{Message: "bulkLoad tuple item must have 2 elements"}
+		}
+		return x.Elements[0], x.Elements[1], nil
+	default:
+		return nil, nil, &RuntimeError{Message: "bulkLoad items must be objects {key,value} or [key, value]"}
+	}
 }
 
 func inOrderTree(root *treeNode, visit func(*treeNode)) {
