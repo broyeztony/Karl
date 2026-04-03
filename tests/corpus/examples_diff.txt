@@ -11,14 +11,14 @@ examples/features/import_instances.k
 examples/features/import_instances_module.k
 examples/features/import_module.k
 examples/features/import_use.k
-examples/features/collections/list_basic.k
-examples/features/collections/map_basic.k
+examples/features/lists_basic.k
+examples/features/maps_basic.k
 examples/features/match_examples.k
 examples/features/object_disambiguation.k
 examples/features/query_basic.k
 examples/features/ranges_slices.k
 examples/features/recursion.k
-examples/features/collections/set_basic.k
+examples/features/sets_basic.k
 examples/features/strings_basic.k
 examples/features/truthy_falsy.k
 examples/features/truthy_falsy_comprehensive.k
