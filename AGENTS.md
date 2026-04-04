@@ -75,6 +75,10 @@ Additional non-negotiables:
 - No implicit lifecycle/runtime magic without explicit approval.
 - No aliases by default unless explicitly requested.
 - Keep behavior predictable across CLI, REPL, Playground, and tests.
+- Keep repo skills synchronized with Codex global skills (`$CODEX_HOME/skills`,
+  default `~/.codex/skills`) whenever skills are added or updated.
+  - Install hooks once: `make install-skill-hooks`
+  - Manual sync: `make sync-skills`
 - For API demonstrations (docs, landing snippets, bench examples), prefer one
   `log(...)` per API call/result. Avoid dumping large aggregated objects (for
   example `log(toJson({ ...many fields... }))`) when readability suffers.
