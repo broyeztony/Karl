@@ -212,7 +212,8 @@
                 </tbody>
             </table>
             <pre><code>let prices = tree("avl")
-[18, 22, 27, 35, 44, 56, 63, 71, 89].forEach(p ->
+let seeds = [18, 22, 27, 35, 44, 56, 63, 71, 89]
+seeds.forEach(p ->
     prices.set(p, { sku: "p-" + str(p), price: p, })
 )
 
