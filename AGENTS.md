@@ -75,6 +75,9 @@ Additional non-negotiables:
 - No implicit lifecycle/runtime magic without explicit approval.
 - No aliases by default unless explicitly requested.
 - Keep behavior predictable across CLI, REPL, Playground, and tests.
+- For API demonstrations (docs, landing snippets, bench examples), prefer one
+  `log(...)` per API call/result. Avoid dumping large aggregated objects (for
+  example `log(toJson({ ...many fields... }))`) when readability suffers.
 - Runtime deadlock probing must not misclassify external-event waits as
   deadlocks (for example, top-level `signalWatch(...).recv()` must wait).
 - Prefer single-instance module import shorthand:

@@ -13,7 +13,8 @@ GO_CMD = GOCACHE=$(GOCACHE_DIR) $(GO)
 LATEST_VSIX = $$(ls -t $(VSCODE_EXT_DIR)/*.vsix 2>/dev/null | head -1)
 
 .PHONY: help build build-karl build-release build-wasm build-all test test-nocache test-debugger test-debugger-stress bench-copy lint examples workflow ci clean \
-	vscode-package vscode-install vscode-install-cursor vscode-reinstall
+	vscode-package vscode-install vscode-install-cursor vscode-reinstall \
+	sync-skills install-skill-hooks
 
 help:
 	@echo "Karl dev commands:"
@@ -34,6 +35,8 @@ help:
 	@echo "  make vscode-install        # reinstall extension in VS Code"
 	@echo "  make vscode-install-cursor # reinstall extension in Cursor"
 	@echo "  make vscode-reinstall      # reinstall extension in VS Code + Cursor"
+	@echo "  make sync-skills           # sync repo skills/ to ~/.codex/skills"
+	@echo "  make install-skill-hooks   # auto-sync skills on commit/merge/checkout"
 
 build: build-karl
 
@@ -103,3 +106,11 @@ vscode-install-cursor: vscode-package
 	$(CURSOR_CLI) --install-extension "$$VSIX" --force
 
 vscode-reinstall: vscode-install vscode-install-cursor
+
+sync-skills:
+	chmod +x scripts/sync_skills_to_codex.sh
+	scripts/sync_skills_to_codex.sh
+
+install-skill-hooks:
+	chmod +x scripts/install_skill_sync_hooks.sh
+	scripts/install_skill_sync_hooks.sh
