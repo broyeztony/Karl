@@ -243,6 +243,15 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	leftExp := prefix()
 
 	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
+		// Newline-separated leading array literals should start a new statement.
+		// Without this guard, code like:
+		//   let x = fn()
+		//   [1, 2]
+		// can be misparsed as postfix indexing: fn()[1,2]
+		if p.peekTokenIs(token.LBRACKET) && p.peekToken.Line > p.curToken.Line {
+			return leftExp
+		}
+
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
 			return leftExp

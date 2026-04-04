@@ -330,6 +330,20 @@ func TestEvalFromBase58RecoverableDecodeError(t *testing.T) {
 	assertString(t, val, "base58_decode")
 }
 
+func TestEvalNewlineLeadingArrayLiteralStartsNewStatement(t *testing.T) {
+	val := mustEval(t, `
+let prices = tree("avl")
+[18, 22, 27].forEach(p -> prices.set(p, p))
+prices.keys()
+`)
+	expected := &Array{Elements: []Value{
+		&Integer{Value: 18},
+		&Integer{Value: 22},
+		&Integer{Value: 27},
+	}}
+	assertEquivalent(t, val, expected)
+}
+
 func TestEvalBytesJoin(t *testing.T) {
 	val := mustEval(t, `fromUtf8(bytesJoin([toUtf8("kar"), toUtf8("l")]))`)
 	assertString(t, val, "karl")
