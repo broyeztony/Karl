@@ -195,14 +195,12 @@ seeds.forEach(p ->
     prices.set(p, { sku: "p-" + str(p), price: p, })
 )
 
-log({
-    floor50: prices.floor(50),
-    ceil50: prices.ceil(50),
-    nearest42: prices.kClosest(42, 3),
-    median: prices.select(4),
-    rank35: prices.rank(35),
-    valid: prices.validate(),
-})`,
+log("floor50:", prices.floor(50))
+log("ceil50:", prices.ceil(50))
+log("nearest42:", prices.kClosest(42, 3))
+log("median:", prices.select(4))
+log("rank35:", prices.rank(35))
+log("valid:", prices.validate())`,
             `// Streams: kubectl pod phase summary
 let p = proc(
     "kubectl", "get", "pods", "-A",

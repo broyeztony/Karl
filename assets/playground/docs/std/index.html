@@ -216,15 +216,12 @@ let seeds = [18, 22, 27, 35, 44, 56, 63, 71, 89]
 seeds.forEach(p ->
     prices.set(p, { sku: "p-" + str(p), price: p, })
 )
-
-log({
-    floor50: prices.floor(50),
-    ceil50: prices.ceil(50),
-    nearest42: prices.kClosest(42, 3),
-    median: prices.select(4),
-    rank35: prices.rank(35),
-    valid: prices.validate(),
-})</code></pre>
+log("floor50:", prices.floor(50))
+log("ceil50:", prices.ceil(50))
+log("nearest42:", prices.kClosest(42, 3))
+log("median:", prices.select(4))
+log("rank35:", prices.rank(35))
+log("valid:", prices.validate())</code></pre>
 
             <h4>7.4 Hierarchical Tree: <code>ntree(rootId, rootValue?)</code></h4>
             <p>
