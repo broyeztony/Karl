@@ -1,16 +1,16 @@
 # Graph Report - Karl  (2026-09-09)
 
 ## Corpus Check
-- 226 files · ~207,185 words
+- 226 files · ~207,496 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2526 nodes · 6163 edges · 164 communities (117 shown, 29 thin omitted)
+- 2528 nodes · 6165 edges · 157 communities (118 shown, 21 thin omitted)
 - Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 836 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `fe1cc9c8`
+- Built from commit: `49f37533`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -22,7 +22,7 @@
 - Server
 - Parser
 - builtins_process.go
-- builtinHTTP
+- channelSendBlocking
 - Tree
 - evalInput
 - DebugController
@@ -32,11 +32,11 @@
 - builtins_stream_pipeline.go
 - Environment
 - server_test.go
-- Signal
+- RegisterBuiltins
 - NTree
 - streamIterator
-- Notebook
-- value_scalar_types.go
+- convert.go
+- ValueType
 - taskAwaitWithCancel
 - StreamReader
 - runtimeState
@@ -45,7 +45,7 @@
 - process_api_test.go
 - Karl Language
 - Concurrency Expressions (&, spawn, !&, race)
-- builtinFromUtf8
+- main
 - Process
 - io.Writer
 - repository
@@ -68,40 +68,40 @@
 - streamPartitionRouter
 - Karl Language Specification
 - builtins_sql.go
-- MapKey
-- BlockExpression
-- RegisterBuiltins
+- value.go
+- FormatRuntimeError
+- builtins_time.go
 - parseProgram
-- FormatParseErrors
+- Channel
 - engine.k (core workflow engine)
 - builtinSignalWatch
-- DebugFrame
-- NewBaseEnvironment
+- SQLTx
+- io.Reader
 - Lexer
 - Expression
 - .knb Notebook JSON Format
 - Karl Language Support (VS Code Extension)
 - newModuleState
 - teeStreamIterator
-- ValueType
+- bindPattern
 - Ordered Index Tree tree(kind?)
-- streamDebounceIterator
+- builtinUUIDParse
 - connect (WASM worker bootstrap)
 - Karl Notebook System
 - Karl Process API Examples
 - SliceExpression
 - builtinHTTPServe
 - .Pretty
-- Function
+- Builtin
 - karl-health-demo Namespace Fixture
 - sheets/worker.js
 - mapKeyForValue
 - inspectObjectPairs
 - Karl REPL (karl loom)
 - Expression-Based Language Design
-- Program
+- String
 - builtinFromJSON
-- debug_controller.go
+- traceCommand
 - Karl API-First Stdlib Skill
 - Karl Logo (playground asset)
 - playground/worker.js
@@ -110,7 +110,7 @@
 - build-and-test Job
 - Karl Project Logo
 - Karl Standard Library Reference
-- ArrayLiteral
+- Signal
 - buildRange
 - Karl Jupyter Kernel
 - Karl VS Code Extension Icon
@@ -118,7 +118,7 @@
 - Karl CodeMirror Syntax Mode
 - Karl Stream Examples
 - formatLogValue
-- .evalQueryExpression
+- sortRows
 - extension.js
 - test_debugger_cli_e2e.sh
 - Deterministic Example Corpus (examples_diff.txt)
@@ -127,7 +127,7 @@
 - ImportExpression
 - Karl Kernel Favicon (32x32 K mark)
 - Karl Kernel Logo (64x64 PNG)
-- repl/server.go
+- newTTYLineWriter
 - run_all_tests.sh
 - builtinFromBase58
 - Server
@@ -151,16 +151,9 @@
 - initGrid
 - karl
 - Set Collection
-- RangePattern
-- Format
-- BreakExpression
-- Boolean
-- Evaluator
-- Float
-- Null
-- Unit
+- Pattern
 - vigil_builtins_test.go
-- CLAUDE.md
+- graphify
 
 ## God Nodes (most connected - your core abstractions)
 1. `Value` - 416 edges
@@ -214,102 +207,102 @@
 - **Low-resolution favicon legibility strategy: single-letter monogram + heavy stroke + square frame at 32x32** — assets_playground_logo_32x32_favicon, assets_playground_logo_32x32_monogram_k, assets_playground_logo_32x32_minimal_monochrome_design, assets_playground_logo_32x32_browser_tab_icon_role [INFERRED 0.85]
 - **Small-size branding asset pattern: a single bold K glyph in a bordered monochrome square, legible at 32x32 for tab/kernel icon use** — kernel_logo_32x32_favicon, kernel_logo_32x32_k_monogram, kernel_logo_32x32_monochrome_square_badge, kernel_logo_32x32_browser_tab_icon_asset [INFERRED 0.85]
 
-## Communities (164 total, 29 thin omitted)
+## Communities (157 total, 21 thin omitted)
 
 ### Community 0 - "testing.T"
 Cohesion: 0.07
-Nodes (95): testing.T, assertEquivalent(), assertFloat(), assertInteger(), captureStdout(), mustEval(), TestChannelDeadlockRecvReturnsRuntimeError(), TestChannelDeadlockSendReturnsRuntimeError() (+87 more)
+Nodes (92): testing.T, NewEvaluatorWithSourceFilenameAndRoot(), assertEquivalent(), assertFloat(), assertInteger(), captureStdout(), mustEval(), TestEvalArithmetic() (+84 more)
 
 ### Community 1 - "Token"
 Cohesion: 0.03
-Nodes (28): ArrayPattern, AssignExpression, IndexExpression, InfixExpression, MatchExpression, ObjectLiteral, ObjectPattern, PostfixExpression (+20 more)
+Nodes (29): ArrayLiteral, AssignExpression, AwaitExpression, BreakExpression, CallExpression, IndexExpression, InfixExpression, MatchExpression (+21 more)
 
 ### Community 2 - "value_stream_algebra.go"
 Cohesion: 0.06
-Nodes (38): streamChunkIterator, streamDistinctIterator, streamDropIterator, streamFilterIterator, streamFlatMapIterator, streamMapIterator, StreamSinkValue, streamSortIterator (+30 more)
+Nodes (41): streamChunkIterator, streamDistinctIterator, streamDropIterator, streamFilterIterator, streamFlatMapIterator, streamFromUTF8Iterator, streamMapIterator, StreamSinkValue (+33 more)
 
 ### Community 3 - "server"
-Cohesion: 0.06
-Nodes (33): evaluateArgs, event, launchArgs, request, response, scopesArgs, server, setBreakpointsArgs (+25 more)
+Cohesion: 0.08
+Nodes (27): evaluateArgs, event, launchArgs, request, response, scopesArgs, server, setBreakpointsArgs (+19 more)
 
 ### Community 4 - "Server"
 Cohesion: 0.06
-Nodes (36): github.com/gorilla/websocket.Conn, net/http.ResponseWriter, sync.RWMutex, syscall/js.Value, sheetCommand, sheetCommandResult, CellID, expandRange() (+28 more)
+Nodes (37): github.com/gorilla/websocket.Conn, net/http.Request, net/http.ResponseWriter, sync.RWMutex, syscall/js.Value, sheetCommand, sheetCommandResult, CellID (+29 more)
 
 ### Community 5 - "Parser"
-Cohesion: 0.14
-Nodes (7): Binding, Pattern, infixParseFn, Parser, isAssignable(), prefixParseFn, TokenType
+Cohesion: 0.13
+Nodes (7): infixParseFn, Parser, isAssignable(), statementIsNil(), prefixParseFn, TokenType, LookupIdent()
 
 ### Community 6 - "builtins_process.go"
-Cohesion: 0.19
-Nodes (24): rejectUnknownObjectKeys(), builtinProc(), builtinRun(), collectProcessStream(), executeRunSpec(), Evaluator, processSpec, processStageSpec (+16 more)
+Cohesion: 0.18
+Nodes (23): io.ReadCloser, builtinProc(), builtinRun(), collectProcessStream(), executeRunSpec(), Evaluator, processSpec, processStageSpec (+15 more)
 
-### Community 7 - "builtinHTTP"
-Cohesion: 0.15
-Nodes (20): net/http.Response, builtinDone(), builtinRecv(), builtinSend(), channelSendBlocking(), Evaluator, isTopLevelRuntimeDeadlocked(), builtinHTTP() (+12 more)
+### Community 7 - "channelSendBlocking"
+Cohesion: 0.17
+Nodes (16): builtinDone(), builtinRecv(), builtinSend(), channelSendBlocking(), Evaluator, isTopLevelRuntimeDeadlocked(), builtinExit(), builtinFail() (+8 more)
 
 ### Community 8 - "Tree"
 Cohesion: 0.12
 Nodes (25): avlDelete(), avlInsert(), balanceFactor(), compareTreeKey(), findTreeNode(), Tree, inOrderTree(), minTreeNode() (+17 more)
 
 ### Community 9 - "evalInput"
-Cohesion: 0.08
-Nodes (56): assertString(), evalInput(), TestEvalDecodeJSONOverflow(), TestEvalDivisionByZeroFloat(), TestEvalDivisionByZeroInteger(), TestEvalModuloByZero(), TestEvalParseIntInvalid(), TestEvalStringSliceOutOfRange() (+48 more)
+Cohesion: 0.06
+Nodes (63): assertString(), evalInput(), TestChannelDeadlockRecvReturnsRuntimeError(), TestChannelDeadlockSendReturnsRuntimeError(), TestEvalArrayIndexStillRequiresInteger(), TestEvalDecodeJSONOverflow(), TestEvalDivisionByZeroCompoundAssign(), TestEvalDivisionByZeroFloat() (+55 more)
 
 ### Community 10 - "DebugController"
-Cohesion: 0.11
-Nodes (4): sync.Cond, DebugController, normalizeTaskID(), DebugEvent
+Cohesion: 0.08
+Nodes (11): sync.Cond, DebugController, DebugStopReason, IsDebugTerminated(), normalizeTaskID(), DebugBreakpoint, DebugEvent, DebugFrame (+3 more)
 
 ### Community 11 - "Value"
 Cohesion: 0.14
-Nodes (34): isCallable(), builtinChunk(), builtinCount(), builtinDistinct(), builtinDrop(), builtinFilter(), builtinFind(), builtinFlatMap() (+26 more)
+Nodes (33): isCallable(), builtinChunk(), builtinCount(), builtinDistinct(), builtinDrop(), builtinFilter(), builtinFind(), builtinFlatMap() (+25 more)
 
 ### Community 12 - "recoverableError"
-Cohesion: 0.07
-Nodes (36): builtinAppendFile(), builtinDeleteFile(), builtinReadFile(), builtinWriteFile(), Evaluator, builtinExists(), builtinListDir(), Evaluator (+28 more)
+Cohesion: 0.08
+Nodes (29): builtinAppendFile(), builtinDeleteFile(), builtinReadFile(), builtinWriteFile(), Evaluator, builtinExists(), builtinListDir(), Evaluator (+21 more)
 
 ### Community 13 - "wasm_exec.js"
 Cohesion: 0.06
 Nodes (5): constructor(), _makeFuncWrapper(), _resume(), write(), writeSync()
 
 ### Community 14 - "builtins_stream_pipeline.go"
-Cohesion: 0.15
-Nodes (21): builtinCollectSink(), builtinDebounceStage(), builtinExecSink(), builtinFromChannelSource(), builtinJoinSource(), builtinLinesStage(), builtinMergeSource(), builtinSpillStage() (+13 more)
+Cohesion: 0.14
+Nodes (22): builtinCollectSink(), builtinDebounceStage(), builtinExecSink(), builtinFromChannelSource(), builtinJoinSource(), builtinLinesStage(), builtinMergeSource(), builtinSpillStage() (+14 more)
 
 ### Community 15 - "Environment"
-Cohesion: 0.08
-Nodes (19): Environment, NewEnclosedEnvironment(), NewEnvironment(), bindPattern(), Evaluator, Evaluator, Evaluator, Evaluator (+11 more)
+Cohesion: 0.12
+Nodes (13): Environment, NewEnclosedEnvironment(), NewEnvironment(), Evaluator, errorValue(), Evaluator, Evaluator, Evaluator (+5 more)
 
 ### Community 16 - "server_test.go"
 Cohesion: 0.25
 Nodes (29): testClient, bodyArrayOfMaps(), bodyMap(), canonicalPath(), currentTopFrameLine(), currentTopFramePath(), findVarByName(), intFromAny() (+21 more)
 
-### Community 17 - "Signal"
-Cohesion: 0.18
-Nodes (11): bindReceiver(), getBuiltin(), Evaluator, Array, Evaluator, Task, Signal, SignalType (+3 more)
+### Community 17 - "RegisterBuiltins"
+Cohesion: 0.07
+Nodes (25): bindReceiver(), builtinSHA256(), Evaluator, registerCryptoBuiltins(), builtinBytesJoin(), builtinFromUtf8(), builtinToUtf8(), Evaluator (+17 more)
 
 ### Community 18 - "NTree"
 Cohesion: 0.11
 Nodes (15): builtinLen(), builtinNTree(), builtinTree(), Evaluator, registerCollectionBuiltins(), NTree, indexOfID(), insertIDAt() (+7 more)
 
 ### Community 19 - "streamIterator"
-Cohesion: 0.14
-Nodes (21): linesIterator, streamCursorState, streamIterator, StreamPlanValue, streamReaderIterator, streamSinkPlanRunFunc, streamSinkRunFunc, streamSourceOpenFunc (+13 more)
+Cohesion: 0.11
+Nodes (26): debounceEvent, linesIterator, streamCursorState, streamDebounceIterator, streamIterator, StreamPlanValue, streamReaderIterator, streamSinkPlanRunFunc (+18 more)
 
-### Community 20 - "Notebook"
-Cohesion: 0.07
-Nodes (29): context.Context, database/sql/driver.NamedValue, database/sql/driver.Result, database/sql/driver.Rows, database/sql/driver.Stmt, database/sql/driver.Tx, database/sql/driver.TxOptions, time.Time (+21 more)
+### Community 20 - "convert.go"
+Cohesion: 0.24
+Nodes (12): convertCommand(), notebookCommand(), notebookUsage(), ConvertCommand(), formatFromFilename(), jupyterSourceToString(), loadIPYNB(), saveIPYNB() (+4 more)
 
-### Community 21 - "value_scalar_types.go"
-Cohesion: 0.15
-Nodes (4): Bytes, Char, Integer, String
+### Community 21 - "ValueType"
+Cohesion: 0.08
+Nodes (9): Boolean, Bytes, Char, Float, Integer, Null, treeDistanceValue(), Unit (+1 more)
 
 ### Community 22 - "taskAwaitWithCancel"
-Cohesion: 0.08
-Nodes (20): AwaitExpression, io.ReadCloser, builtinThen(), Evaluator, registerAsyncBuiltins(), runtimeState, processMergeReaders(), Evaluator (+12 more)
+Cohesion: 0.11
+Nodes (15): builtinThen(), Evaluator, registerAsyncBuiltins(), Evaluator, Evaluator, Task, runtimeState, panicToError() (+7 more)
 
 ### Community 23 - "StreamReader"
-Cohesion: 0.08
+Cohesion: 0.09
 Nodes (5): io.Closer, Process, StreamReader, StreamWriter, streamReadEnded()
 
 ### Community 24 - "runtimeState"
@@ -317,8 +310,8 @@ Cohesion: 0.11
 Nodes (5): cloneStrings(), runtimeState, Task, makeEnvMap(), trimLineEnding()
 
 ### Community 25 - "New"
-Cohesion: 0.12
-Nodes (25): parseProgram(), EvalDebugExpression(), NewEvaluatorWithSourceFilenameAndRoot(), parseImportProgram(), TestSpawn(), New(), Runner, New() (+17 more)
+Cohesion: 0.06
+Nodes (58): Program, parseProgram(), testing.B, NewBaseEnvironment(), NewDebugController(), EvalDebugExpression(), NewEvaluatorWithSourceAndFilename(), parseImportProgram() (+50 more)
 
 ### Community 26 - "package.json"
 Cohesion: 0.07
@@ -336,17 +329,17 @@ Nodes (26): add function, Arrow Lambda Syntax (a, b) -> expr, Auto Run Checkbox,
 Cohesion: 0.10
 Nodes (25): Channel<T> Abstraction, Implementation Rules for Agents, Sink<T> Abstraction, Source-of-Truth Ordering (SPECS > tests > implementation), Stream<T> Abstraction, Stream Model Guardrails, Task<T> Abstraction, Release v0.8.4 (spawn/race aliases) (+17 more)
 
-### Community 30 - "builtinFromUtf8"
-Cohesion: 0.18
-Nodes (9): builtinBytesJoin(), builtinFromUtf8(), builtinToUtf8(), Evaluator, registerEncodingBuiltins(), bytesArg(), streamFromUTF8Iterator, newStreamFromUTF8Stage() (+1 more)
+### Community 30 - "main"
+Cohesion: 0.16
+Nodes (16): runtime/debug.BuildInfo, buildInfoSetting(), cliVersion(), kernelCommand(), loomCommand(), loomUsage(), main(), printVersion() (+8 more)
 
 ### Community 31 - "Process"
-Cohesion: 0.16
-Nodes (7): os/exec.Cmd, Process, processAwaitWithCancel(), processExitState(), processStatusValue(), processWaitLoop(), processWaitResult
+Cohesion: 0.13
+Nodes (9): os/exec.Cmd, time.Time, Process, processAwaitWithCancel(), processExitState(), processStatusValue(), processWaitLoop(), processWaitResult (+1 more)
 
 ### Community 32 - "io.Writer"
-Cohesion: 0.12
-Nodes (28): Run(), bufio.Scanner, io.Reader, io.Writer, time.Duration, clearScreen(), newStreamInput(), newTTYInput() (+20 more)
+Cohesion: 0.24
+Nodes (18): bufio.Scanner, io.Writer, clearScreen(), findExamplesFile(), handleCommand(), hasUnclosedDelimiters(), isCtrlL(), isFatalREPLError() (+10 more)
 
 ### Community 33 - "repository"
 Cohesion: 0.08
@@ -357,16 +350,16 @@ Cohesion: 0.11
 Nodes (23): Deadlock Probe Correctness Rule, Karl Error Handling Model, Release v0.3.4 (task-failure policies), vigil_in_karl Migration, Collection Error Semantics, Map Collection, Cooperative Cancellation, Recoverable Errors (`?`) Runtime Semantics (+15 more)
 
 ### Community 35 - "Identifier"
-Cohesion: 0.10
-Nodes (11): CallExpression, CallPattern, Identifier, MemberExpression, QueryExpression, Evaluator, blockContainsPlaceholder(), expressionContainsPlaceholder() (+3 more)
+Cohesion: 0.09
+Nodes (16): BlockExpression, Identifier, IfExpression, MemberExpression, QueryExpression, Statement, expressionsToJSON(), FormatJSON() (+8 more)
 
 ### Community 36 - "builtins_math.go"
 Cohesion: 0.18
 Nodes (20): builtinAbs(), builtinCeil(), builtinClamp(), builtinCos(), builtinFloor(), builtinMax(), builtinMin(), builtinPow() (+12 more)
 
 ### Community 37 - "main.go"
-Cohesion: 0.11
-Nodes (41): runtime/debug.BuildInfo, debugSessionState, debugWatch, buildInfoSetting(), cliVersion(), convertCommand(), debugCommand(), debugUsage() (+33 more)
+Cohesion: 0.26
+Nodes (18): debugSessionState, debugWatch, debugCommand(), debugUsage(), displayName(), handleDebugCommand(), parseCommand(), parseParseArgs() (+10 more)
 
 ### Community 38 - "evalWithConfiguredEvaluator"
 Cohesion: 0.18
@@ -377,16 +370,16 @@ Cohesion: 0.16
 Nodes (21): Async Task (& http) and wait, compose Higher-Order Helper, decodeJson Builtin, double Helper, for/with/then Accumulating Loop Expression, if/else as Expression, import Expression Returning Module Factory, inc Helper (+13 more)
 
 ### Community 40 - "Node"
-Cohesion: 0.18
-Nodes (10): Node, expressionsToJSON(), FormatJSON(), patternsToJSON(), statementsToJSON(), toJSON(), Evaluator, tokenFromNode() (+2 more)
+Cohesion: 0.17
+Nodes (8): Node, Format(), printer, bytes.Buffer, Evaluator, tokenFromNode(), Evaluator, annotateErrorToken()
 
 ### Community 41 - "stringArg"
-Cohesion: 0.16
-Nodes (16): parseStreamType(), builtinReader(), builtinWriter(), Evaluator, builtinReadSource(), builtinStdinSource(), builtinContains(), builtinEndsWith() (+8 more)
+Cohesion: 0.12
+Nodes (25): net/http.Response, parseStreamType(), rejectUnknownObjectKeys(), builtinHTTP(), Evaluator, extractHeaders(), httpResponseObject(), parseHTTPHandlerResponse() (+17 more)
 
 ### Community 42 - "Kernel"
-Cohesion: 0.05
-Nodes (26): context.CancelFunc, database/sql.DB, database/sql/driver.Conn, database/sql.Tx, github.com/go-zeromq/zmq4.Socket, net/http.Server, sync.Mutex, sync.Once (+18 more)
+Cohesion: 0.06
+Nodes (29): context.Context, database/sql.DB, database/sql/driver.Conn, database/sql/driver.NamedValue, database/sql/driver.Result, database/sql/driver.Rows, database/sql/driver.Stmt, database/sql/driver.Tx (+21 more)
 
 ### Community 43 - "builtins_runtime_system.go"
 Cohesion: 0.17
@@ -401,19 +394,19 @@ Cohesion: 0.12
 Nodes (20): Release v0.8.3 (first-class debugger), Collection Naming Rules, Breakpoint and Step Engine, DAP Bridge (Milestone 3), Evaluator Execution Hooks (beforeNode/afterNode), Karl Debugger (CLI First), Event Loop Runtime Architecture, Interpreter Known Limitations (+12 more)
 
 ### Community 46 - "Evaluator"
-Cohesion: 0.21
-Nodes (5): Evaluator, runtimeState, Task, NewEvaluatorWithSource(), newRuntimeState()
+Cohesion: 0.17
+Nodes (8): Debugger, Evaluator, runtimeState, Task, NewEvaluator(), NewEvaluatorWithSource(), FrameAwareDebugger, newRuntimeState()
 
 ### Community 47 - "main_test.go"
-Cohesion: 0.14
-Nodes (20): evalDebugExpression(), parseBreakpointSpec(), parseDebugArgs(), parseRunArgs(), TestEvalDebugExpressionRejectsStatement(), TestEvalDebugExpressionUsesCurrentEnv(), TestParseBreakpointSpecFileAndLine(), TestParseBreakpointSpecInvalid() (+12 more)
+Cohesion: 0.15
+Nodes (19): evalDebugExpression(), parseBreakpointSpec(), parseDebugArgs(), parseRunArgs(), TestEvalDebugExpressionRejectsStatement(), TestEvalDebugExpressionUsesCurrentEnv(), TestParseBreakpointSpecFileAndLine(), TestParseBreakpointSpecInvalid() (+11 more)
 
 ### Community 48 - "Karl Language"
 Cohesion: 0.12
 Nodes (19): Release Workflow (tag v*), GitHub Pages Static Deploy Workflow, Karl Product Context (between Bash and Go), Repo Map, Release v0.4.0 (REPL + modular interpreter), Release v0.6.0 (Sheets + WASM playground), bench (Karl Playground), Editor Plugins (VS Code + Sublime) (+11 more)
 
 ### Community 49 - ".evalInfixExpression"
-Cohesion: 0.25
+Cohesion: 0.23
 Nodes (9): StrictEqual(), Evaluator, evalArrayInfix(), evalFloatInfix(), evalIntegerInfix(), evalNumericInfix(), evalStringInfix(), Array (+1 more)
 
 ### Community 50 - "streamPartitionRouter"
@@ -428,25 +421,25 @@ Nodes (18): Karl Bench Playground, Karl Anti-Patterns, Idiomatic Karl for DevOps
 Cohesion: 0.23
 Nodes (22): applySQLOpenOptions(), builtinSQLBegin(), builtinSQLClose(), builtinSQLCommit(), builtinSQLExec(), builtinSQLOpen(), builtinSQLQuery(), builtinSQLQueryOne() (+14 more)
 
-### Community 53 - "MapKey"
-Cohesion: 0.18
-Nodes (7): mapKeyDisplay(), formatMapKey(), mapKeyToValue(), Array, Map, MapKey, Set
+### Community 53 - "value.go"
+Cohesion: 0.22
+Nodes (3): Array, Set, Tree
 
-### Community 54 - "BlockExpression"
-Cohesion: 0.17
-Nodes (5): BlockExpression, ForExpression, IfExpression, Statement, statementIsNil()
+### Community 54 - "FormatRuntimeError"
+Cohesion: 0.14
+Nodes (9): FormatRuntimeError(), formatRuntimeError(), Evaluator, Task, ExitError, RecoverableError, RuntimeError, exitProcess() (+1 more)
 
-### Community 55 - "RegisterBuiltins"
-Cohesion: 0.15
-Nodes (14): builtinSHA256(), Evaluator, registerCryptoBuiltins(), registerListBuiltins(), registerMathBuiltins(), RegisterBuiltins(), registerSQLBuiltins(), builtinTimeAdd() (+6 more)
+### Community 55 - "builtins_time.go"
+Cohesion: 0.43
+Nodes (6): builtinTimeAdd(), builtinTimeDiff(), builtinTimeFormatRFC3339(), builtinTimeParseRFC3339(), Evaluator, registerTimeBuiltins()
 
 ### Community 56 - "parseProgram"
-Cohesion: 0.12
-Nodes (20): NewEvaluator(), TestExpressionKinds(), TestMatchGuardNestedMatch(), TestMatchGuardParsesWithoutLambda(), TestPatternKinds(), TestPatternLetObjectDestructure(), TestPatternTrailingComma(), TestDebuggerHooksReceiveNodeCallbacks() (+12 more)
+Cohesion: 0.13
+Nodes (19): TestExpressionKinds(), TestMatchGuardNestedMatch(), TestMatchGuardParsesWithoutLambda(), TestPatternKinds(), TestPatternLetObjectDestructure(), TestPatternTrailingComma(), TestDebuggerHooksReceiveNodeCallbacks(), TestDebuggerTracksFunctionFrames() (+11 more)
 
-### Community 57 - "FormatParseErrors"
-Cohesion: 0.31
-Nodes (6): formatParseError(), FormatParseErrors(), ParseError, notifyDone(), runKarl(), runProgram()
+### Community 57 - "Channel"
+Cohesion: 0.15
+Nodes (4): Channel, channelStreamIterator, taskResult, Task
 
 ### Community 58 - "engine.k (core workflow engine)"
 Cohesion: 0.13
@@ -456,21 +449,21 @@ Nodes (16): concurrent_pipeline.k (8-worker multi-stage pipeline), Parallel Exec
 Cohesion: 0.22
 Nodes (7): os.Signal, builtinSignalWatch(), channelTrySend(), Evaluator, signalFromName(), platformSignalFromName(), platformSignalFromName()
 
-### Community 60 - "DebugFrame"
-Cohesion: 0.27
-Nodes (4): Debugger, DebugFrame, FrameAwareDebugger, debugRecorder
+### Community 60 - "SQLTx"
+Cohesion: 0.15
+Nodes (6): context.CancelFunc, database/sql.Tx, sync.Once, registerHTTPBuiltins(), cleanupStreamIterator, SQLTx
 
-### Community 61 - "NewBaseEnvironment"
-Cohesion: 0.29
-Nodes (16): NewBaseEnvironment(), NewDebugController(), NewEvaluatorWithSourceAndFilename(), NewKernel(), runProgram(), NewRunner(), TestDebugControllerBreakpointIDsAndDelete(), TestDebugControllerBreakpointPause() (+8 more)
+### Community 61 - "io.Reader"
+Cohesion: 0.28
+Nodes (7): io.Reader, time.Duration, newStreamInput(), newTTYInput(), redrawLine(), ttyByteEvent, ttyInput
 
 ### Community 62 - "Lexer"
-Cohesion: 0.36
-Nodes (6): Lexer, isDigit(), isHexDigit(), isLetter(), newToken(), LookupIdent()
+Cohesion: 0.40
+Nodes (5): Lexer, isDigit(), isHexDigit(), isLetter(), newToken()
 
 ### Community 63 - "Expression"
-Cohesion: 0.12
-Nodes (4): Expression, ExpressionStatement, LetStatement, LambdaExpression
+Cohesion: 0.11
+Nodes (5): Binding, Expression, ExpressionStatement, ForExpression, SpawnExpression
 
 ### Community 64 - ".knb Notebook JSON Format"
 Cohesion: 0.15
@@ -488,17 +481,17 @@ Nodes (4): Evaluator, newModuleState(), moduleDefinition, moduleState
 Cohesion: 0.26
 Nodes (4): teeSideIterator, teeSideMessage, teeStreamIterator, Evaluator
 
-### Community 68 - "ValueType"
-Cohesion: 0.25
-Nodes (3): treeDistanceValue(), Tree, ValueType
+### Community 68 - "bindPattern"
+Cohesion: 0.22
+Nodes (4): bindPattern(), Evaluator, Function, functionDebugName()
 
 ### Community 69 - "Ordered Index Tree tree(kind?)"
 Cohesion: 0.18
 Nodes (12): Release v0.3.1 (truthy/falsy semantics), Array Collection, Collection Design Goals, Hierarchical Node Tree ntree(...), Ordered Index Tree tree(kind?), Built-in Function Surface, For-Expression Evaluation Algorithm, Member Call Desugaring (no implicit receiver) (+4 more)
 
-### Community 70 - "streamDebounceIterator"
-Cohesion: 0.39
-Nodes (4): debounceEvent, streamDebounceIterator, Evaluator, newStreamDebounceIterator()
+### Community 70 - "builtinUUIDParse"
+Cohesion: 0.57
+Nodes (6): builtinUUIDNew(), builtinUUIDParse(), builtinUUIDValid(), formatUUID(), Evaluator, parseUUID()
 
 ### Community 71 - "connect (WASM worker bootstrap)"
 Cohesion: 0.18
@@ -517,16 +510,16 @@ Cohesion: 0.16
 Nodes (6): SliceExpression, Evaluator, objectIndexKey(), Evaluator, normalizeIndex(), assignFunctionName()
 
 ### Community 75 - "builtinHTTPServe"
-Cohesion: 0.32
-Nodes (11): net/http.Request, net/http.ServeMux, buildHTTPRequestValue(), builtinHTTPServe(), builtinHTTPServerStop(), Evaluator, parseHTTPHandlerResponse(), parseHTTPRoutes() (+3 more)
+Cohesion: 0.40
+Nodes (9): net/http.ServeMux, buildHTTPRequestValue(), builtinHTTPServe(), builtinHTTPServerStop(), Evaluator, parseHTTPRoutes(), registerHTTPRoutes(), selectRouteByMethod() (+1 more)
 
 ### Community 76 - ".Pretty"
 Cohesion: 0.22
 Nodes (6): PrettyPrinter, colorize(), Array, Map, Object, Set
 
-### Community 77 - "Function"
-Cohesion: 0.14
-Nodes (6): Builtin, BuiltinFunction, Evaluator, Function, functionDebugName(), Partial
+### Community 77 - "Builtin"
+Cohesion: 0.29
+Nodes (3): Builtin, BuiltinFunction, Partial
 
 ### Community 78 - "karl-health-demo Namespace Fixture"
 Cohesion: 0.31
@@ -537,8 +530,8 @@ Cohesion: 0.24
 Nodes (7): cacheBust, decoder, emitOutput(), go, workerURL, write(), writeSync()
 
 ### Community 80 - "mapKeyForValue"
-Cohesion: 0.18
-Nodes (13): builtinMap(), builtinMapGet(), builtinMapKeys(), builtinMapSet(), Evaluator, builtinMapDelete(), builtinMapHas(), builtinMapValues() (+5 more)
+Cohesion: 0.15
+Nodes (17): builtinMap(), builtinMapGet(), builtinMapKeys(), builtinMapSet(), Evaluator, builtinMapDelete(), builtinMapHas(), builtinMapValues() (+9 more)
 
 ### Community 81 - "inspectObjectPairs"
 Cohesion: 0.24
@@ -552,17 +545,13 @@ Nodes (10): Client-Side WASM Interpreter, Karl Playground, syscall/js Go-to-Brow
 Cohesion: 0.22
 Nodes (9): Karl Design Philosophy, Equality Semantics (== identity, eqv structural), Partial Application with `_`, Pattern Matching Semantics, Runtime Value Model, `->` Single Meaning Principle, Destructuring and Structural Patterns, Expression-Based Language Design (+1 more)
 
-### Community 84 - "Program"
-Cohesion: 0.53
-Nodes (9): Program, testing.B, BenchmarkPipelineFileToFile64MiB(), BenchmarkPipelineProcessStdoutToFile64MiB(), benchPipelineFileToFile(), benchPipelineProcessStdoutToFile(), mustEvalBenchProgram(), mustParseBenchProgram() (+1 more)
-
 ### Community 85 - "builtinFromJSON"
-Cohesion: 0.15
-Nodes (9): builtinFromJSON(), builtinToJSON(), decodeJSONValue(), encodeJSONValue(), Evaluator, registerJSONBuiltins(), streamFromJSONIterator, newStreamFromJSONStage() (+1 more)
+Cohesion: 0.18
+Nodes (7): builtinFromJSON(), builtinToJSON(), decodeJSONValue(), encodeJSONValue(), Evaluator, registerJSONBuiltins(), streamFromJSONIterator
 
-### Community 86 - "debug_controller.go"
-Cohesion: 0.22
-Nodes (5): DebugStopReason, IsDebugTerminated(), DebugBreakpoint, debugStepMode, DebugTerminatedError
+### Community 86 - "traceCommand"
+Cohesion: 0.67
+Nodes (3): TestTraceDAPCommandRejectsArgs(), traceCommand(), traceDAPCommand()
 
 ### Community 87 - "Karl API-First Stdlib Skill"
 Cohesion: 0.31
@@ -592,6 +581,10 @@ Nodes (7): Karl Brand Identity, Bold K Monogram, Karl Project Logo, Monochrome M
 Cohesion: 0.29
 Nodes (7): Collection Families (Array, Map, Set, Tree), Concurrency Helper Built-ins, Method Sugar, Karl Standard Library Reference, Collections Examples, ntree Hierarchical Navigation, Ordered Tree (AVL / Treap)
 
+### Community 95 - "Signal"
+Cohesion: 0.13
+Nodes (10): Evaluator, Evaluator, Evaluator, Evaluator, Evaluator, Evaluator, Evaluator, isTruthy() (+2 more)
+
 ### Community 96 - "buildRange"
 Cohesion: 0.43
 Nodes (5): buildCharRange(), buildFloatRange(), buildIntRange(), buildRange(), Evaluator
@@ -620,9 +613,9 @@ Nodes (6): Live Matrix Loop (one-statement fan-in), Stream API Reference, Fan-ou
 Cohesion: 0.54
 Nodes (7): builtinLog(), builtinLogt(), builtinStr(), formatLogValue(), Evaluator, writeLogLine(), streamValueToBytes()
 
-### Community 103 - ".evalQueryExpression"
-Cohesion: 0.47
-Nodes (4): compareForSort(), Evaluator, sortRows(), queryRow
+### Community 103 - "sortRows"
+Cohesion: 0.83
+Nodes (3): compareForSort(), sortRows(), queryRow
 
 ### Community 104 - "extension.js"
 Cohesion: 0.40
@@ -652,9 +645,9 @@ Nodes (5): Browser Tab / Notebook Kernel Icon Asset (32x32 raster), Karl Kernel 
 Cohesion: 0.60
 Nodes (5): 64x64 Favicon / Icon Asset Sizing, Karl Kernel Project Brand Identity, Karl Kernel Logo (64x64 PNG), Monochrome Square Badge Design, Letter K Monogram Mark
 
-### Community 112 - "repl/server.go"
-Cohesion: 0.38
-Nodes (6): net.Conn, os.File, Client(), enableClientRawMode(), handleConnection(), Server()
+### Community 112 - "newTTYLineWriter"
+Cohesion: 0.22
+Nodes (8): net.Conn, os.File, newTTYLineWriter(), Client(), enableClientRawMode(), handleConnection(), Server(), ttyLineWriter
 
 ### Community 113 - "run_all_tests.sh"
 Cohesion: 0.83
@@ -664,6 +657,10 @@ Nodes (3): run_test(), run_all_tests.sh script, timeout()
 Cohesion: 0.48
 Nodes (6): builtinFromBase58(), builtinToBase58(), decodeBase58(), encodeBase58(), Evaluator, reverseBytes()
 
+### Community 115 - "Server"
+Cohesion: 0.67
+Nodes (3): playgroundCommand(), Server, NewServer()
+
 ### Community 117 - "Import Factory and Live Module Object"
 Cohesion: 0.67
 Nodes (3): Single-Instance Module Import Shorthand, Import Factory and Live Module Object, Import Expressions and Module Factory
@@ -672,17 +669,17 @@ Nodes (3): Single-Instance Module Import Shorthand, Import Factory and Live Modu
 Cohesion: 0.67
 Nodes (3): Decoding Glyph Animation, Karl Landing Page, Karl Logo Typography Recommendation
 
-### Community 154 - "RangePattern"
-Cohesion: 0.40
-Nodes (3): RangePattern, matchRangePattern(), patternLiteralValue()
-
-### Community 155 - "Format"
-Cohesion: 0.47
-Nodes (3): Format(), printer, bytes.Buffer
+### Community 154 - "Pattern"
+Cohesion: 0.10
+Nodes (9): ArrayPattern, CallPattern, LetStatement, Pattern, RangePattern, TuplePattern, LambdaExpression, matchRangePattern() (+1 more)
 
 ### Community 162 - "vigil_builtins_test.go"
 Cohesion: 0.22
 Nodes (11): database/sql/driver.Value, fakeSQLRows, ensureFakeSQLDriverRegistered(), fakeDriverResetDSN(), reserveLocalAddr(), TestVigilBuiltinsHTTPServeAndStop(), TestVigilBuiltinsSHAUUIDTime(), TestVigilBuiltinsSignalWatchType() (+3 more)
+
+### Community 163 - "graphify"
+Cohesion: 0.50
+Nodes (3): graphify, Keeping the graph fresh, One-time setup
 
 ## Ambiguous Edges - Review These
 - `Karl Project Identity` → `Karl Kernel Favicon (32x32 K mark)`  [AMBIGUOUS]
@@ -695,9 +692,9 @@ Nodes (11): database/sql/driver.Value, fakeSQLRows, ensureFakeSQLDriverRegistere
   SPECS/tooling_naming.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **156 isolated node(s):** `go`, `decoder`, `workerURL`, `cacheBust`, `go` (+151 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 514 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **29 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **157 isolated node(s):** `go`, `decoder`, `workerURL`, `cacheBust`, `go` (+152 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 515 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **21 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -710,9 +707,9 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `loom (runtime)` and `karl loom (REPL)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `Value` connect `Value` to `testing.T`, `Token`, `value_stream_algebra.go`, `server`, `builtins_process.go`, `builtinHTTP`, `Tree`, `evalInput`, `DebugController`, `recoverableError`, `builtins_stream_pipeline.go`, `Environment`, `Signal`, `NTree`, `streamIterator`, `Notebook`, `value_scalar_types.go`, `taskAwaitWithCancel`, `New`, `RangePattern`, `process_api_test.go`, `BreakExpression`, `builtinFromUtf8`, `Process`, `Identifier`, `builtins_math.go`, `main.go`, `evalWithConfiguredEvaluator`, `Node`, `stringArg`, `Kernel`, `builtins_runtime_system.go`, `main_test.go`, `.evalInfixExpression`, `streamPartitionRouter`, `builtins_sql.go`, `MapKey`, `RegisterBuiltins`, `builtinSignalWatch`, `DebugFrame`, `NewBaseEnvironment`, `teeStreamIterator`, `ValueType`, `streamDebounceIterator`, `SliceExpression`, `builtinHTTPServe`, `.Pretty`, `Function`, `mapKeyForValue`, `inspectObjectPairs`, `Program`, `builtinFromJSON`, `ArrayLiteral`, `buildRange`, `evalWithPolicy`, `formatLogValue`, `.evalQueryExpression`, `builtinFromBase58`?**
-  _High betweenness centrality (0.412) - this node is a cross-community bridge._
-- **Why does `Environment` connect `Environment` to `Token`, `server`, `Server`, `DebugController`, `Value`, `Signal`, `Notebook`, `taskAwaitWithCancel`, `New`, `BreakExpression`, `io.Writer`, `Identifier`, `Node`, `Kernel`, `main_test.go`, `.evalInfixExpression`, `DebugFrame`, `NewBaseEnvironment`, `SliceExpression`, `Function`, `inspectObjectPairs`, `ArrayLiteral`, `buildRange`, `.evalQueryExpression`?**
-  _High betweenness centrality (0.035) - this node is a cross-community bridge._
-- **Why does `Expression` connect `Expression` to `Token`, `Identifier`, `Parser`, `Node`, `SliceExpression`, `Function`, `taskAwaitWithCancel`, `BlockExpression`, `parseProgram`, `BreakExpression`, `ArrayLiteral`?**
+- **Why does `Value` connect `Value` to `testing.T`, `value_stream_algebra.go`, `server`, `builtins_process.go`, `channelSendBlocking`, `Tree`, `evalInput`, `DebugController`, `recoverableError`, `builtins_stream_pipeline.go`, `Environment`, `RegisterBuiltins`, `NTree`, `streamIterator`, `ValueType`, `taskAwaitWithCancel`, `New`, `Pattern`, `process_api_test.go`, `Process`, `builtins_math.go`, `main.go`, `evalWithConfiguredEvaluator`, `Node`, `stringArg`, `Kernel`, `builtins_runtime_system.go`, `main_test.go`, `.evalInfixExpression`, `streamPartitionRouter`, `builtins_sql.go`, `value.go`, `builtins_time.go`, `Channel`, `builtinSignalWatch`, `SQLTx`, `teeStreamIterator`, `bindPattern`, `builtinUUIDParse`, `SliceExpression`, `builtinHTTPServe`, `.Pretty`, `Builtin`, `mapKeyForValue`, `inspectObjectPairs`, `builtinFromJSON`, `Signal`, `buildRange`, `evalWithPolicy`, `formatLogValue`, `sortRows`, `builtinFromBase58`?**
+  _High betweenness centrality (0.411) - this node is a cross-community bridge._
+- **Why does `Environment` connect `Environment` to `buildRange`, `io.Writer`, `server`, `Server`, `bindPattern`, `Node`, `DebugController`, `Value`, `SliceExpression`, `Kernel`, `main_test.go`, `.evalInfixExpression`, `inspectObjectPairs`, `taskAwaitWithCancel`, `New`, `Signal`?**
+  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+- **Why does `Expression` connect `Expression` to `Token`, `Identifier`, `bindPattern`, `Parser`, `Node`, `SliceExpression`, `taskAwaitWithCancel`, `parseProgram`, `Pattern`?**
   _High betweenness centrality (0.034) - this node is a cross-community bridge._
