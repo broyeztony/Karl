@@ -1,0 +1,1 @@
+{"nodes": [{"id": "examples_features_streams_k8s_00_namespace_karl_health_demo", "label": "Namespace karl-health-demo", "file_type": "code", "source_file": "examples/features/streams/k8s/00-namespace.yaml", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

@@ -45,3 +45,20 @@ plugins/karl-vscode/*.vsix
 
 # Local tooling binaries
 minikube-darwin-arm64
+
+# graphify: track the graph data, report, and the semantic (LLM) cache.
+# graph.json carries the semantic nodes, so it must stay tracked.
+#
+# cache/semantic/ IS tracked on purpose: entries are content-addressed (filename
+# is the file's sha256) with repo-relative source paths, so they are portable
+# between machines. Sharing them means a contributor who edits one doc re-extracts
+# only that file instead of the whole corpus.
+#
+# Everything below is regenerable or machine-local:
+graphify-out/graph.html
+graphify-out/cache/ast/
+graphify-out/cache/stat-index.json
+graphify-out/cache/last_query_stamp
+graphify-out/cost.json
+graphify-out/.graphify_*
+graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
