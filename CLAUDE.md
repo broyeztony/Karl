@@ -8,11 +8,21 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 
+### One-time setup
+
+```sh
+graphify hook install
+```
+
+Installs a `post-commit` hook that rebuilds the graph after each commit, a `post-checkout` hook, and a merge driver for `graphify-out/graph.json`. **Git hooks are not versioned, so every contributor runs this once per clone.** Without it nothing breaks — the graph just stops tracking your commits, and `graphify-out/graph.json` falls back to an ordinary 3-way merge conflict if two branches touch it.
+
+There is deliberately no CI job for this. `main` is protected by a ruleset requiring pull requests, and GitHub Actions cannot be granted a bypass on a personal repo (`422: Actor GitHub Actions integration must be part of the ruleset source or owner organization`), so a workflow could rebuild the graph but never commit it.
+
 ### Keeping the graph fresh
 
-**Code changes** need nothing: `.github/workflows/graphify.yml` rebuilds the graph on every push to `main`. Locally, `graphify update .` does the same (AST-only, no API key).
+**Code changes** are handled by the `post-commit` hook (AST-only, no API key). To rebuild by hand: `graphify update .`
 
-**Doc, SPEC, README or image changes** need a manual refresh — CI runs AST only and cannot re-extract prose or image concepts. Pick whichever fits:
+**Doc, SPEC, README or image changes** need a manual refresh — the hook is AST-only and cannot re-extract prose or image concepts. Pick whichever fits:
 
 | Situation | Command |
 |---|---|
