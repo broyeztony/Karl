@@ -52,7 +52,13 @@ jobs:
         if: steps.guard.outputs.enabled == 'true'
         uses: actions/checkout@v6
         with:
-          fetch-depth: 1
+          # Full history, so a re-review can read the commits since the last one
+          # and skip what has not changed. At depth 1 the checkout is a squashed
+          # merge with no PR commit as a local rev, leaving `gh pr diff` — always
+          # cumulative against base — as the only view, so a three-line push is
+          # indistinguishable from the diff already reviewed and re-deriving
+          # everything becomes the cheapest-looking move.
+          fetch-depth: 0
 
       - name: Review pull request
         if: steps.guard.outputs.enabled == 'true'
@@ -97,9 +103,12 @@ jobs:
 
                 gh pr view ${{ github.event.pull_request.number }} --comments
 
-            and read what previous runs said. That command returns only
-            top-level comments, not inline ones. So treat the summaries as your record of what has already been raised —
-            when you post an inline finding, state it in the summary too, or the
+            and read what previous runs said. The full history is checked out,
+            so `git log` and `git diff <sha>..HEAD` will show you exactly what
+            landed since the commit an earlier review named — read that rather
+            than re-deriving the whole PR. `gh pr view` returns only top-level
+            comments, not inline ones, so treat the summaries as your record of
+            what has already been raised — when you post an inline finding, state it in the summary too, or the
             next run has no way to know you raised it. Do not re-raise a finding
             that is still standing; inline comments post immediately and are
             never retracted, so repeating one just doubles it. Note in one line
@@ -150,4 +159,4 @@ jobs:
             than implying you covered it.
           claude_args: |
             --model claude-opus-5
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Grep,Glob"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Read,Grep,Glob"
