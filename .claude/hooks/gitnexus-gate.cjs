@@ -95,12 +95,14 @@ const READ_VERB = /(^|[\s;|&(])(cat|bat|head|tail|less|more|nl|od|xxd|strings|vi
 const SED_READ = /(^|[\s;|&(])sed(\s+--?\w+)*\s+-[a-zA-Z]*n/;
 /** Text search — the thing CLAUDE.md says must not substitute for the graph. */
 const SEARCH_VERB = /(^|[\s;|&(])(grep|egrep|fgrep|rg|ag|ack)(\s|$)/;
-/** In-place edits and patch application. */
-const WRITE_VERB = /(^|[\s;|&(])(tee|patch|dd|truncate)(\s|$)/;
+/** Writes whose target is named in the command, so a source path must appear. */
+const WRITE_VERB = /(^|[\s;|&(])(tee|dd|truncate|cp|mv|rm|install|ln)(\s|$)/;
 const SED_WRITE = /(^|[\s;|&(])sed(\s+--?\w+)*\s+-[a-zA-Z]*i/;
-const GIT_WRITE = /(^|[\s;|&(])git\s+(apply|restore|checkout\s+--)(\s|$)/;
-/** Shell redirection that creates or appends to a file. */
-const REDIRECT_WRITE = /(^|[^0-9>])>>?\s*[^\s|&;]+/;
+/**
+ * Writes that carry their targets inside a patch file rather than in the
+ * command, so there is no path to match on and the verb alone has to gate.
+ */
+const BLIND_WRITE = /(^|[\s;|&(])(patch|git\s+(apply|restore|checkout\s+--))(\s|$)/;
 
 function readStdin() {
   try {
@@ -168,9 +170,16 @@ function allow() {
 function isExempt(filePath, indexRoot) {
   if (!filePath) return true;
   const abs = path.isAbsolute(filePath) ? filePath : path.resolve(indexRoot, filePath);
+  // The repo root is the repo, not an exempt corner of it: treating `.` as
+  // exempt would excuse `grep -rn foo .`, the search this gate exists for.
+  if (abs === indexRoot) return false;
   if (!abs.startsWith(indexRoot + path.sep)) return true; // outside the indexed repo
   const rel = abs.slice(indexRoot.length + 1).split(path.sep).join('/');
-  return EXEMPT_SEGMENTS.some((seg) => rel.startsWith(seg) || rel.includes(`/${seg}`));
+  return EXEMPT_SEGMENTS.some((seg) => {
+    const bare = seg.replace(/\/$/, '');
+    // `rel` for a directory carries no trailing slash, so compare both forms.
+    return rel === bare || rel.startsWith(seg) || rel.includes(`/${seg}`) || rel.endsWith(`/${bare}`);
+  });
 }
 
 function isSource(filePath) {
@@ -183,9 +192,129 @@ function sourcePathsIn(command, indexRoot) {
   return tokens.filter((t) => isSource(t) && !isExempt(t, indexRoot));
 }
 
-/** Split a command line into pipeline/sequence segments. */
+/**
+ * Remove heredoc bodies before classification.
+ *
+ * A heredoc body is data the command feeds to something, not commands the shell
+ * runs, so scanning it produces false positives on any text that merely quotes
+ * shell: a commit message describing a patch invocation, a test fixture, a doc
+ * snippet. The redirection that opens the heredoc stays, so a heredoc written
+ * over a source file is still caught as a write to it.
+ */
+function stripHeredocs(src) {
+  const open = /<<-?\s*(["']?)([A-Za-z_][A-Za-z0-9_]*)\1/;
+  let out = String(src);
+  for (let guard = 0; guard < 32; guard += 1) {
+    const m = out.match(open);
+    if (!m) break;
+    const delim = m[2];
+    const afterOpen = out.indexOf(m[0]) + m[0].length;
+    const bodyStart = out.indexOf('\n', afterOpen);
+    if (bodyStart === -1) { out = out.slice(0, afterOpen); break; }
+    const rest = out.slice(bodyStart);
+    const endRe = new RegExp('\\n[ \\t]*' + delim + '[ \\t]*(?=\\n|$)');
+    const em = rest.match(endRe);
+    if (em) {
+      out = out.slice(0, bodyStart) + rest.slice(em.index + em[0].length);
+    } else {
+      out = out.slice(0, bodyStart); // unterminated: drop the remainder
+    }
+    // Drop the opening token so the next iteration finds the following
+    // heredoc. It must be removed rather than marked: any placeholder
+    // containing `<<` matches this same pattern, and the loop would then treat
+    // it as a fresh unterminated heredoc and discard the real commands after it.
+    const at = out.indexOf(m[0]);
+    out = out.slice(0, at) + out.slice(at + m[0].length);
+  }
+  return out;
+}
+
+/**
+ * Split a command line into pipeline/sequence segments, respecting quotes and
+ * pulling command substitutions out as segments of their own.
+ *
+ * Naive splitting on `|` breaks `sed -i 's|old|new|' f.go` into pieces where one
+ * holds the verb and another holds the path, so neither trips a check that needs
+ * both — and that is the idiomatic form whenever the pattern contains a slash.
+ * Treating `&` as a separator and `$(...)`/backticks as nested commands closes
+ * the matching gap where a graph call at the head of a segment excused whatever
+ * ran beside it.
+ */
 function segments(command) {
-  return String(command).split(/\|\||&&|[;|\n]/).map((s) => s.trim()).filter(Boolean);
+  const src = stripHeredocs(String(command));
+  const out = [];
+  const nested = [];
+  let cur = '';
+  let quote = null;
+
+  for (let i = 0; i < src.length; i += 1) {
+    const c = src[i];
+
+    if (quote) {
+      // Double quotes do not suppress command substitution, so keep looking for
+      // it; single quotes do, so inside those everything is literal text.
+      if (quote === '"' && ((c === '$' && src[i + 1] === '(') || c === '`')) {
+        // fall through to the substitution handling below
+      } else {
+        if (c === quote) quote = null;
+        cur += c;
+        continue;
+      }
+    }
+    if (c === "'" || c === '"') { quote = c; cur += c; continue; }
+
+    if (c === '$' && src[i + 1] === '(') {
+      let depth = 1;
+      let j = i + 2;
+      let inner = '';
+      while (j < src.length) {
+        if (src[j] === '(') depth += 1;
+        else if (src[j] === ')') { depth -= 1; if (depth === 0) break; }
+        inner += src[j];
+        j += 1;
+      }
+      nested.push(inner);
+      i = j;
+      continue;
+    }
+    if (c === '`') {
+      let j = i + 1;
+      let inner = '';
+      while (j < src.length && src[j] !== '`') { inner += src[j]; j += 1; }
+      nested.push(inner);
+      i = j;
+      continue;
+    }
+
+    if (c === ';' || c === '&' || c === '|' || c === '\n') {
+      if (cur.trim()) out.push(cur.trim());
+      cur = '';
+      continue;
+    }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  for (const inner of nested) out.push(...segments(inner));
+  return out;
+}
+
+/** Redirection targets (`> f`, `>> f`), ignoring fd duplications like `2>&1`. */
+function redirectTargets(segment) {
+  const out = [];
+  const re = /(?:^|[^0-9>&])>>?\s*([^\s|&;<>]+)/g;
+  let m = re.exec(segment);
+  while (m) { out.push(m[1].replace(/^["']|["']$/g, '')); m = re.exec(segment); }
+  return out;
+}
+
+/** Tokens that exist on disk, resolved against the repo root. */
+function existingPathTokens(segment, indexRoot) {
+  const tokens = String(segment).match(/[\w./~@+-]+/g) || [];
+  return tokens.filter((t) => {
+    if (t.startsWith('-')) return false;
+    const abs = path.isAbsolute(t) ? t : path.resolve(indexRoot, t);
+    try { return fs.existsSync(abs); } catch { return false; }
+  });
 }
 
 /**
@@ -316,37 +445,46 @@ function enforce(payload, indexRoot) {
   if (toolName === 'Bash') {
     const command = String(toolInput.command || '');
     for (const seg of segments(command)) {
-      // Never gate the graph tooling itself, or the gate would deadlock.
+      // Never gate the graph tooling itself, or the gate would deadlock. This
+      // excuses only a segment that *is* a gitnexus call — segments() has
+      // already split off anything chained beside it with `&`, `;` or `$(...)`.
       if (gitnexusSubcommand(seg)) continue;
 
       const paths = sourcePathsIn(seg, indexRoot);
-      const writes = SED_WRITE.test(seg) || WRITE_VERB.test(seg) || REDIRECT_WRITE.test(seg);
+      // Only a redirect whose target is source counts as writing source:
+      // `git diff -- parser.go > /tmp/p.diff` reads source, it does not write it.
+      const redirectsToSource = redirectTargets(seg)
+        .some((t) => isSource(t) && !isExempt(t, indexRoot));
+      const namedWrite = (SED_WRITE.test(seg) || WRITE_VERB.test(seg)) && paths.length > 0;
       const reads = READ_VERB.test(seg) || SED_READ.test(seg);
 
-      // `git apply` and `patch` carry their targets inside the patch file, so
-      // no source path appears in the command to match on. Gate them on the
-      // verb alone: applying a patch is how you edit many files at once, and
-      // that is precisely what the pre-edit rule exists for.
-      if (GIT_WRITE.test(seg) && !impacted) {
+      if (BLIND_WRITE.test(seg) && !impacted) {
         deny(`GitNexus gate: applying a patch edits whatever it touches, and impact analysis `
           + `has not run in this session. The targets are inside the patch rather than the `
           + `command, so this is gated on the verb.\n\n${IMPACT_HINT}\n\n`
           + `If the patch touches no source, set GITNEXUS_GATE=off to bypass.`);
       }
-
-      if (paths.length && writes && !impacted) {
-        deny(`GitNexus gate: this command writes to source (${paths[0]}), and impact analysis `
-          + `has not run in this session. Editing through a shell is the same edit — the rule `
-          + `in CLAUDE.md does not depend on which tool makes it.\n\n${IMPACT_HINT}\n\n`
+      if ((namedWrite || redirectsToSource) && !impacted) {
+        const target = paths[0]
+          || redirectTargets(seg).find((t) => isSource(t))
+          || 'source';
+        deny(`GitNexus gate: this command writes to source (${target}), and impact analysis has `
+          + `not run in this session. Editing through a shell is the same edit — the rule in `
+          + `CLAUDE.md does not depend on which tool makes it.\n\n${IMPACT_HINT}\n\n`
           + `Set GITNEXUS_GATE=off to bypass.`);
       }
       if (paths.length && reads && !oriented) {
         deny(`GitNexus gate: this command reads source (${paths[0]}) and the graph has not been `
-          + `consulted in this session. \`cat\`/\`sed -n\` on a file delivers the same bytes as `
-          + `Read, so it is gated the same way.\n\n${ORIENT_HINT}\n\n`
+          + `consulted in this session. A ranged \`sed -n\` or \`cat\` delivers the same bytes `
+          + `as Read, so it is gated the same way.\n\n${ORIENT_HINT}\n\n`
           + `Set GITNEXUS_GATE=off to bypass.`);
       }
       if (SEARCH_VERB.test(seg) && !oriented) {
+        // Honour the same directory exemptions the Grep arm does: searching
+        // .claude/ or .gitnexus/ is how the agent inspects its own tooling, and
+        // gating that while the equivalent Grep call is allowed is incoherent.
+        const onDisk = existingPathTokens(seg, indexRoot);
+        if (onDisk.length && onDisk.every((t) => isExempt(t, indexRoot))) continue;
         deny(`GitNexus gate: text search before graph search, via the shell. CLAUDE.md is `
           + `explicit — "Never substitute grep for graph analysis."\n\n${ORIENT_HINT}\n\n`
           + `Shell search unlocks with everything else once the graph has been consulted. `

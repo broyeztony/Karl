@@ -76,6 +76,35 @@ S7="s7-$$"
 expect "Write to NEW path allowed"         ALLOW "$(pre $S7 Write "{\"file_path\":\"$REPO/evaluator/brand_new$EXT\"}")"
 expect "Write to EXISTING path denied"     DENY  "$(pre $S7 Write "{\"file_path\":\"$REPO/$SRC\"}")"
 
+echo "### Re-review 1 — alternate sed delimiter must not split the segment"
+SA="sa-$$"
+expect "sed -i with | delimiter"   DENY "$(pre $SA Bash "{\"command\":\"sed -i 's|old|new|' $SRC\"}")"
+expect "sed -i with , delimiter"   DENY "$(pre $SA Bash "{\"command\":\"sed -i 's,old,new,' $SRC\"}")"
+
+echo "### Re-review 2 — patch verb-alone; cp/mv/rm modelled"
+expect "patch -p1 < diff"          DENY "$(pre $SA Bash '{"command":"patch -p1 < /tmp/p.diff"}')"
+expect "cp onto SRC"               DENY "$(pre $SA Bash "{\"command\":\"cp /tmp/new$EXT $SRC\"}")"
+expect "rm SRC"                    DENY "$(pre $SA Bash "{\"command\":\"rm $SRC\"}")"
+expect "mv onto SRC"               DENY "$(pre $SA Bash "{\"command\":\"mv /tmp/a$EXT $SRC\"}")"
+
+echo "### Re-review 3 — a gitnexus head must not excuse the rest"
+expect "gitnexus & sed -i chained" DENY "$(pre $SA Bash "{\"command\":\"node .gitnexus/run.cjs query x & sed -i 's/a/b/' $SRC\"}")"
+CMDSUB='{"command":"node .gitnexus/run.cjs query \"$(cat parser/parser.go)\" --repo ."}'
+expect "gitnexus with command substitution" DENY "$(pre $SA Bash "$CMDSUB")"
+expect "gitnexus ; cat SRC"        DENY "$(pre $SA Bash "{\"command\":\"node .gitnexus/run.cjs query x ; cat $SRC\"}")"
+
+echo "### Re-review 4 — redirect target decides, so reads are not mislabelled writes"
+SB="sb-$$"
+post $SB mcp__gitnexus__query '{}' '{"ok":1}' >/dev/null
+expect "git diff SRC > /tmp/p.diff" ALLOW "$(pre $SB Bash "{\"command\":\"git diff HEAD -- $SRC > /tmp/p.diff\"}")"
+expect "redirect INTO source denied" DENY "$(pre $SB Bash "{\"command\":\"echo x > $SRC\"}")"
+
+echo "### Re-review 5 — shell search honours the path exemptions Grep honours"
+SC="sc-$$"
+expect "grep in .claude/"          ALLOW "$(pre $SC Bash '{"command":"grep -n hookEventName .claude/settings.json"}')"
+expect "grep in .gitnexus/"        ALLOW "$(pre $SC Bash '{"command":"grep -rn oriented .gitnexus/"}')"
+expect "grep across repo"          DENY  "$(pre $SC Bash '{"command":"grep -rn mutex ."}')"
+
 echo "### Finding 3 — concurrent unlocks do not clobber each other"
 S9="s9-$$"
 post $S9 mcp__gitnexus__impact '{}' '{"ok":1}' >/dev/null &
@@ -84,11 +113,22 @@ wait
 expect "parallel impact+query: Edit allowed"  ALLOW "$(pre $S9 Edit "{\"file_path\":\"$REPO/$SRC\"}")"
 expect "parallel impact+query: Read allowed"  ALLOW "$(pre $S9 Read "{\"file_path\":\"$REPO/$SRC\"}")"
 
+echo "### Heredoc bodies are data, not commands"
+SD="sd-$$"
+HD_PROSE=$(printf 'git commit -F - <<%sEOF%s\nrewrites patch -p1 and rm %s in prose\nEOF' "'" "'" "$SRC")
+expect "commit message quoting shell verbs" ALLOW "$(pre $SD Bash "$(printf '{"command":%s}' "$(printf '%s' "$HD_PROSE" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))')")")"
+HD_OVER=$(printf 'cat > %s <<%sEOF%s\npackage main\nEOF' "$SRC" "'" "'")
+expect "heredoc written OVER source still caught" DENY "$(pre $SD Bash "$(printf '{"command":%s}' "$(printf '%s' "$HD_OVER" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))')")")"
+HD_AFTER=$(printf 'cat <<%sEOF%s\nharmless\nEOF\nsed -i %ss/a/b/%s %s' "'" "'" "'" "'" "$SRC")
+expect "real write after heredoc still caught" DENY "$(pre $SD Bash "$(printf '{"command":%s}' "$(printf '%s' "$HD_AFTER" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))')")")"
+
 echo "### Fail-open paths"
 S8="s8-$$"
 expect "malformed payload"                 ALLOW "$(echo 'not json' | node "$H")"
 expect "empty payload"                     ALLOW "$(printf '' | node "$H")"
-expect "unindexed repo"                    ALLOW "$(pre $S8 Read '{"file_path":"/tmp/x.go"}' )"
+UNINDEXED=$(mktemp -d)
+expect "unindexed repo (cwd has no .gitnexus)" ALLOW "$(printf '{"hook_event_name":"PreToolUse","session_id":"u","tool_name":"Read","cwd":"%s","tool_input":{"file_path":"%s/a%s"}}' "$UNINDEXED" "$UNINDEXED" "$EXT" | node "$H")"
+rmdir "$UNINDEXED" 2>/dev/null
 expect "file outside repo"                 ALLOW "$(pre $S8 Read '{"file_path":"/etc/hosts"}')"
 expect "markdown file"                     ALLOW "$(pre $S8 Read "{\"file_path\":\"$REPO/README.md\"}")"
 expect ".claude exempt"                    ALLOW "$(pre $S8 Read "{\"file_path\":\"$REPO/.claude/hooks/gitnexus-gate.cjs\"}")"
