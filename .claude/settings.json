@@ -1,21 +1,15 @@
 {
+  "description": "GitNexus gate: the graph must be consulted before source files are read directly, and impact must run before a source edit. Enforced with deny decisions, not reminders.",
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Grep",
+        "matcher": "Read|Edit|Write|NotebookEdit|Grep|Glob|Bash|mcp__gitnexus__.*",
         "hooks": [
           {
             "type": "command",
-            "command": "command -v graphify >/dev/null 2>&1 && graphify hook-guard search || true"
-          }
-        ]
-      },
-      {
-        "matcher": "Read|Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "command -v graphify >/dev/null 2>&1 && graphify hook-guard read || true"
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gitnexus-gate.cjs\"",
+            "timeout": 5,
+            "statusMessage": "Checking GitNexus graph-first gate"
           }
         ]
       }

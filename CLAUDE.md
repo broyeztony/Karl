@@ -1,36 +1,44 @@
-## graphify
+<!-- gitnexus:start -->
+# GitNexus — Code Intelligence
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+This project is indexed by GitNexus as **Karl** (4293 symbols, 20874 relationships, 358 execution flows).
 
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+> Index stale? Run `node .gitnexus/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
-### One-time setup
+## Always Do
 
-```sh
-graphify hook install
-```
+- **MUST run impact before editing.** Use `impact({target: "symbolName", direction: "upstream"})` or `node .gitnexus/run.cjs impact "symbolName" --direction upstream --repo .`; report callers, processes, and risk. Never substitute grep for graph analysis.
+- **MUST analyze graph changes before committing.** Use `detect_changes({scope: "all"})` (MCP) or `node .gitnexus/run.cjs detect-changes --scope all --repo .` (CLI fallback). `partial: true` or `truncated: true` is not a clean check — a zero means unseen, not unaffected; re-run it. For regression review: `detect_changes({scope: "compare", base_ref: "main"})` or `node .gitnexus/run.cjs detect-changes --scope compare --base-ref "main" --repo .`.
+- MUST warn on HIGH/CRITICAL `risk` pre-edit; never use `riskSharedAxes` to waive a HIGH/CRITICAL `risk` warning. Compare File/symbol: MCP File omits axes; Graph-RAG expands File.
+- **MUST treat `risk: UNKNOWN` as unresolved, not as low.** An empty caller set is not evidence the symbol is unused — it can also mean the callers are not resolvable by the index (plain-object property access, dynamic dispatch, cross-language calls). `impact` pairs `UNKNOWN` with a `riskNote` saying so. Confirm with a text search before treating the symbol as safe to change or delete; do not proceed on the strength of a zero.
+- **MUST use `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for a named symbol, or `impact` for blast radius, on read-only callers, dependencies, imports, or execution flow.** Graph first; text search only for empty/`UNKNOWN`/literals.
+- For security review, `explain({target: "fileOrSymbol"})` lists taint findings (source→sink flows; needs `analyze --pdg`).
 
-Installs a `post-commit` hook that rebuilds the graph after each commit, a `post-checkout` hook, and a merge driver for `graphify-out/graph.json`. **Git hooks are not versioned, so every contributor runs this once per clone.** Without it nothing breaks — the graph just stops tracking your commits, and `graphify-out/graph.json` falls back to an ordinary 3-way merge conflict if two branches touch it.
+## Never Do
 
-There is deliberately no CI job for this. `main` is protected by a ruleset requiring pull requests, and GitHub Actions cannot be granted a bypass on a personal repo (`422: Actor GitHub Actions integration must be part of the ruleset source or owner organization`), so a workflow could rebuild the graph but never commit it.
+- NEVER edit a function, class, or method before MCP/CLI impact analysis.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis, and never read `UNKNOWN` as an all-clear — it means the walk could not answer, which is the one verdict that requires confirming by other means.
+- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
+- NEVER commit before MCP/CLI graph change analysis.
 
-### Keeping the graph fresh
+## Resources
 
-**Code changes** are handled by the `post-commit` hook (AST-only, no API key). To rebuild by hand: `graphify update .`
+| Resource | Use for |
+| --- | --- |
+| `gitnexus://repo/Karl/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/Karl/clusters` | All functional areas |
+| `gitnexus://repo/Karl/processes` | All execution flows |
+| `gitnexus://repo/Karl/process/{name}` | Step-by-step execution trace |
 
-**Doc, SPEC, README or image changes** need a manual refresh — the hook is AST-only and cannot re-extract prose or image concepts. Pick whichever fits:
+## CLI
 
-| Situation | Command |
-|---|---|
-| You are in Claude Code | `/graphify --update` (this session is the LLM; no key needed) |
-| Headless, `claude` CLI installed | `graphify extract . --backend claude-cli` (bills to your Pro/Max plan) |
-| Headless, with an API key | `GEMINI_API_KEY=… graphify extract . --backend gemini` |
-| Fully offline | `graphify extract . --backend ollama` |
+| Task | Read this skill file |
+| --- | --- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
 
-Then commit `graphify-out/graph.json` **and** any new `graphify-out/cache/semantic/` entries.
-
-The semantic cache is committed on purpose. It is content-addressed, so you only pay extraction for files that actually changed — editing one SPEC costs one file, not the whole corpus. Always commit the cache entries your run produces so the next person inherits the hit. A graphify upgrade that changes the extraction prompt starts a fresh cache directory and everyone re-extracts once; that is expected.
+<!-- gitnexus:end -->
