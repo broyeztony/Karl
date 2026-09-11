@@ -27,6 +27,8 @@ jobs:
     name: Claude review
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
+    # A stalled MCP call would otherwise run to GitHub's 360-minute default.
+    timeout-minutes: 20
 
     steps:
       - name: Check for API key
@@ -43,7 +45,7 @@ jobs:
 
       - name: Checkout code
         if: steps.guard.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -59,7 +61,15 @@ jobs:
           # than claude[bot]. Install https://github.com/apps/claude and drop
           # this line (restoring `id-token: write`) to get the bot identity.
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          track_progress: true
+          # Deliberately NOT setting track_progress. It forces tag mode, which
+          # filters claude_args down to the mcp__github_* entries and
+          # substitutes its own grant — --permission-mode acceptEdits plus
+          # Bash(git add/commit/push:*) — so the allowlist below stops being the
+          # effective boundary and the reviewer can write files and push to the
+          # branch it is reviewing. Tag mode also injects "Never create new
+          # comments", which contradicts the summary instruction in the prompt.
+          # Agent mode passes claude_args verbatim and still provides the
+          # inline-comment MCP server.
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
