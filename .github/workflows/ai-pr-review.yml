@@ -21,7 +21,6 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
-  id-token: write
 
 jobs:
   review:
@@ -53,6 +52,13 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.AI_REVIEWER }}
+          # Without this the action exchanges an OIDC token for a GitHub App
+          # token, which 401s unless the Claude GitHub App is installed on the
+          # repository. Passing the built-in token skips that exchange; the
+          # cost is that comments are authored by github-actions[bot] rather
+          # than claude[bot]. Install https://github.com/apps/claude and drop
+          # this line (restoring `id-token: write`) to get the bot identity.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
           prompt: |
             REPO: ${{ github.repository }}
