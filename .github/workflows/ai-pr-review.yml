@@ -84,21 +84,21 @@ jobs:
             evaluator, a DAP debugger under debugger/dap, a notebook runner,
             and WASM builds including a spreadsheet frontend.
 
-            Read the diff with `gh pr diff`. Read the surrounding source of any
-            file the diff touches before judging it — a hunk that looks wrong in
-            isolation is often correct in context, and the reverse.
+            Read the diff with
+            `gh pr diff ${{ github.event.pull_request.number }}`, then read the
+            surrounding source of any file it touches before judging it — a hunk
+            that looks wrong in isolation is often correct in context, and the
+            reverse. Every `gh` command here takes the PR number explicitly: the
+            checkout leaves a detached HEAD, so the bare form cannot infer the
+            PR and exits 1.
 
             This workflow re-runs on every push, so you may not be the first
             review on this PR. Before writing anything, run
 
                 gh pr view ${{ github.event.pull_request.number }} --comments
 
-            and read what previous runs said. Pass the number explicitly: the
-            checkout leaves a detached HEAD, so the no-argument form cannot
-            infer the PR and exits 1.
-
-            That command returns only top-level comments, not inline ones. So
-            treat the summaries as your record of what has already been raised —
+            and read what previous runs said. That command returns only
+            top-level comments, not inline ones. So treat the summaries as your record of what has already been raised —
             when you post an inline finding, state it in the summary too, or the
             next run has no way to know you raised it. Do not re-raise a finding
             that is still standing; inline comments post immediately and are
@@ -136,9 +136,11 @@ jobs:
             input or interleaving that produces the wrong result — not a general
             worry. Skip anything you cannot state that precisely.
 
-            Then post one summary with `gh pr comment`: what the PR does, the
-            findings ranked by severity, and an explicit verdict. If the change
-            is sound, say so plainly in a sentence or two and stop; padding a
+            Then post one summary with
+            `gh pr comment ${{ github.event.pull_request.number }} --body-file -`:
+            what the PR does, the findings ranked by severity, and an explicit
+            verdict. If the change is sound, say so plainly in a sentence or
+            two and stop; padding a
             clean review with minor observations trains people to skip reading
             it. Never approve or request changes as a formal review — comments
             only.
