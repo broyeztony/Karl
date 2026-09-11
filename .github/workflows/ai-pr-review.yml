@@ -83,6 +83,15 @@ jobs:
             file the diff touches before judging it — a hunk that looks wrong in
             isolation is often correct in context, and the reverse.
 
+            This workflow re-runs on every push, so you may not be the first
+            review on this PR. Run `gh pr view --comments` before writing
+            anything and read what previous runs already said. Do not raise a
+            finding that is still standing from an earlier run — inline comments
+            post immediately and are never retracted, so repeating one just
+            doubles it. If a previous finding has since been fixed, say so in
+            one line rather than restating it. If nothing has changed since the
+            last review that bears on your findings, say that and stop.
+
             Prioritise, in this order:
 
             1. Correctness. Logic errors, wrong operator precedence or
