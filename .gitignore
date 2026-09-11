@@ -46,24 +46,10 @@ plugins/karl-vscode/*.vsix
 # Local tooling binaries
 minikube-darwin-arm64
 
-# graphify: track the graph data, report, and the semantic (LLM) cache.
-# graph.json carries the semantic nodes, so it must stay tracked.
-#
-# cache/semantic/ IS tracked on purpose: entries are content-addressed (filename
-# is the file's sha256) with repo-relative source paths, so they are portable
-# between machines. Sharing them means a contributor who edits one doc re-extracts
-# only that file instead of the whole corpus.
-#
-# Everything below is regenerable or machine-local:
-graphify-out/graph.html
-graphify-out/cache/ast/
-graphify-out/cache/stat-index.json
-graphify-out/cache/last_query_stamp
-# manifest.json records mtime/seen per file, so it churns on every commit and
-# checkout and would conflict between contributors. Dropping it costs nothing:
-# graph.json carries the semantic nodes and the cache is content-addressed.
-graphify-out/manifest.json
-graphify-out/.rebuild.lock
-graphify-out/cost.json
-graphify-out/.graphify_*
-graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+# Claude Code per-developer overrides. Claude Code writes this file when you
+# approve a permission or add a local hook, and its commands are absolute paths
+# on your machine — tracking it means every contributor carries an unrelated
+# dirty diff. Shared config belongs in .claude/settings.json with a
+# $CLAUDE_PROJECT_DIR-relative path.
+.claude/settings.local.json
+

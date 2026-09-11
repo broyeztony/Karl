@@ -74,6 +74,26 @@ jobs:
             examples/contrib/workflow/workflow-state/
           if-no-files-found: ignore
 
+  gate-hook:
+    name: GitNexus gate hook
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # The suite drives the hook with synthetic payloads and asserts on its
+      # deny decisions. It needs an index present, because the hook fails open
+      # on an unindexed repo by design and every DENY case would otherwise
+      # read as a broken hook rather than a missing .gitnexus/.
+      - name: Stub a GitNexus index
+        run: |
+          mkdir -p .gitnexus
+          echo '{}' > .gitnexus/meta.json
+
+      - name: Run gate hook tests
+        run: bash .claude/hooks/gitnexus-gate.test.sh "$PWD"
+
   lint:
     name: Lint Code
     runs-on: ubuntu-latest
