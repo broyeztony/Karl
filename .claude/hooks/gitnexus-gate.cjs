@@ -44,7 +44,7 @@ const SOURCE_EXT = new Set([
  * Paths exempt from both gates. Tooling and metadata directories: reading them
  * is how the agent inspects the gate itself, and gating that invites a deadlock.
  */
-const EXEMPT_SEGMENTS = ['.gitnexus/', '.claude/', '.git/', 'node_modules/', 'graphify-out/'];
+const EXEMPT_SEGMENTS = ['.gitnexus/', '.claude/', '.git/', 'node_modules/'];
 
 /** MCP tools that count as having consulted the graph. */
 const ORIENTING_MCP = new Set([
