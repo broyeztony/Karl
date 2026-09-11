@@ -104,9 +104,15 @@ jobs:
                 gh pr view ${{ github.event.pull_request.number }} --comments
 
             and read what previous runs said. The full history is checked out,
-            so `git log` and `git diff <sha>..HEAD` will show you exactly what
-            landed since the commit an earlier review named — read that rather
-            than re-deriving the whole PR. `gh pr view` returns only top-level
+            so when an earlier review names the commit it reviewed, read what
+            has landed since with
+
+                git diff <that-sha>..${{ github.event.pull_request.head.sha }}
+
+            rather than re-deriving the whole PR. Use that sha, not HEAD: this
+            is a `pull_request` checkout, so HEAD is the merge commit and a
+            range ending there also sweeps in whatever landed on the base
+            branch. `gh pr view` returns only top-level
             comments, not inline ones, so treat the summaries as your record of
             what has already been raised — when you post an inline finding, state it in the summary too, or the
             next run has no way to know you raised it. Do not re-raise a finding
