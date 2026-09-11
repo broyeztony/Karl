@@ -45,3 +45,11 @@ plugins/karl-vscode/*.vsix
 
 # Local tooling binaries
 minikube-darwin-arm64
+
+# Claude Code per-developer overrides. Claude Code writes this file when you
+# approve a permission or add a local hook, and its commands are absolute paths
+# on your machine — tracking it means every contributor carries an unrelated
+# dirty diff. Shared config belongs in .claude/settings.json with a
+# $CLAUDE_PROJECT_DIR-relative path.
+.claude/settings.local.json
+
