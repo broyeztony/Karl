@@ -1,0 +1,111 @@
+name: AI PR Review
+
+# Reviews every non-draft pull request with Claude. This is advisory: it posts
+# comments and never blocks a merge, so a false positive costs a reply rather
+# than a red check.
+#
+# Requires the AI_REVIEWER repository secret (an Anthropic API key). Without it
+# the job exits cleanly instead of failing, so forks and PRs from forks — where
+# secrets are not exposed — do not show a spurious failure.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+# A rapid follow-up push supersedes the review in flight. Each run costs real
+# API spend, so cancelling the stale one matters more here than in CI.
+concurrency:
+  group: ai-pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    name: Claude review
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Check for API key
+        id: guard
+        env:
+          AI_REVIEWER: ${{ secrets.AI_REVIEWER }}
+        run: |
+          if [ -z "$AI_REVIEWER" ]; then
+            echo "AI_REVIEWER secret is not available (fork PR, or not configured)." >> "$GITHUB_STEP_SUMMARY"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout code
+        if: steps.guard.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Review pull request
+        if: steps.guard.outputs.enabled == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.AI_REVIEWER }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request to Karl, a programming language
+            implemented in Go: lexer and token, parser, AST, tree-walking
+            evaluator, a DAP debugger under debugger/dap, a notebook runner,
+            and WASM builds including a spreadsheet frontend.
+
+            Read the diff with `gh pr diff`. Read the surrounding source of any
+            file the diff touches before judging it — a hunk that looks wrong in
+            isolation is often correct in context, and the reverse.
+
+            Prioritise, in this order:
+
+            1. Correctness. Logic errors, wrong operator precedence or
+               associativity in the parser, AST nodes constructed but never
+               evaluated, off-by-one errors in token positions, nil
+               dereferences, unhandled error returns.
+            2. Concurrency. The debugger and notebook runners share state across
+               goroutines. Look for data races on shared structs, channel sends
+               that can block forever, missing or inconsistent lock ordering,
+               and goroutines with no termination path. Static reading is the
+               only tool here, so reason explicitly about which goroutine
+               touches which field.
+            3. Language-semantics regressions. A change to evaluation order,
+               scoping, or error messages can silently break programs in
+               examples/ and SPECS/. Flag any behaviour change that the diff
+               does not also cover with a test.
+            4. Test coverage. Karl's suite is thorough; a behavioural change
+               arriving with no test in tests/ is worth raising on its own.
+
+            Do not comment on formatting, import ordering, or anything
+            golangci-lint already enforces in the CI workflow — that is noise on
+            top of a check the author has already seen.
+
+            Post specific, line-anchored findings as inline comments with
+            mcp__github_inline_comment__create_inline_comment, using
+            confirmed: true. Each one should name the concrete failure — the
+            input or interleaving that produces the wrong result — not a general
+            worry. Skip anything you cannot state that precisely.
+
+            Then post one summary with `gh pr comment`: what the PR does, the
+            findings ranked by severity, and an explicit verdict. If the change
+            is sound, say so plainly in a sentence or two and stop; padding a
+            clean review with minor observations trains people to skip reading
+            it. Never approve or request changes as a formal review — comments
+            only.
+
+            Report only what you verified by reading the code. If you were
+            unable to check something that matters, say which and why rather
+            than implying you covered it.
+          claude_args: |
+            --model claude-opus-5
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Grep,Glob"
