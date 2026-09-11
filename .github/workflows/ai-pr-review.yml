@@ -84,13 +84,23 @@ jobs:
             isolation is often correct in context, and the reverse.
 
             This workflow re-runs on every push, so you may not be the first
-            review on this PR. Run `gh pr view --comments` before writing
-            anything and read what previous runs already said. Do not raise a
-            finding that is still standing from an earlier run — inline comments
-            post immediately and are never retracted, so repeating one just
-            doubles it. If a previous finding has since been fixed, say so in
-            one line rather than restating it. If nothing has changed since the
-            last review that bears on your findings, say that and stop.
+            review on this PR. Before writing anything, run
+
+                gh pr view ${{ github.event.pull_request.number }} --comments
+
+            and read what previous runs said. Pass the number explicitly: the
+            checkout leaves a detached HEAD, so the no-argument form cannot
+            infer the PR and exits 1.
+
+            That command returns only top-level comments, not inline ones. So
+            treat the summaries as your record of what has already been raised —
+            when you post an inline finding, state it in the summary too, or the
+            next run has no way to know you raised it. Do not re-raise a finding
+            that is still standing; inline comments post immediately and are
+            never retracted, so repeating one just doubles it. Note in one line
+            any earlier finding that has since been fixed, rather than restating
+            it. If nothing has changed since the last review that bears on your
+            findings, say so and stop.
 
             Prioritise, in this order:
 
