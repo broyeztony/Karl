@@ -1,15 +1,28 @@
 {
-  "description": "GitNexus gate: the graph must be consulted before source files are read directly, and impact must run before a source edit. Enforced with deny decisions, not reminders.",
+  "description": "GitNexus gate: the graph must be consulted before source is read or searched, and impact must run before a source edit — through Bash as well as the dedicated tools. Enforced with deny decisions; unlock is recorded in PostToolUse so only calls that actually returned count.",
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Read|Edit|Write|NotebookEdit|Grep|Glob|Bash|mcp__gitnexus__.*",
+        "matcher": "Read|Edit|Write|Grep|Glob|Bash",
         "hooks": [
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gitnexus-gate.cjs\"",
             "timeout": 5,
             "statusMessage": "Checking GitNexus graph-first gate"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|mcp__gitnexus__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gitnexus-gate.cjs\"",
+            "timeout": 5,
+            "statusMessage": "Recording GitNexus graph consultation"
           }
         ]
       }
