@@ -12,11 +12,16 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
 
-# A rapid follow-up push supersedes the review in flight. Each run costs real
-# API spend, so cancelling the stale one matters more here than in CI.
+# Serialise reviews per PR, but let each one finish. Cancelling looks like the
+# cheaper choice and is actively harmful here: inline comments post mid-session
+# while the summary is the run's last action, so a cancelled run leaves its
+# findings on the PR and takes with it the only record the next run can read —
+# guaranteeing the duplicates the prompt's dedupe exists to prevent. Queuing
+# instead means run N+1 starts after run N's summary is posted and can see it.
+# Spend stays bounded by timeout-minutes below.
 concurrency:
   group: ai-pr-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
